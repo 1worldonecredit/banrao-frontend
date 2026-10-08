@@ -146,12 +146,12 @@ return (
             </button>
           </div>
 
-         {/* Forget Password */}
-<div style={{ textAlign: 'left', marginTop: '-5px', marginBottom: '10px' }}>
-  <Link to="/forgot-password" style={{ fontSize: '13px', color: '#e2e8f0', textDecoration: 'none', transition: '0.3s' }}>
-    Forget Password (ລືມລະຫັດຜ່ານ) ?
-  </Link>
-</div>
+          {/* Forget Password */}
+          <div style={{ textAlign: 'left', marginTop: '-10px' }}>
+            <Link to="/forgot-password" style={{ fontSize: '12px', color: '#ffffff', textDecoration: 'none' }}>
+              Forget Password ?
+            </Link>
+          </div>
 
           {loginError && (
             <div className="status-text text-red" style={{ textAlign: 'center', fontSize: '14px', color: '#f87171' }}>
