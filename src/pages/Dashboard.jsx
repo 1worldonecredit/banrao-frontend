@@ -93,7 +93,7 @@ const Dashboard = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {/* โลโก้จำลอง */}
             <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold', color: '#333' }}>
-              kinnon<span style={{color: '#e11d48'}}>.</span>
+              หมู่บ้าน<span style={{color: '#e11d48'}}>.</span>
             </h1>
             {/* Badge ระดับผู้ใช้งาน */}
             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', color: '#fbbf24', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
