@@ -85,7 +85,7 @@ return (
         {/* โลโก้ และข้อความต้อนรับ */}
         <div style={{ marginBottom: '40px', textAlign: 'center' }}>
           <h1 style={{ margin: '0 0 10px 0', fontSize: '28px', letterSpacing: '4px', fontWeight: 'bold', color: '#00e5ff' }}>
-            Kin non
+            บ้านเรา
           </h1>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'normal', color: '#00e5ff', letterSpacing: '1px' }}>
             Welcome Back
