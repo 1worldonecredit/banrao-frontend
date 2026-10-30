@@ -4,8 +4,9 @@ import BottomNavbar from '../components/BottomNavbar';
 import TopNavbar from '../components/TopNavbar';
 import { 
   Building2, Plane, Tent, Home,
-   Gift, Clock, 
-  Ticket, Percent, Utensils, MapPin ,ClipboardList, CalendarCheck, HardHat, Wrench, CarTaxiFront
+  Gift, Clock, 
+  Ticket, Percent, Utensils, MapPin, ClipboardList, CalendarCheck, HardHat, Wrench, CarTaxiFront,
+  Droplets, Activity, Map, ShieldCheck // เพิ่ม Icons ใหม่ที่ต้องใช้สำหรับเมนูตามสิทธิ์
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://apibooking.smartsoft.agency';
@@ -14,29 +15,48 @@ const Dashboard = () => {
   const navigate = useNavigate();
   
   const [userData, setUserData] = useState({});
+  const [userPermissions, setUserPermissions] = useState([]); // เพิ่มตัวแปรเก็บสิทธิ์
   const [wallet, setWallet] = useState({ balance: 0, points: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
   // กำหนดสกุลเงิน
   const currencySymbol = userData.currency_code === 'USD' ? '$' : '฿';
 
-// ==========================================
-  // ข้อมูล 4 หมวดหมู่หลัก (อัปเดตใหม่)
+  // ==========================================
+  // ข้อมูล 4 หมวดหมู่หลัก (โครงสร้างเดิม)
   // ==========================================
   const mainCategories = [
     { title: 'ที่พักทั้งหมด', icon: <Building2 size={40} color="#e11d48" />, bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', action: 'hotels' },
     { title: 'ร้านอาหารใกล้ฉัน', icon: <Utensils size={40} color="#7c3aed" />, bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', action: 'restaurants' },
     { title: 'ที่พักใกล้ฉัน', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-   { title: 'ห้องเช่ารายเดือน', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
+    { title: 'ห้องเช่ารายเดือน', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
   ];
 
-  const subServices = [
-    { title: 'ฌาปนกิจ หมู่บ้าน', icon: <ClipboardList size={24} color="#0284c7" />, action: 'orders' },
-    { title: 'ธนาคารชุมชน', icon: <CalendarCheck size={24} color="#0284c7" />, action: 'bookings' },
-    { title: 'ต้องการคนทำงาน', icon: <HardHat size={24} color="#0284c7" />, action: 'jobs' },
-    { title: 'ช่างซ่อมรถใกล้ฉัน', icon: <Wrench size={24} color="#0284c7" />, action: 'mechanics' },
-    { title: 'รถรับจ้าง', icon: <CarTaxiFront size={24} color="#0284c7" />, action: 'taxis' },
+  // ==========================================
+  // เมนูบริการย่อย (ปรับปรุงเพิ่มสิทธิ์ reqPerm)
+  // ==========================================
+  const allSubServices = [
+    // เมนูเดิม (ทุกคนมองเห็น)
+    { title: 'ฌาปนกิจ หมู่บ้าน', icon: <ClipboardList size={24} color="#0284c7" />, action: 'orders', reqPerm: null },
+    { title: 'ธนาคารชุมชน', icon: <CalendarCheck size={24} color="#0284c7" />, action: 'bookings', reqPerm: null },
+    
+    // เมนูใหม่ตามอาชีพ (ต้องมีสิทธิ์ถึงจะเห็น)
+    { title: 'เก็บค่าน้ำประปา', icon: <Droplets size={24} color="#0284c7" />, action: 'water-bill', reqPerm: 'MANAGE_WATER_BILL' },
+    { title: 'บันทึกสุขภาพ', icon: <Activity size={24} color="#e11d48" />, action: 'health-data', reqPerm: 'MANAGE_HEALTH_DATA' },
+    { title: 'แผนที่หมู่บ้าน', icon: , action: 'village-map', reqPerm: 'VIEW_VILLAGE_MAP' },
+    { title: 'มอบหมายงาน', icon: <ShieldCheck size={24} color="#ca8a04" />, action: 'assign-role', reqPerm: 'ASSIGN_VILLAGE_ROLE' },
+    
+    // เมนูเดิม (ทุกคนมองเห็น)
+    { title: 'ต้องการคนทำงาน', icon: <HardHat size={24} color="#0284c7" />, action: 'jobs', reqPerm: null },
+    { title: 'ช่างซ่อมรถใกล้ฉัน', icon: <Wrench size={24} color="#0284c7" />, action: 'mechanics', reqPerm: null },
+    { title: 'รถรับจ้าง', icon: <CarTaxiFront size={24} color="#0284c7" />, action: 'taxis', reqPerm: null },
   ];
+
+  // กรองเมนูให้เหลือเฉพาะที่ผู้ใช้มีสิทธิ์
+  const filteredSubServices = allSubServices.filter(sub => 
+    !sub.reqPerm || userPermissions.includes(sub.reqPerm)
+  );
+
   const welcomeGifts = [
     { title: 'รับส่วนลดสูงสุด 12%', subtitle: 'จองที่พักครั้งแรก', badge: 'รับสิทธิ์', icon: <Gift color="#ca8a04" /> },
     { title: 'ทดลองเป็นลูกค้า VIP', subtitle: 'รับส่วนลดสูงสุด 15%', badge: 'ใหม่', icon: <Percent color="#000" /> },
@@ -47,9 +67,6 @@ const Dashboard = () => {
     { title: 'พูลวิลล่า ธรรมชาติ', discount: 'ลด 53%', img: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=500&q=80' },
   ];
 
-  // ==========================================
-  // ดึงข้อมูลผู้ใช้และกระเป๋าเงิน
-  // ==========================================
   const fetchDashboardData = async (userId) => {
     setIsLoading(true);
     try {
@@ -71,6 +88,7 @@ const Dashboard = () => {
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUserData(parsedUser);
+      setUserPermissions(parsedUser.permissions || []); // โหลดสิทธิ์จาก localStorage
       userId = parsedUser.id || parsedUser.user_id; 
     }
     if (userId) fetchDashboardData(userId);
@@ -83,7 +101,6 @@ const Dashboard = () => {
 
   return (
     <div className="app-container" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-
       <TopNavbar />
       
       <div className="main-content" style={{ padding: '15px 20px 90px 20px', maxWidth: '500px', margin: '0 auto' }}>
@@ -91,17 +108,20 @@ const Dashboard = () => {
         {/* ================= Header Section ================= */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {/* โลโก้จำลอง */}
             <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold', color: '#333' }}>
               หมู่บ้าน<span style={{color: '#e11d48'}}>.</span>
             </h1>
-            {/* Badge ระดับผู้ใช้งาน */}
             <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', color: '#fbbf24', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
               ★ VIP <span style={{ color: '#fff', marginLeft: '4px' }}>{userData.level_name || 'Bronze'}</span>
             </div>
+            {/* เพิ่ม Badge อาชีพ (ถ้ามี) ไว้ข้างๆ VIP */}
+            {userData.occupation && (
+                <div style={{ backgroundColor: '#0284c7', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
+                    {userData.occupation}
+                </div>
+            )}
           </div>
 
-          {/* กระเป๋าเงิน / ยอดเงิน */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#dcfce7', padding: '6px 12px', borderRadius: '20px', color: '#166534', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
             <Ticket size={16} color="#16a34a" /> 
             <span>{currencySymbol} {isLoading ? '...' : formatCurrency(wallet.balance)}</span>
@@ -113,18 +133,12 @@ const Dashboard = () => {
           {mainCategories.map((cat, idx) => (
             <div 
               key={idx} 
-             onClick={() => {
-                if (cat.action === 'hotels') {
-                  navigate('/hotels');
-                } else if (cat.action === 'restaurants') {
-                  navigate('/restaurants');
-                } else if (cat.action === 'nearby_hotels') {
-                  navigate('/nearby-hotels');
-                } else if (cat.action === 'monthly_rentals') { // 🌟 เพิ่มเงื่อนไขนี้
-                  navigate('/monthly-rentals');
-                } else {
-                  alert(`กำลังพัฒนาระบบ: ${cat.title}`);
-                }
+              onClick={() => {
+                if (cat.action === 'hotels') navigate('/hotels');
+                else if (cat.action === 'restaurants') navigate('/restaurants');
+                else if (cat.action === 'nearby_hotels') navigate('/nearby-hotels');
+                else if (cat.action === 'monthly_rentals') navigate('/monthly-rentals');
+                else alert(`กำลังพัฒนาระบบ: ${cat.title}`);
               }}
               style={{ 
                 background: cat.bg, borderRadius: '16px', padding: '15px', 
@@ -142,17 +156,13 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* ================= เมนูบริการย่อย (Scroll แนวนอน) ================= */}
-       {/* ================= เมนูบริการย่อย ================= */}
+        {/* ================= เมนูบริการย่อย (ที่กรองตามสิทธิ์แล้ว) ================= */}
         <div style={{ display: 'flex', justifyContent: 'space-between', overflowX: 'auto', paddingBottom: '15px', marginBottom: '15px', gap: '10px', scrollbarWidth: 'none' }}>
-          {subServices.map((sub, idx) => (
+          {filteredSubServices.map((sub, idx) => (
             <div 
               key={idx} 
-              // 🌟 เพิ่ม onClick ตรงนี้เพื่อให้กดลิงก์ได้
               onClick={() => {
-                if (sub.action) {
-                  navigate(`/${sub.action}`);
-                }
+                if (sub.action) navigate(`/${sub.action}`);
               }}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '65px', cursor: 'pointer' }}
             >
@@ -168,7 +178,7 @@ const Dashboard = () => {
 
         <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '0 0 20px 0' }} />
 
-        {/* ================= ของขวัญต้อนรับลูกค้าใหม่ ================= */}
+        {/* ================= ของขวัญต้อนรับ และ Flash Sales (เหมือนเดิมทุกประการ) ================= */}
         <div style={{ marginBottom: '25px' }}>
           <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>ของขวัญต้อนรับลูกค้าใหม่ ^^</h3>
           <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
@@ -193,7 +203,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* ================= ลดราคาเวลาจำกัด ================= */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h3 style={{ margin: 0, fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>
@@ -222,7 +231,6 @@ const Dashboard = () => {
         </div>
 
       </div>
-      
       <BottomNavbar />
     </div>
   );
