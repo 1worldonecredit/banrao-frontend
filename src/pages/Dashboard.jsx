@@ -108,55 +108,62 @@ const Dashboard = () => {
       
       <div className="main-content" style={{ padding: '15px 20px 90px 20px', maxWidth: '500px', margin: '0 auto' }}>
         
-       {/* ================= Header Section ================= */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+       {/* ================= Header Section (Card Style) ================= */}
+        <div style={{ marginBottom: '25px' }}>
           
-          {/* ข้อมูลฝั่งซ้าย: โลโก้ และป้ายแสดงข้อมูลผู้ใช้ที่ดึงมา */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold', color: '#333' }}>
+          {/* แถวบน: โลโก้ และ กระเป๋าเงิน */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
               หมู่บ้าน<span style={{color: '#e11d48'}}>.</span>
             </h1>
-            
-            <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', color: '#fbbf24', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
-              ★ VIP <span style={{ color: '#fff', marginLeft: '4px' }}>{userData.level_name || 'Bronze'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#dcfce7', padding: '6px 12px', borderRadius: '20px', color: '#166534', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+              <Ticket size={16} color="#16a34a" /> 
+              <span>{currencySymbol} {isLoading ? '...' : formatCurrency(wallet.balance)}</span>
             </div>
-
-            {/* ----- จุดที่เพิ่มใหม่ เพื่อเช็คข้อมูลว่ามาครบไหม ----- */}
-            <div style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', color: '#334155', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
-              ID: {userData.id || '-'}
-            </div>
-            
-            <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
-              👤 {userData.firstName || 'ไม่มีชื่อ'} {userData.lastName || ''}
-            </div>
-            
-            <div style={{ backgroundColor: '#e0e7ff', color: '#3730a3', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
-              📞 {userData.username || 'ไม่มีเบอร์'}
-            </div>
-
-            {userData.occupation ? (
-                <div style={{ backgroundColor: '#0284c7', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' }}>
-                    🛠 {userData.occupation}
-                </div>
-            ) : (
-                <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
-                    ❌ ไม่มีอาชีพ
-                </div>
-            )}
-
-            <div style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
-              🔑 สิทธิ์: {userData.permissions ? userData.permissions.length : 0} รายการ
-            </div>
-            {/* ----------------------------------------------- */}
-            
           </div>
 
-          {/* ข้อมูลฝั่งขวา: กระเป๋าเงิน (คงเดิม) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#dcfce7', padding: '6px 12px', borderRadius: '20px', color: '#166534', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-            <Ticket size={16} color="#16a34a" /> 
-            <span>{currencySymbol} {isLoading ? '...' : formatCurrency(wallet.balance)}</span>
+          {/* แถวล่าง: แยก Card ข้อมูล 2 ฝั่ง */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px' }}>
+            
+            {/* --- Card 1: ข้อมูลผู้ใช้งาน --- */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', borderTop: '4px solid #3b82f6' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>👤 ข้อมูลผู้ใช้งาน</div>
+                <div style={{ backgroundColor: '#1e293b', color: '#fbbf24', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>
+                  ★ VIP {userData.level_name || 'Bronze'}
+                </div>
+              </div>
+              <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
+                <div><strong>ชื่อ-สกุล:</strong> {userData.firstName || '-'} {userData.lastName || ''}</div>
+                <div><strong>เบอร์โทรศัพท์:</strong> {userData.username || '-'}</div>
+                <div><strong>อาชีพ:</strong> {userData.occupation ? <span style={{ color: '#0284c7', fontWeight: 'bold' }}>{userData.occupation}</span> : <span style={{ color: '#ef4444' }}>ไม่มีข้อมูล</span>}</div>
+                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>ID: {userData.id || '-'}</div>
+              </div>
+            </div>
+
+            {/* --- Card 2: ข้อมูลหมู่บ้าน --- */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', borderTop: '4px solid #10b981' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>🏡 ข้อมูลหมู่บ้าน</div>
+                {userData.villageName ? (
+                   <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>อนุมัติแล้ว</div>
+                ) : (
+                   <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>รออนุมัติ</div>
+                )}
+              </div>
+              <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
+                <div><strong>ชื่อหมู่บ้าน:</strong> {userData.villageName || <span style={{ color: '#ef4444' }}>ยังไม่ผูกหมู่บ้าน</span>}</div>
+                <div><strong>ผู้ใหญ่บ้าน:</strong> {userData.headmanName || '-'}</div>
+                <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
+                  <span>📍</span>
+                  <span>ต.{userData.tambonName || '-'} อ.{userData.amphureName || '-'} จ.{userData.provinceName || '-'}</span>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
+        {/* ================= End Header Section ================= */}
 
         {/* ================= 4 หมวดหมู่หลัก (Grid) ================= */}
         <div className="services-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '25px' }}>
