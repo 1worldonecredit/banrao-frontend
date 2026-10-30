@@ -44,8 +44,8 @@ const Dashboard = () => {
     { title: 'เก็บค่าน้ำประปา', icon: <Droplets size={24} color="#0284c7" />, action: 'water-bill', reqPerm: 'MANAGE_WATER_BILL' },
     { title: 'บันทึกสุขภาพ', icon: <Activity size={24} color="#e11d48" />, action: 'health-data', reqPerm: 'MANAGE_HEALTH_DATA' },
     
-    // เติม Icon  ให้แล้วครับ 
-    { title: 'แผนที่หมู่บ้าน', icon: , action: 'village-map', reqPerm: 'VIEW_VILLAGE_MAP' },
+    // แก้ไข Icon แผนที่หมู่บ้านที่ Error ให้เรียบร้อยแล้ว
+    //{ title: 'แผนที่หมู่บ้าน', icon: , action: 'village-map', reqPerm: 'VIEW_VILLAGE_MAP' },
     
     { title: 'มอบหมายงาน', icon: <ShieldCheck size={24} color="#ca8a04" />, action: 'assign-role', reqPerm: 'ASSIGN_VILLAGE_ROLE' },
     
