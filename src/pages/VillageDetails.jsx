@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Users, Home, MapPin, User, Building } from 'lucide-react';
 
-const VillageDetails = () => {
+const villageDetails = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState({});
 
@@ -107,4 +107,4 @@ const VillageDetails = () => {
   );
 };
 
-export default VillageDetails;
+export default villageDetails;
