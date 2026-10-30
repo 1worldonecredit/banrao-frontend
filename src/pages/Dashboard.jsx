@@ -9,7 +9,7 @@ import {
   Droplets, Activity, Map, ShieldCheck 
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://apibooking.smartsoft.agency';
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 const Dashboard = () => {
   const navigate = useNavigate();
