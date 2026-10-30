@@ -108,7 +108,7 @@ const Dashboard = () => {
       
       <div className="main-content" style={{ padding: '15px 20px 90px 20px', maxWidth: '500px', margin: '0 auto' }}>
         
-       {/* ================= Header Section (Card Style) ================= */}
+        {/* ================= Header Section (Card Style) ================= */}
         <div style={{ marginBottom: '25px' }}>
           
           {/* แถวบน: โลโก้ และ กระเป๋าเงิน */}
@@ -135,48 +135,58 @@ const Dashboard = () => {
               </div>
               <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
                 <div><strong>ชื่อ-สกุล:</strong> {userData.firstName || '-'} {userData.lastName || ''}</div>
+                <div>
+                  <strong>เพศ:</strong> {userData.gender || '-'} | 
+                  <strong> อายุ:</strong> {userData.age_years || '0'} ปี {userData.age_months || '0'} เดือน {userData.age_days || '0'} วัน
+                </div>
                 <div><strong>เบอร์โทรศัพท์:</strong> {userData.username || '-'}</div>
                 <div><strong>อาชีพ:</strong> {userData.occupation ? <span style={{ color: '#0284c7', fontWeight: 'bold' }}>{userData.occupation}</span> : <span style={{ color: '#ef4444' }}>ไม่มีข้อมูล</span>}</div>
+                <div>
+                  <strong>บ้านเลขที่:</strong> {userData.house_no || '-'} | 
+                  <strong> จำนวนผู้อาศัย:</strong> {userData.household_member_count || '0'} คน
+                </div>
                 <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>ID: {userData.id || '-'}</div>
               </div>
             </div>
 
-           {/* --- Card 2: ข้อมูลหมู่บ้าน --- */}
-         <div 
-           onClick={() => navigate('/village-details')}
-           style={{ 
-             backgroundColor: '#ffffff', 
-             borderRadius: '12px', 
-             padding: '16px', 
-             boxShadow: '0 2px 10px rgba(0,0,0,0.05)', 
-             borderTop: '4px solid #10b981',
-             cursor: 'pointer',
-             transition: 'transform 0.2s ease-in-out'
-           }}
-           onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-           onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-         >
-           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-             <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>🏡 ข้อมูลหมู่บ้าน</div>
-             {userData.villageName ? (
-                <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>อนุมัติแล้ว</div>
-             ) : (
-                <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>รออนุมัติ</div>
-             )}
-           </div>
-           <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
-             <div><strong>ชื่อหมู่บ้าน:</strong> {userData.villageName || <span style={{ color: '#ef4444' }}>ยังไม่ผูกหมู่บ้าน</span>}</div>
-             <div><strong>ผู้ใหญ่บ้าน:</strong> {userData.headmanName || '-'}</div>
-             <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
-               <span>📍</span>
-               <span>ต.{userData.tambonName || '-'} อ.{userData.amphureName || '-'} จ.{userData.provinceName || '-'}</span>
-             </div>
-           </div>
-         </div>
+            {/* --- Card 2: ข้อมูลหมู่บ้าน --- */}
+            <div 
+              onClick={() => navigate('/village-details')}
+              style={{ 
+                backgroundColor: '#ffffff', 
+                borderRadius: '12px', 
+                padding: '16px', 
+                boxShadow: '0 2px 10px rgba(0,0,0,0.05)', 
+                borderTop: '4px solid #10b981',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease-in-out'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+              onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>🏡 ข้อมูลหมู่บ้าน</div>
+                {userData.villageName ? (
+                   <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>อนุมัติแล้ว</div>
+                ) : (
+                   <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>รออนุมัติ</div>
+                )}
+              </div>
+              <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
+                <div><strong>ชื่อหมู่บ้าน:</strong> {userData.villageName || <span style={{ color: '#ef4444' }}>ยังไม่ผูกหมู่บ้าน</span>}</div>
+                <div><strong>ผู้ใหญ่บ้าน:</strong> {userData.headmanName || '-'}</div>
+                <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
+                  <span>📍</span>
+                  <span>
+                    ต.{userData.tambonName || '-'} อ.{userData.amphureName || '-'} จ.{userData.provinceName || '-'}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-          </div>
-        </div>
-        {/* ================= End Header Section ================= */}
+          </div> {/* <--- ปิด grid ของแถวล่าง */}
+
+        </div> {/* 🔥 <--- จุดที่เพิ่มใหม่: ปิดกรอบ Header Section (Card Style) */}
 
         {/* ================= 4 หมวดหมู่หลัก (Grid) ================= */}
         <div className="services-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '25px' }}>
