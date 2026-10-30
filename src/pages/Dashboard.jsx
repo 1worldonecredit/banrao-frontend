@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import BottomNavbar from '../components/BottomNavbar';
 import TopNavbar from '../components/TopNavbar';
 import { 
   Building2, Plane, Tent, Home,
   Gift, Clock, 
   Ticket, Percent, Utensils, MapPin, ClipboardList, CalendarCheck, HardHat, Wrench, CarTaxiFront,
-  Droplets, Activity, Map, ShieldCheck 
+  Droplets, Activity, Map, ShieldCheck, Pencil
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   
   const [userData, setUserData] = useState({});
   const [userPermissions, setUserPermissions] = useState([]); 
@@ -36,26 +38,16 @@ const Dashboard = () => {
   // เมนูบริการย่อย (ปรับปรุงเพิ่มสิทธิ์ reqPerm)
   // ==========================================
   const allSubServices = [
-    // เมนูเดิม (ทุกคนมองเห็น)
     { title: 'ฌาปนกิจ หมู่บ้าน', icon: <ClipboardList size={24} color="#0284c7" />, action: 'orders', reqPerm: null },
     { title: 'ธนาคารชุมชน', icon: <CalendarCheck size={24} color="#0284c7" />, action: 'bookings', reqPerm: null },
-    
-    // เมนูใหม่ตามอาชีพ (ต้องมีสิทธิ์ถึงจะเห็น)
     { title: 'เก็บค่าน้ำประปา', icon: <Droplets size={24} color="#0284c7" />, action: 'water-bill', reqPerm: 'MANAGE_WATER_BILL' },
     { title: 'บันทึกสุขภาพ', icon: <Activity size={24} color="#e11d48" />, action: 'health-data', reqPerm: 'MANAGE_HEALTH_DATA' },
-    
-    // แก้ไข Icon แผนที่หมู่บ้านที่ Error ให้เรียบร้อยแล้ว
-    //{ title: 'แผนที่หมู่บ้าน', icon: , action: 'village-map', reqPerm: 'VIEW_VILLAGE_MAP' },
-    
     { title: 'มอบหมายงาน', icon: <ShieldCheck size={24} color="#ca8a04" />, action: 'assign-role', reqPerm: 'ASSIGN_VILLAGE_ROLE' },
-    
-    // เมนูเดิม (ทุกคนมองเห็น)
     { title: 'ต้องการคนทำงาน', icon: <HardHat size={24} color="#0284c7" />, action: 'jobs', reqPerm: null },
     { title: 'ช่างซ่อมรถใกล้ฉัน', icon: <Wrench size={24} color="#0284c7" />, action: 'mechanics', reqPerm: null },
     { title: 'รถรับจ้าง', icon: <CarTaxiFront size={24} color="#0284c7" />, action: 'taxis', reqPerm: null },
   ];
 
-  // กรองเมนูให้เหลือเฉพาะที่ผู้ใช้มีสิทธิ์
   const filteredSubServices = allSubServices.filter(sub => 
     !sub.reqPerm || userPermissions.includes(sub.reqPerm)
   );
@@ -86,13 +78,13 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('userData');
+    const storedUser = localStorage.getItem('userData'); // ตรวจสอบว่าในระบบคุณใช้ userData หรือ user
     let userId = null;
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUserData(parsedUser);
-      setUserPermissions(parsedUser.permissions || []); // โหลดสิทธิ์จาก localStorage
-      userId = parsedUser.id || parsedUser.user_id; 
+      setUserPermissions(parsedUser.permissions || []);
+      userId = parsedUser.id || parsedUser.user_id || parsedUser.account_id; 
     }
     if (userId) fetchDashboardData(userId);
     else setIsLoading(false);
@@ -102,7 +94,53 @@ const Dashboard = () => {
     return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
   };
 
- return (
+  // ==========================================
+  // ฟังก์ชันจัดการอัปโหลดรูปภาพ
+  // ==========================================
+  const triggerImageSelect = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('profileImage', file);
+    formData.append('userId', userData.id || userData.account_id); // ปรับตามฟิลด์ ID ของคุณ
+
+    try {
+      console.log('กำลังอัปโหลดรูปภาพ...');
+      
+      // ดึง token เพื่อส่งไปยืนยันสิทธิ์
+      const token = localStorage.getItem('token');
+      
+      // ส่งไปที่ API อัปโหลดรูปของคุณ
+      const response = await axios.post(`${API_URL}/api/upload-profile`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data && response.data.imageUrl) {
+        // อัปเดตรูปใหม่ในหน้าจอทันที
+        setUserData(prev => {
+            const updatedData = { ...prev, userImage: response.data.imageUrl };
+            // อัปเดตใน LocalStorage เพื่อให้จำรูปใหม่ตอนรีเฟรช
+            localStorage.setItem('userData', JSON.stringify(updatedData));
+            return updatedData;
+        });
+        alert('อัปโหลดรูปลงระบบสำเร็จ!');
+      }
+
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ โปรดลองอีกครั้ง');
+    }
+  };
+
+  return (
     <div className="app-container" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       <TopNavbar />
       
@@ -123,7 +161,6 @@ const Dashboard = () => {
           </div>
 
           {/* แถวล่าง: แยก Card ข้อมูล 2 ฝั่ง */}
-          {/* แถวล่าง: แยก Card ข้อมูล 2 ฝั่ง */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px' }}>
             
             {/* --- Card 1: ข้อมูลผู้ใช้งาน --- */}
@@ -137,11 +174,32 @@ const Dashboard = () => {
               
               {/* ส่วนเนื้อหาจัด Flex ให้มีรูปด้านซ้าย */}
               <div style={{ display: 'flex', gap: '15px' }}>
-                <img 
-                  src={userData.userImage} 
-                  alt="User Profile" 
-                  style={{ width: '65px', height: '65px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0', flexShrink: 0 }} 
+                
+                {/* 1. Input สำหรับเลือกรูปภาพ (ซ่อนไว้) */}
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  ref={fileInputRef} 
+                  style={{ display: 'none' }} 
+                  onChange={handleImageUpload} 
                 />
+
+                {/* 2. รูปโปรไฟล์ที่คลิกได้ */}
+                <div 
+                  onClick={triggerImageSelect} 
+                  style={{ cursor: 'pointer', position: 'relative', width: '65px', height: '65px', flexShrink: 0 }}
+                >
+                  <img 
+                    src={userData.userImage || '/profile-img.jpg'} 
+                    alt="User Profile" 
+                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0' }} 
+                  />
+                  {/* ไอคอนดินสอเล็กๆ ซ้อนบนรูปให้รู้ว่าเปลี่ยนได้ */}
+                  <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#ffffff', borderRadius: '50%', padding: '4px', border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                    <Pencil size={12} color="#475569" />
+                  </div>
+                </div>
+
                 <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8', flex: 1 }}>
                   <div><strong>ชื่อ-สกุล:</strong> {userData.firstName || '-'} {userData.lastName || ''}</div>
                   <div>
@@ -185,7 +243,7 @@ const Dashboard = () => {
               {/* ส่วนเนื้อหาจัด Flex ให้มีรูปผู้ใหญ่บ้านด้านซ้าย */}
               <div style={{ display: 'flex', gap: '15px' }}>
                 <img 
-                  src={userData.headmanImage} 
+                  src={userData.headmanImage || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80'} 
                   alt="Headman Profile" 
                   style={{ width: '65px', height: '65px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0', flexShrink: 0 }} 
                 />
