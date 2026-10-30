@@ -19,7 +19,7 @@ import Mechanics from './pages/Mechanics';
 import Taxis from './pages/Taxis';
 import PostVedio from './pages/PostVedio';
 import Profile from './pages/Profile';
-import VillageDetails from './pages/VillageDetails';
+import VillageDetails from './pages/villageDetails';
 
 function App() {
   return (
