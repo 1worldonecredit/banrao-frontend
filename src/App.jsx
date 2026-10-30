@@ -19,7 +19,7 @@ import Mechanics from './pages/Mechanics';
 import Taxis from './pages/Taxis';
 import PostVedio from './pages/PostVedio';
 import Profile from './pages/Profile';
-import VillageDetails from './pages/villageDetails';
+import villageDetails from './pages/villageDetails';
 
 function App() {
   return (
@@ -48,7 +48,7 @@ function App() {
             <Route path="/taxis" element={<Taxis />} />
             <Route path="/post-vedio" element={<PostVedio />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/village-details" element={<VillageDetails />} />
+            <Route path="/village-details" element={<villageDetails />} />
           </Routes>
         </div>
       </div>
