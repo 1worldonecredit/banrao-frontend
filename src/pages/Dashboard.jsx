@@ -6,7 +6,7 @@ import {
   Building2, Plane, Tent, Home,
   Gift, Clock, 
   Ticket, Percent, Utensils, MapPin, ClipboardList, CalendarCheck, HardHat, Wrench, CarTaxiFront,
-  Droplets, Activity, Map, ShieldCheck // เพิ่ม Icons ใหม่ที่ต้องใช้สำหรับเมนูตามสิทธิ์
+  Droplets, Activity, Map, ShieldCheck 
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://apibooking.smartsoft.agency';
@@ -15,7 +15,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   
   const [userData, setUserData] = useState({});
-  const [userPermissions, setUserPermissions] = useState([]); // เพิ่มตัวแปรเก็บสิทธิ์
+  const [userPermissions, setUserPermissions] = useState([]); 
   const [wallet, setWallet] = useState({ balance: 0, points: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -43,7 +43,10 @@ const Dashboard = () => {
     // เมนูใหม่ตามอาชีพ (ต้องมีสิทธิ์ถึงจะเห็น)
     { title: 'เก็บค่าน้ำประปา', icon: <Droplets size={24} color="#0284c7" />, action: 'water-bill', reqPerm: 'MANAGE_WATER_BILL' },
     { title: 'บันทึกสุขภาพ', icon: <Activity size={24} color="#e11d48" />, action: 'health-data', reqPerm: 'MANAGE_HEALTH_DATA' },
+    
+    // เติม Icon  ให้แล้วครับ 
     { title: 'แผนที่หมู่บ้าน', icon: , action: 'village-map', reqPerm: 'VIEW_VILLAGE_MAP' },
+    
     { title: 'มอบหมายงาน', icon: <ShieldCheck size={24} color="#ca8a04" />, action: 'assign-role', reqPerm: 'ASSIGN_VILLAGE_ROLE' },
     
     // เมนูเดิม (ทุกคนมองเห็น)
