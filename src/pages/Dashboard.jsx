@@ -102,7 +102,7 @@ const Dashboard = () => {
     return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
   };
 
-  return (
+ return (
     <div className="app-container" style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       <TopNavbar />
       
@@ -136,8 +136,11 @@ const Dashboard = () => {
               <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
                 <div><strong>ชื่อ-สกุล:</strong> {userData.firstName || '-'} {userData.lastName || ''}</div>
                 <div>
-                  <strong>เพศ:</strong> {userData.gender || '-'} | 
-                  <strong> อายุ:</strong> {userData.age_years || '0'} ปี {userData.age_months || '0'} เดือน {userData.age_days || '0'} วัน
+                  <strong>เกิดวัน:</strong> {userData.birthDayName || '-'} | 
+                  <strong> เพศ:</strong> {userData.gender || '-'} 
+                </div>
+                <div>
+                  <strong>อายุ:</strong> {userData.age_years || '0'} ปี {userData.age_months || '0'} เดือน {userData.age_days || '0'} วัน
                 </div>
                 <div><strong>เบอร์โทรศัพท์:</strong> {userData.username || '-'}</div>
                 <div><strong>อาชีพ:</strong> {userData.occupation ? <span style={{ color: '#0284c7', fontWeight: 'bold' }}>{userData.occupation}</span> : <span style={{ color: '#ef4444' }}>ไม่มีข้อมูล</span>}</div>
@@ -184,9 +187,8 @@ const Dashboard = () => {
               </div>
             </div>
 
-          </div> {/* <--- ปิด grid ของแถวล่าง */}
-
-        </div> {/* 🔥 <--- จุดที่เพิ่มใหม่: ปิดกรอบ Header Section (Card Style) */}
+          </div> {/* ปิด div grid */}
+        </div> {/* ปิด div Header Section */}
 
         {/* ================= 4 หมวดหมู่หลัก (Grid) ================= */}
         <div className="services-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '25px' }}>
@@ -238,7 +240,7 @@ const Dashboard = () => {
 
         <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '0 0 20px 0' }} />
 
-        {/* ================= ของขวัญต้อนรับ และ Flash Sales (เหมือนเดิมทุกประการ) ================= */}
+        {/* ================= ของขวัญต้อนรับ และ Flash Sales ================= */}
         <div style={{ marginBottom: '25px' }}>
           <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>ของขวัญต้อนรับลูกค้าใหม่ ^^</h3>
           <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
