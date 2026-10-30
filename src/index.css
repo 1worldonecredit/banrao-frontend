@@ -276,7 +276,7 @@ html, body {
    การ์ดกระเป๋าเงินรวม (แก้ไขความสูงและดันข้อความลงล่างสุด)
 ========================================= */
 .unified-wallet-card {
-  background-image: url('/WalletCard.jpg') !important; 
+  
   background-size: cover !important;
   background-position: center top !important; 
   border-radius: 20px !important;
