@@ -123,6 +123,7 @@ const Dashboard = () => {
           </div>
 
           {/* แถวล่าง: แยก Card ข้อมูล 2 ฝั่ง */}
+          {/* แถวล่าง: แยก Card ข้อมูล 2 ฝั่ง */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px' }}>
             
             {/* --- Card 1: ข้อมูลผู้ใช้งาน --- */}
@@ -133,22 +134,27 @@ const Dashboard = () => {
                   ★ VIP {userData.level_name || 'Bronze'}
                 </div>
               </div>
-              <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
-                <div><strong>ชื่อ-สกุล:</strong> {userData.firstName || '-'} {userData.lastName || ''}</div>
-                <div>
-                  <strong>เกิดวัน:</strong> {userData.birthDayName || '-'} | 
-                  <strong> เพศ:</strong> {userData.gender || '-'} 
+              
+              {/* ส่วนเนื้อหาจัด Flex ให้มีรูปด้านซ้าย */}
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <img 
+                  src={userData.userImage} 
+                  alt="User Profile" 
+                  style={{ width: '65px', height: '65px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0', flexShrink: 0 }} 
+                />
+                <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8', flex: 1 }}>
+                  <div><strong>ชื่อ-สกุล:</strong> {userData.firstName || '-'} {userData.lastName || ''}</div>
+                  <div>
+                    <strong>เกิดวัน:</strong> {userData.birthDayName || '-'} | 
+                    <strong> เพศ:</strong> {userData.gender || '-'} 
+                  </div>
+                  <div>
+                    <strong>อายุ:</strong> {userData.age_years || '0'} ปี {userData.age_months || '0'} เดือน {userData.age_days || '0'} วัน
+                  </div>
+                  <div><strong>เบอร์:</strong> {userData.username || '-'}</div>
+                  <div><strong>บ้านเลขที่:</strong> {userData.house_no || '-'} | <strong>ผู้อาศัย:</strong> {userData.household_member_count || '0'} คน</div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>ID: {userData.id || '-'}</div>
                 </div>
-                <div>
-                  <strong>อายุ:</strong> {userData.age_years || '0'} ปี {userData.age_months || '0'} เดือน {userData.age_days || '0'} วัน
-                </div>
-                <div><strong>เบอร์โทรศัพท์:</strong> {userData.username || '-'}</div>
-                <div><strong>อาชีพ:</strong> {userData.occupation ? <span style={{ color: '#0284c7', fontWeight: 'bold' }}>{userData.occupation}</span> : <span style={{ color: '#ef4444' }}>ไม่มีข้อมูล</span>}</div>
-                <div>
-                  <strong>บ้านเลขที่:</strong> {userData.house_no || '-'} | 
-                  <strong> จำนวนผู้อาศัย:</strong> {userData.household_member_count || '0'} คน
-                </div>
-                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>ID: {userData.id || '-'}</div>
               </div>
             </div>
 
@@ -175,14 +181,21 @@ const Dashboard = () => {
                    <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>รออนุมัติ</div>
                 )}
               </div>
-              <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
-                <div><strong>ชื่อหมู่บ้าน:</strong> {userData.villageName || <span style={{ color: '#ef4444' }}>ยังไม่ผูกหมู่บ้าน</span>}</div>
-                <div><strong>ผู้ใหญ่บ้าน:</strong> {userData.headmanName || '-'}</div>
-                <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
-                  <span>📍</span>
-                  <span>
-                    ต.{userData.tambonName || '-'} อ.{userData.amphureName || '-'} จ.{userData.provinceName || '-'}
-                  </span>
+              
+              {/* ส่วนเนื้อหาจัด Flex ให้มีรูปผู้ใหญ่บ้านด้านซ้าย */}
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <img 
+                  src={userData.headmanImage} 
+                  alt="Headman Profile" 
+                  style={{ width: '65px', height: '65px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0', flexShrink: 0 }} 
+                />
+                <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8', flex: 1 }}>
+                  <div><strong>ชื่อหมู่บ้าน:</strong> {userData.villageName || <span style={{ color: '#ef4444' }}>ยังไม่ผูกหมู่บ้าน</span>}</div>
+                  <div><strong>ผู้ใหญ่บ้าน:</strong> {userData.headmanName || '-'}</div>
+                  <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
+                    <span style={{ marginTop: '2px' }}>📍</span>
+                    <span>ต.{userData.tambonName || '-'} อ.{userData.amphureName || '-'} จ.{userData.provinceName || '-'}</span>
+                  </div>
                 </div>
               </div>
             </div>
