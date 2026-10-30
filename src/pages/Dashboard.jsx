@@ -26,7 +26,7 @@ const Dashboard = () => {
   // ข้อมูล 4 หมวดหมู่หลัก (โครงสร้างเดิม)
   // ==========================================
   const mainCategories = [
-    { title: 'ที่พักทั้งหมด', icon: <Building2 size={40} color="#e11d48" />, bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', action: 'hotels' },
+    { title: 'จำนวนประชาการทั้งหมด', icon: <Building2 size={40} color="#e11d48" />, bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', action: 'hotels' },
     { title: 'ร้านอาหารใกล้ฉัน', icon: <Utensils size={40} color="#7c3aed" />, bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', action: 'restaurants' },
     { title: 'ที่พักใกล้ฉัน', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
     { title: 'ห้องเช่ารายเดือน', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
@@ -141,25 +141,38 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* --- Card 2: ข้อมูลหมู่บ้าน --- */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', borderTop: '4px solid #10b981' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>🏡 ข้อมูลหมู่บ้าน</div>
-                {userData.villageName ? (
-                   <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>อนุมัติแล้ว</div>
-                ) : (
-                   <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>รออนุมัติ</div>
-                )}
-              </div>
-              <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
-                <div><strong>ชื่อหมู่บ้าน:</strong> {userData.villageName || <span style={{ color: '#ef4444' }}>ยังไม่ผูกหมู่บ้าน</span>}</div>
-                <div><strong>ผู้ใหญ่บ้าน:</strong> {userData.headmanName || '-'}</div>
-                <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
-                  <span>📍</span>
-                  <span>ต.{userData.tambonName || '-'} อ.{userData.amphureName || '-'} จ.{userData.provinceName || '-'}</span>
-                </div>
-              </div>
-            </div>
+           {/* --- Card 2: ข้อมูลหมู่บ้าน --- */}
+         <div 
+           onClick={() => navigate('/village-details')}
+           style={{ 
+             backgroundColor: '#ffffff', 
+             borderRadius: '12px', 
+             padding: '16px', 
+             boxShadow: '0 2px 10px rgba(0,0,0,0.05)', 
+             borderTop: '4px solid #10b981',
+             cursor: 'pointer',
+             transition: 'transform 0.2s ease-in-out'
+           }}
+           onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+           onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+         >
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+             <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>🏡 ข้อมูลหมู่บ้าน</div>
+             {userData.villageName ? (
+                <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>อนุมัติแล้ว</div>
+             ) : (
+                <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>รออนุมัติ</div>
+             )}
+           </div>
+           <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
+             <div><strong>ชื่อหมู่บ้าน:</strong> {userData.villageName || <span style={{ color: '#ef4444' }}>ยังไม่ผูกหมู่บ้าน</span>}</div>
+             <div><strong>ผู้ใหญ่บ้าน:</strong> {userData.headmanName || '-'}</div>
+             <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
+               <span>📍</span>
+               <span>ต.{userData.tambonName || '-'} อ.{userData.amphureName || '-'} จ.{userData.provinceName || '-'}</span>
+             </div>
+           </div>
+         </div>
 
           </div>
         </div>

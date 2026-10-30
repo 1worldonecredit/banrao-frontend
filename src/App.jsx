@@ -19,6 +19,7 @@ import Mechanics from './pages/Mechanics';
 import Taxis from './pages/Taxis';
 import PostVedio from './pages/PostVedio';
 import Profile from './pages/Profile';
+import VillageDetails from './pages/VillageDetails';
 
 function App() {
   return (
@@ -36,8 +37,8 @@ function App() {
             <Route path="/team" element={<Team />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/shop" element={<Shop />} />
-             <Route path="/media" element={<Media />} />
-             <Route path="/restaurants" element={<Restaurants />} />
+            <Route path="/media" element={<Media />} />
+            <Route path="/restaurants" element={<Restaurants />} />
             <Route path="/nearby-hotels" element={<NearbyHotels />} />
             <Route path="/monthly-rentals" element={<MonthlyRentals />} />
             <Route path="/orders" element={<Orders />} />
@@ -47,6 +48,7 @@ function App() {
             <Route path="/taxis" element={<Taxis />} />
             <Route path="/post-vedio" element={<PostVedio />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/village-details" element={<VillageDetails />} />
           </Routes>
         </div>
       </div>
