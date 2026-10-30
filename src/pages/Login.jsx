@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import { API_URL } from '../config'; 
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
+//const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 const Login = () => {
   const { t } = useTranslation();
