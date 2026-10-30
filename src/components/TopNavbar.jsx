@@ -60,7 +60,7 @@ const TopNavbar = () => {
             <Menu size={24} />
           </button>
           
-          <h2 className="nav-logo" onClick={() => navigate('/')}>KIN NON</h2>
+          <h2 className="nav-logo" onClick={() => navigate('/')}>BAN RAO</h2>
          
         </div>
 

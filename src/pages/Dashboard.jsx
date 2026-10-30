@@ -31,8 +31,8 @@ const Dashboard = () => {
   ];
 
   const subServices = [
-    { title: 'ออร์เดอร์', icon: <ClipboardList size={24} color="#0284c7" />, action: 'orders' },
-    { title: 'การจอง', icon: <CalendarCheck size={24} color="#0284c7" />, action: 'bookings' },
+    { title: 'ฌาปนกิจ หมู่บ้าน', icon: <ClipboardList size={24} color="#0284c7" />, action: 'orders' },
+    { title: 'ธนาคารชุมชน', icon: <CalendarCheck size={24} color="#0284c7" />, action: 'bookings' },
     { title: 'ต้องการคนทำงาน', icon: <HardHat size={24} color="#0284c7" />, action: 'jobs' },
     { title: 'ช่างซ่อมรถใกล้ฉัน', icon: <Wrench size={24} color="#0284c7" />, action: 'mechanics' },
     { title: 'รถรับจ้าง', icon: <CarTaxiFront size={24} color="#0284c7" />, action: 'taxis' },
