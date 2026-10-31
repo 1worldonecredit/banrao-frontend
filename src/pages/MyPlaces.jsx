@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Store, Clock, CheckCircle2, XCircle, Edit, Plus, ArrowLeft } from 'lucide-react';
+import TopNavbar from '../components/TopNavbar';
+import BottomNavbar from '../components/BottomNavbar';
 
 const MyPlaces = () => {
   const navigate = useNavigate();
@@ -31,6 +33,9 @@ const MyPlaces = () => {
   };
 
   return (
+
+    <>
+    <TopNavbar />
     <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', padding: '20px', paddingBottom: '80px', fontFamily: 'sans-serif' }}>
       
       {/* Header */}
@@ -104,6 +109,10 @@ const MyPlaces = () => {
         </div>
       )}
     </div>
+
+    {/* 🌟 แถบเมนูด้านล่าง */}
+      <BottomNavbar />
+    </>
   );
 };
 
