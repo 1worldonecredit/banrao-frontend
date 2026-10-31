@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, Settings, Package, Image as ImageIcon, Plus, Save } from 'lucide-react';
+import { ArrowLeft, Settings, Package, Image as ImageIcon, Plus, Save, ImagePlus, X } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
@@ -12,7 +12,9 @@ const EditPlace = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
-  // State สำหรับเก็บข้อมูลฟอร์ม
+  // ----------------------------------------------------
+  // State: แท็บ 1 (แก้ไขข้อมูล)
+  // ----------------------------------------------------
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,9 +24,21 @@ const EditPlace = () => {
   const [closeTime, setCloseTime] = useState('17:00');
   const [daysOff, setDaysOff] = useState([]);
 
-  // ดึงข้อมูลเดิมเมื่อเปิดหน้า
+  // ----------------------------------------------------
+  // State: แท็บ 2 (สินค้าและบริการ)
+  // ----------------------------------------------------
+  const [products, setProducts] = useState([]);
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [newProduct, setNewProduct] = useState({ product_name: '', price: '', description: '' });
+  const [productImageFile, setProductImageFile] = useState(null);
+  const [productPreviewUrl, setProductPreviewUrl] = useState('');
+
+  // ----------------------------------------------------
+  // โหลดข้อมูลเมื่อเปิดหน้า
+  // ----------------------------------------------------
   useEffect(() => {
     fetchPlaceDetail();
+    fetchProducts();
   }, [id]);
 
   const fetchPlaceDetail = async () => {
@@ -47,15 +61,24 @@ const EditPlace = () => {
       }
     } catch (error) {
       console.error("Error fetching detail:", error);
-      alert('ไม่สามารถดึงข้อมูลร้านได้');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const fetchProducts = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/community-places/${id}/products`);
+      if (res.data.success) setProducts(res.data.data);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    }
+  };
 
-  // ฟังก์ชันบันทึกข้อมูลแก้ไข
+  // ----------------------------------------------------
+  // Functions: แท็บ 1
+  // ----------------------------------------------------
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleUpdateInfo = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -70,6 +93,64 @@ const EditPlace = () => {
     } catch (error) {
       console.error("Update Error:", error);
       alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    }
+    setIsSaving(false);
+  };
+
+  // ----------------------------------------------------
+  // Functions: แท็บ 2
+  // ----------------------------------------------------
+  const handleProductChange = (e) => setNewProduct({ ...newProduct, [e.target.name]: e.target.value });
+  
+  const handleProductImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProductImageFile(file);
+      setProductPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleAddProduct = async (e) => {
+    e.preventDefault();
+    if (!newProduct.product_name) return alert("กรุณาใส่ชื่อสินค้า");
+    
+    setIsSaving(true);
+    try {
+      let finalImageUrl = '';
+      
+      // 1. อัปโหลดรูปสินค้าขึ้น Cloudflare ก่อน (ถ้ามีการเลือกรูป)
+      if (productImageFile) {
+        const imgForm = new FormData();
+        imgForm.append('image', productImageFile);
+        const uploadRes = await axios.post(`${API_URL}/api/upload-image`, imgForm, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        if (uploadRes.data.success) {
+          finalImageUrl = uploadRes.data.imageUrl;
+        }
+      }
+
+      // 2. บันทึกข้อมูลสินค้าลง Database
+      const payload = {
+        product_name: newProduct.product_name,
+        price: newProduct.price,
+        description: newProduct.description,
+        image_url: finalImageUrl
+      };
+
+      const res = await axios.post(`${API_URL}/api/community-places/${id}/products`, payload);
+      
+      if (res.data.success) {
+        alert("เพิ่มสินค้าสำเร็จ!");
+        setIsAddingProduct(false); // ปิดฟอร์ม
+        setNewProduct({ product_name: '', price: '', description: '' }); // ล้างค่า
+        setProductImageFile(null);
+        setProductPreviewUrl('');
+        fetchProducts(); // โหลดรายการสินค้าใหม่มาแสดง
+      }
+    } catch (error) {
+      console.error(error);
+      alert("เพิ่มสินค้าไม่สำเร็จ กรุณาลองใหม่");
     }
     setIsSaving(false);
   };
@@ -94,7 +175,7 @@ const EditPlace = () => {
           </button>
           <div style={{ overflow: 'hidden' }}>
             <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>จัดการร้านค้า / สถานที่</h2>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7 }}>รหัส: {id}</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.7, whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>รหัส: {id}</p>
           </div>
         </div>
 
@@ -107,12 +188,13 @@ const EditPlace = () => {
 
         <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', minHeight: '300px' }}>
            
-           {/* แท็บที่ 1: แก้ไขข้อมูล */}
+           {/* ======================================= */}
+           {/* แท็บที่ 1: แก้ไขข้อมูลทั่วไป */}
+           {/* ======================================= */}
            {activeTab === 'info' && (
               isLoading ? <div style={{textAlign: 'center', padding: '20px'}}>กำลังโหลดข้อมูล...</div> :
               <form onSubmit={handleUpdateInfo}>
                 <h3 style={{marginTop: 0, color: '#1e293b', marginBottom: '20px'}}>แก้ไขข้อมูลทั่วไป</h3>
-                
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', marginBottom: '6px', color: '#475569', fontWeight: 'bold' }}>ชื่อสถานที่ / ชื่อร้าน *</label>
@@ -138,24 +220,97 @@ const EditPlace = () => {
               </form>
            )}
 
+           {/* ======================================= */}
            {/* แท็บที่ 2: สินค้าและเมนู */}
+           {/* ======================================= */}
            {activeTab === 'menu' && (
               <div>
-                <h3 style={{marginTop: 0, color: '#1e293b'}}>รายการสินค้า</h3>
-                <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '12px', border: '2px dashed #cbd5e1' }}>
-                  <Package size={40} style={{ opacity: 0.5, marginBottom: '10px' }} />
-                  <p style={{ margin: 0 }}>ยังไม่มีรายการสินค้าในร้านนี้ (กำลังพัฒนา...)</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{margin: 0, color: '#1e293b'}}>รายการสินค้าและบริการ</h3>
+                  {!isAddingProduct && (
+                    <button onClick={() => setIsAddingProduct(true)} style={{display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 12px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold'}}>
+                      <Plus size={16} /> เพิ่มสินค้า
+                    </button>
+                  )}
                 </div>
+
+                {/* ฟอร์มเพิ่มสินค้าใหม่ */}
+                {isAddingProduct && (
+                  <form onSubmit={handleAddProduct} style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+                    <h4 style={{ margin: '0 0 15px 0', color: '#334155' }}>เพิ่มสินค้าใหม่</h4>
+                    
+                    {/* อัปโหลดรูปสินค้า */}
+                    <div style={{ marginBottom: '15px' }}>
+                      <div style={{ position: 'relative', width: '100px', height: '100px', backgroundColor: '#fff', borderRadius: '12px', border: '2px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer' }}
+                           onClick={() => document.getElementById('product-image-upload').click()}>
+                        {productPreviewUrl ? (
+                          <>
+                            <img src={productPreviewUrl} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <div style={{ position: 'absolute', top: '4px', right: '4px', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '2px' }} onClick={(e) => { e.stopPropagation(); setProductPreviewUrl(''); setProductImageFile(null); }}>
+                              <X size={14} color="#fff" />
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ textAlign: 'center', color: '#94a3b8' }}>
+                            <ImagePlus size={24} style={{ margin: '0 auto' }} />
+                            <div style={{ fontSize: '10px', marginTop: '4px' }}>รูปสินค้า</div>
+                          </div>
+                        )}
+                        <input type="file" id="product-image-upload" accept="image/*" onChange={handleProductImageChange} style={{ display: 'none' }} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <input required type="text" name="product_name" value={newProduct.product_name} onChange={handleProductChange} placeholder="ชื่อสินค้า/เมนู *" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                      <input type="number" name="price" value={newProduct.price} onChange={handleProductChange} placeholder="ราคา (บาท)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                      <input type="text" name="description" value={newProduct.description} onChange={handleProductChange} placeholder="รายละเอียดสั้นๆ (ถ้ามี)" style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                      <button type="button" onClick={() => setIsAddingProduct(false)} style={{ flex: 1, padding: '10px', backgroundColor: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>ยกเลิก</button>
+                      <button disabled={isSaving} type="submit" style={{ flex: 1, padding: '10px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: isSaving ? 'not-allowed' : 'pointer' }}>
+                        {isSaving ? '⏳ บันทึก...' : '✅ บันทึกสินค้า'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* รายการสินค้าที่มีอยู่ */}
+                {products.length === 0 && !isAddingProduct ? (
+                  <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '12px', border: '2px dashed #cbd5e1' }}>
+                    <Package size={40} style={{ opacity: 0.5, marginBottom: '10px' }} />
+                    <p style={{ margin: 0 }}>ยังไม่มีรายการสินค้าในร้านนี้</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '15px' }}>
+                    {products.map(p => (
+                       <div key={p.product_id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                          <div style={{ width: '100%', height: '120px', backgroundColor: '#f1f5f9' }}>
+                            {p.image_url ? 
+                              <img src={p.image_url} alt={p.product_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> :
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package color="#cbd5e1" /></div>
+                            }
+                          </div>
+                          <div style={{ padding: '10px' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.product_name}</div>
+                            <div style={{ fontSize: '13px', color: '#10b981', fontWeight: 'bold' }}>{p.price > 0 ? `฿${p.price}` : 'ฟรี'}</div>
+                          </div>
+                       </div>
+                    ))}
+                  </div>
+                )}
               </div>
            )}
 
+           {/* ======================================= */}
            {/* แท็บที่ 3: แกลลอรี่รูปภาพ */}
+           {/* ======================================= */}
            {activeTab === 'gallery' && (
               <div>
                 <h3 style={{marginTop: 0, color: '#1e293b'}}>รูปภาพร้าน (สูงสุด 10 รูป)</h3>
                 <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '12px', border: '2px dashed #cbd5e1' }}>
                   <ImageIcon size={40} style={{ opacity: 0.5, marginBottom: '10px' }} />
-                  <p style={{ margin: 0 }}>อัปโหลดรูปภาพบรรยากาศร้าน (กำลังพัฒนา...)</p>
+                  <p style={{ margin: 0 }}>อัปโหลดรูปภาพบรรยากาศร้าน (เตรียมพบกันสเต็ปหน้า...)</p>
                 </div>
               </div>
            )}
