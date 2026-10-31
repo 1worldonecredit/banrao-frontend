@@ -4,10 +4,10 @@ import axios from 'axios';
 import BottomNavbar from '../components/BottomNavbar';
 import TopNavbar from '../components/TopNavbar';
 import { 
-  Building2, Plane, Tent, Home,
+  Building2, Home,
   Gift, Clock, 
   Ticket, Percent, Utensils, MapPin, ClipboardList, CalendarCheck, HardHat, Wrench, CarTaxiFront,
-  Droplets, Activity, Map, ShieldCheck, Pencil
+  Droplets, Activity, ShieldCheck, Pencil
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
@@ -21,22 +21,15 @@ const Dashboard = () => {
   const [wallet, setWallet] = useState({ balance: 0, points: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
-  // กำหนดสกุลเงิน
   const currencySymbol = userData.currency_code === 'USD' ? '$' : '฿';
 
-  // ==========================================
-  // ข้อมูล 4 หมวดหมู่หลัก (โครงสร้างเดิม)
-  // ==========================================
   const mainCategories = [
-    { title: 'จำนวนประชาการทั้งหมด', icon: <Building2 size={40} color="#e11d48" />, bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', action: 'hotels' },
+    { title: 'จำนวนประชากรทั้งหมด', icon: <Building2 size={40} color="#e11d48" />, bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', action: 'hotels' },
     { title: 'ร้านอาหารใกล้ฉัน', icon: <Utensils size={40} color="#7c3aed" />, bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', action: 'restaurants' },
     { title: 'ที่พักใกล้ฉัน', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
     { title: 'ห้องเช่ารายเดือน', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
   ];
 
-  // ==========================================
-  // เมนูบริการย่อย (ปรับปรุงเพิ่มสิทธิ์ reqPerm)
-  // ==========================================
   const allSubServices = [
     { title: 'ฌาปนกิจ หมู่บ้าน', icon: <ClipboardList size={24} color="#0284c7" />, action: 'orders', reqPerm: null },
     { title: 'ธนาคารชุมชน', icon: <CalendarCheck size={24} color="#0284c7" />, action: 'bookings', reqPerm: null },
@@ -78,7 +71,7 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('userData'); // ตรวจสอบว่าในระบบคุณใช้ userData หรือ user
+    const storedUser = localStorage.getItem('userData');
     let userId = null;
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
@@ -94,9 +87,6 @@ const Dashboard = () => {
     return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
   };
 
-  // ==========================================
-  // ฟังก์ชันจัดการอัปโหลดรูปภาพ
-  // ==========================================
   const triggerImageSelect = () => {
     fileInputRef.current.click();
   };
@@ -107,36 +97,36 @@ const Dashboard = () => {
 
     const formData = new FormData();
     formData.append('profileImage', file);
-    formData.append('userId', userData.id || userData.account_id); // ปรับตามฟิลด์ ID ของคุณ
+    formData.append('userId', userData.id || userData.account_id);
 
     try {
       console.log('กำลังอัปโหลดรูปภาพ...');
-      
-      // ดึง token เพื่อส่งไปยืนยันสิทธิ์
       const token = localStorage.getItem('token');
       
-      // ส่งไปที่ API อัปโหลดรูปของคุณ
-      const response = await axios.post(`${API_URL}/api/upload-profile`, formData, {
+      const response = await fetch(`${API_URL}/api/upload-profile`, {
+        method: 'POST',
         headers: {
-          'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        body: formData
       });
 
-      if (response.data && response.data.imageUrl) {
-        // อัปเดตรูปใหม่ในหน้าจอทันที
+      const data = await response.json();
+
+      if (response.ok && data.imageUrl) {
         setUserData(prev => {
-            const updatedData = { ...prev, userImage: response.data.imageUrl };
-            // อัปเดตใน LocalStorage เพื่อให้จำรูปใหม่ตอนรีเฟรช
+            const updatedData = { ...prev, userImage: data.imageUrl };
             localStorage.setItem('userData', JSON.stringify(updatedData));
             return updatedData;
         });
         alert('อัปโหลดรูปลงระบบสำเร็จ!');
+      } else {
+        alert('เกิดข้อผิดพลาด: ' + (data.error || 'ไม่สามารถอัปโหลดได้'));
       }
 
     } catch (error) {
       console.error('Error uploading image:', error);
-      alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ โปรดลองอีกครั้ง');
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     }
   };
 
@@ -146,10 +136,8 @@ const Dashboard = () => {
       
       <div className="main-content" style={{ padding: '15px 20px 90px 20px', maxWidth: '500px', margin: '0 auto' }}>
         
-        {/* ================= Header Section (Card Style) ================= */}
         <div style={{ marginBottom: '25px' }}>
           
-          {/* แถวบน: โลโก้ และ กระเป๋าเงิน */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
               หมู่บ้าน<span style={{color: '#e11d48'}}>.</span>
@@ -160,10 +148,6 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* แถวล่าง: แยก Card ข้อมูล 2 ฝั่ง */}
-          // ... (Imports และโค้ดส่วนบนเหมือนเดิม) ...
-
-          {/* แถวล่าง: แยก Card ข้อมูล 2 ฝั่ง */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px' }}>
             
             {/* --- Card 1: ข้อมูลผู้ใช้งาน --- */}
@@ -171,10 +155,9 @@ const Dashboard = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>👤 ข้อมูลผู้ใช้งาน</div>
                 
-                {/* 🌟 แสดงตำแหน่งหน้าที่ พร้อมตกแต่งสีตามระดับ (Level) */}
                 {userData.position_name ? (
                   <div style={{ 
-                    backgroundColor: userData.position_level === 'AMPHURE' ? '#fef3c7' : '#e0e7ff', // สีทองสำหรับอำเภอ, สีฟ้าสำหรับหมู่บ้าน
+                    backgroundColor: userData.position_level === 'AMPHURE' ? '#fef3c7' : '#e0e7ff',
                     color: userData.position_level === 'AMPHURE' ? '#d97706' : '#4338ca', 
                     padding: '4px 10px', 
                     borderRadius: '20px', 
@@ -192,20 +175,66 @@ const Dashboard = () => {
                 )}
               </div>
               
-              {/* ... (ส่วนแสดงรูปและข้อมูลอื่นๆ ของ Card 1 เหมือนเดิม) ... */}
+              <div style={{ display: 'flex', gap: '15px' }}>
+                
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  ref={fileInputRef} 
+                  style={{ display: 'none' }} 
+                  onChange={handleImageUpload} 
+                />
+
+                <div 
+                  onClick={triggerImageSelect} 
+                  style={{ cursor: 'pointer', position: 'relative', width: '65px', height: '65px', flexShrink: 0 }}
+                >
+                  <img 
+                    src={userData.userImage || '/profile-img.jpg'} 
+                    alt="User Profile" 
+                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0' }} 
+                  />
+                  <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#ffffff', borderRadius: '50%', padding: '4px', border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                    <Pencil size={12} color="#475569" />
+                  </div>
+                </div>
+
+                {/* 🌟 ส่วนแสดงข้อมูลผู้ใช้งานที่หายไป ได้ถูกนำกลับมาใส่ให้ครบถ้วนแล้ว */}
+                <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8', flex: 1 }}>
+                  <div><strong>ชื่อ-สกุล:</strong> {userData.firstName || '-'} {userData.lastName || ''}</div>
+                  <div>
+                    <strong>เกิดวัน:</strong> {userData.birthDayName || '-'} | 
+                    <strong> เพศ:</strong> {userData.gender || '-'} 
+                  </div>
+                  <div>
+                    <strong>อายุ:</strong> {userData.age_years || '0'} ปี {userData.age_months || '0'} เดือน {userData.age_days || '0'} วัน
+                  </div>
+                  <div><strong>เบอร์:</strong> {userData.username || '-'}</div>
+                  <div><strong>บ้านเลขที่:</strong> {userData.house_no || '-'} | <strong>ผู้อาศัย:</strong> {userData.household_member_count || '0'} คน</div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>ID: {userData.id || '-'}</div>
+                </div>
+              </div>
             </div>
 
             {/* --- Card 2: ข้อมูลหมู่บ้าน --- */}
             <div 
-              // ... (ส่วน onClick และ style เหมือนเดิม) ...
+              onClick={() => navigate('/village-details')}
+              style={{ 
+                backgroundColor: '#ffffff', 
+                borderRadius: '12px', 
+                padding: '16px', 
+                boxShadow: '0 2px 10px rgba(0,0,0,0.05)', 
+                borderTop: '4px solid #10b981',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease-in-out'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+              onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                
-                {/* 🌟 เปลี่ยนชื่อ Header เป็นชื่อหมู่บ้านแทน */}
                 <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <MapPin size={16} /> หมู่บ้าน{userData.villageName || '...'}
                 </div>
-                
                 {userData.villageName ? (
                    <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>อนุมัติแล้ว</div>
                 ) : (
@@ -213,7 +242,6 @@ const Dashboard = () => {
                 )}
               </div>
               
-              {/* ส่วนเนื้อหาจัด Flex ให้มีรูปผู้ใหญ่บ้านด้านซ้าย */}
               <div style={{ display: 'flex', gap: '15px' }}>
                 <img 
                   src={userData.headmanImage || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80'} 
@@ -221,12 +249,10 @@ const Dashboard = () => {
                   style={{ width: '65px', height: '65px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0', flexShrink: 0 }} 
                 />
                 <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8', flex: 1 }}>
-                  {/* 🌟 เน้นชื่อผู้ใหญ่บ้านให้ชัดเจนขึ้น */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <strong style={{ color: '#0f172a' }}>ผู้ใหญ่บ้าน:</strong> 
                     <span style={{ fontWeight: 'bold', color: '#3b82f6' }}>{userData.headmanName || '-'}</span>
                   </div>
-                  
                   <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '4px' }}>
                     <span style={{ marginTop: '2px' }}>📍</span>
                     <span>ต.{userData.tambonName || '-'} <br/>อ.{userData.amphureName || '-'} <br/>จ.{userData.provinceName || '-'}</span>
@@ -235,10 +261,9 @@ const Dashboard = () => {
               </div>
             </div>
 
-          </div> {/* ปิด div grid */}
-        </div> {/* ปิด div Header Section */}
+          </div> 
+        </div> 
 
-        {/* ================= 4 หมวดหมู่หลัก (Grid) ================= */}
         <div className="services-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '25px' }}>
           {mainCategories.map((cat, idx) => (
             <div 
@@ -266,7 +291,6 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* ================= เมนูบริการย่อย (ที่กรองตามสิทธิ์แล้ว) ================= */}
         <div style={{ display: 'flex', justifyContent: 'space-between', overflowX: 'auto', paddingBottom: '15px', marginBottom: '15px', gap: '10px', scrollbarWidth: 'none' }}>
           {filteredSubServices.map((sub, idx) => (
             <div 
@@ -288,7 +312,6 @@ const Dashboard = () => {
 
         <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '0 0 20px 0' }} />
 
-        {/* ================= ของขวัญต้อนรับ และ Flash Sales ================= */}
         <div style={{ marginBottom: '25px' }}>
           <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>ของขวัญต้อนรับลูกค้าใหม่ ^^</h3>
           <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
