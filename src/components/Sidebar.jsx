@@ -14,7 +14,8 @@ const IconMapper = ({ name, size, color }) => {
     Bell: <Bell size={size} color={color} />,
     Shield: <Shield size={size} color={color} />,
     BookOpen: <BookOpen size={size} color={color} />,
-    BookHeart: <BookHeart size={size} color={color} />
+    BookHeart: <BookHeart size={size} color={color} />,
+    MapPin: <MapPin size={size} color={color} />
   };
   return icons[name] || <ClipboardList size={size} color={color} />;
 };

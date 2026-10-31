@@ -20,6 +20,7 @@ import Taxis from './pages/Taxis';
 import PostVedio from './pages/PostVedio';
 import Profile from './pages/Profile';
 import villageDetails from './pages/TempVillageDetails';
+import AddCommunityPlace from './pages/AddCommunityPlace';
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
             <Route path="/post-vedio" element={<PostVedio />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/village-details" element={<villageDetails />} />
+            <Route path="/add-place" element={<AddCommunityPlace userData={userData} />} />
           </Routes>
         </div>
       </div>
