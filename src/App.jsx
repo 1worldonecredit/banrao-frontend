@@ -22,6 +22,7 @@ import Profile from './pages/Profile';
 import villageDetails from './pages/TempVillageDetails';
 import AddCommunityPlace from './pages/AddCommunityPlace';
 import MyPlaces from './pages/MyPlaces';
+import EditPlace from './pages/EditPlace';
 
 function App() {
   return (
@@ -53,6 +54,8 @@ function App() {
             <Route path="/village-details" element={<villageDetails />} />
            <Route path="/add-place" element={<AddCommunityPlace />} />
            <Route path="/my-places" element={<MyPlaces />} />
+           <Route path="/edit-place" element={<EditPlace />} />
+
           </Routes>
         </div>
       </div>
