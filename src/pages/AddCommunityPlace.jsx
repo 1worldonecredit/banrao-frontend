@@ -11,12 +11,22 @@ const AddCommunityPlace = () => {
   const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
   const mainCategories = [
-    { id: 1, title: 'โรงเรียนในหมู่บ้าน', icon: <Building2 size={24} color="#e11d48" />, bg: '#ffe4e6' },
+   { id: 1, title: 'โรงเรียนในหมู่บ้าน', icon: <Building2 size={24} color="#e11d48" />, bg: '#ffe4e6' },
     { id: 2, title: 'วัดในหมู่บ้าน', icon: <Utensils size={24} color="#7c3aed" />, bg: '#ede9fe' },
     { id: 3, title: 'ห้องเช่า', icon: <MapPin size={24} color="#ea580c" />, bg: '#ffedd5' },
+    { id: 4, title: 'บ้านเช่า', icon: <MapPin size={24} color="#ea580c" />, bg: '#ffedd5' },
+    { id: 5, title: 'รีสอร์ท', icon: <MapPin size={24} color="#ea580c" />, bg: '#ffedd5' },
+    { id: 6, title: 'โรงแรม', icon: <MapPin size={24} color="#ea580c" />, bg: '#ffedd5' },
     { id: 7, title: 'ร้านค้า', icon: <Home size={24} color="#16a34a" />, bg: '#dcfce7' },
     { id: 8, title: 'ร้านอาหาร', icon: <Utensils size={24} color="#16a34a" />, bg: '#dcfce7' },
+    { id: 9, title: 'ห้างสรรพสินค้า', icon: <Building2 size={24} color="#16a34a" />, bg: '#dcfce7' },
     { id: 10, title: 'สถานที่ท่องเที่ยว', icon: <MapPin size={24} color="#ea580c" />, bg: '#ffedd5' },
+    { id: 11, title: 'โรงงานอุตสาหกรรม', icon: <Building2 size={24} color="#16a34a" />, bg: '#dcfce7' },
+    { id: 12, title: 'โอทอป', icon: <MapPin size={24} color="#ea580c" />, bg: '#ffedd5' },
+    { id: 13, title: 'วิสาหกิจชุมชน', icon: <MapPin size={24} color="#ea580c" />, bg: '#ffedd5' },
+    { id: 14, title: 'สถานีอนามัย', icon: <MapPin size={24} color="#ea580c" />, bg: '#ffedd5' },
+    { id: 15, title: 'โรงพยาบาล', icon: <Building2 size={24} color="#ea580c" />, bg: '#ffedd5' },
+    { id: 16, title: 'คลีนิค', icon: <Home size={24} color="#16a34a" />, bg: '#dcfce7' },
     // สามารถเพิ่มหมวดหมู่อื่นๆ กลับเข้ามาได้ครับ
   ];
 
