@@ -217,24 +217,24 @@ const Dashboard = () => {
             </div>
 
             {/* --- Card 2: ข้อมูลพื้นที่รับผิดชอบ (อัจฉริยะตามระดับตำแหน่ง) --- */}
+            {/* --- Card 2: ข้อมูลพื้นที่รับผิดชอบ (อัจฉริยะแบบ Overview ทุกระดับ) --- */}
             <div 
               style={{ 
                 backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', 
                 boxShadow: '0 2px 10px rgba(0,0,0,0.05)', 
-                // 🌟 ไฮไลท์สีขอบบนตามระดับตำแหน่งให้สวยงาม
                 borderTop: `4px solid ${
-                  userData.position_level === 'NATIONAL' ? '#8b5cf6' : // สีม่วง กระทรวง
-                  userData.position_level === 'PROVINCE' ? '#f59e0b' : // สีทอง จังหวัด
-                  userData.position_level === 'AMPHURE'  ? '#3b82f6' : // สีฟ้า อำเภอ
-                  userData.position_level === 'TAMBON'   ? '#ec4899' : // สีชมพู อบต.
-                  '#10b981' // สีเขียว หมู่บ้าน
+                  userData.position_level === 'NATIONAL' ? '#8b5cf6' : 
+                  userData.position_level === 'PROVINCE' ? '#f59e0b' : 
+                  userData.position_level === 'AMPHURE'  ? '#3b82f6' : 
+                  userData.position_level === 'TAMBON'   ? '#ec4899' : 
+                  '#10b981' 
                 }`,
                 cursor: 'pointer', transition: 'transform 0.2s ease-in-out'
               }}
               onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
               onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
-              {/* Header ของ Card 2 เปลี่ยนไปตามระดับ */}
+              {/* Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {userData.position_level === 'NATIONAL' && <><Building2 size={16} color="#8b5cf6"/> ส่วนกลาง (กระทรวง)</>}
@@ -248,66 +248,186 @@ const Dashboard = () => {
                 </div>
               </div>
               
-              {/* 🌟 เนื้อหาภายใน Card 2 แปลงร่างตาม Level */}
+              {/* เนื้อหาแยกตาม Level */}
               {userData.position_level === 'NATIONAL' ? (
                 <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
-                  <div><strong>สังกัด:</strong> กระทรวงมหาดไทย</div>
-                  <div><strong>ผู้บริหาร:</strong> {userData.firstName} {userData.lastName}</div>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                     <div style={{ background: '#f5f3ff', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#7c3aed' }}><strong>76</strong><br/><span style={{fontSize:'10px'}}>จังหวัด</span></div>
-                     <div style={{ background: '#f5f3ff', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#7c3aed' }}><strong>878</strong><br/><span style={{fontSize:'10px'}}>อำเภอ</span></div>
-                     <div style={{ background: '#f5f3ff', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#7c3aed' }}><strong>74K</strong><br/><span style={{fontSize:'10px'}}>หมู่บ้าน</span></div>
+                  <div><strong>สังกัด:</strong> กระทรวงมหาดไทย | <strong>ผู้บริหาร:</strong> {userData.firstName} {userData.lastName}</div>
+                  
+                  {/* โครงสร้างพื้นที่ */}
+                  <div style={{ display: 'flex', gap: '10px', margin: '10px 0' }}>
+                     <div style={{ background: '#f5f3ff', padding: '4px', borderRadius: '6px', flex: 1, textAlign: 'center', color: '#7c3aed', border: '1px solid #ede9fe' }}><strong>76</strong> <span style={{fontSize:'10px'}}>จังหวัด</span></div>
+                     <div style={{ background: '#f5f3ff', padding: '4px', borderRadius: '6px', flex: 1, textAlign: 'center', color: '#7c3aed', border: '1px solid #ede9fe' }}><strong>878</strong> <span style={{fontSize:'10px'}}>อำเภอ</span></div>
+                     <div style={{ background: '#f5f3ff', padding: '4px', borderRadius: '6px', flex: 1, textAlign: 'center', color: '#7c3aed', border: '1px solid #ede9fe' }}><strong>74K</strong> <span style={{fontSize:'10px'}}>หมู่บ้าน</span></div>
+                  </div>
+
+                  {/* สถิติประชากร Overview */}
+                  <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '10px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>📊 ภาพรวมประชากรระดับประเทศ</span>
+                      <span style={{ color: '#8b5cf6', cursor: 'pointer', fontSize: '11px' }} onClick={() => navigate('/national-stats')}>ดูรายละเอียด ➔</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                       <div style={{ backgroundColor: '#f8fafc', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', flex: 1 }}>
+                          <div style={{ fontSize: '10px', color: '#64748b' }}>ประชากร (ทะเบียนราษฎร์)</div>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>66.09M <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></div>
+                       </div>
+                       <div style={{ backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '8px', border: '1px solid #bbf7d0', flex: 1 }}>
+                          <div style={{ fontSize: '10px', color: '#166534' }}>จำนวนครัวเรือน</div>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>22.5M <span style={{fontSize: '10px', fontWeight: 'normal'}}>หลัง</span></div>
+                       </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                       <div style={{ backgroundColor: '#fef2f2', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b91c1c' }}>+2.5M</div><div style={{ fontSize: '9px', color: '#ef4444' }}>ประชากรแฝง</div></div>
+                       <div style={{ backgroundColor: '#fffbeb', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b45309' }}>-3.1M</div><div style={{ fontSize: '9px', color: '#f59e0b' }}>ย้ายออก/ทำงาน</div></div>
+                       <div style={{ backgroundColor: '#eff6ff', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#1d4ed8' }}>2.8M</div><div style={{ fontSize: '9px', color: '#3b82f6' }}>ชาวต่างชาติ</div></div>
+                    </div>
                   </div>
                 </div>
 
               ) : userData.position_level === 'PROVINCE' ? (
                 <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
-                  <div><strong>จังหวัด:</strong> {userData.provinceName || 'ขอนแก่น (จำลอง)'}</div>
-                  <div><strong>ผู้ว่าราชการ:</strong> {userData.firstName} {userData.lastName}</div>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                     <div style={{ background: '#fef3c7', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#d97706' }}><strong>26</strong><br/><span style={{fontSize:'10px'}}>อำเภอ</span></div>
-                     <div style={{ background: '#fef3c7', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#d97706' }}><strong>198</strong><br/><span style={{fontSize:'10px'}}>ตำบล</span></div>
-                     <div style={{ background: '#fef3c7', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#d97706' }}><strong>2,331</strong><br/><span style={{fontSize:'10px'}}>หมู่บ้าน</span></div>
+                  <div><strong>จังหวัด:</strong> {userData.provinceName || 'ขอนแก่น (จำลอง)'} | <strong>ผู้ว่าฯ:</strong> {userData.firstName} {userData.lastName}</div>
+                  
+                  <div style={{ display: 'flex', gap: '10px', margin: '10px 0' }}>
+                     <div style={{ background: '#fef3c7', padding: '4px', borderRadius: '6px', flex: 1, textAlign: 'center', color: '#d97706', border: '1px solid #fde68a' }}><strong>26</strong> <span style={{fontSize:'10px'}}>อำเภอ</span></div>
+                     <div style={{ background: '#fef3c7', padding: '4px', borderRadius: '6px', flex: 1, textAlign: 'center', color: '#d97706', border: '1px solid #fde68a' }}><strong>198</strong> <span style={{fontSize:'10px'}}>ตำบล</span></div>
+                     <div style={{ background: '#fef3c7', padding: '4px', borderRadius: '6px', flex: 1, textAlign: 'center', color: '#d97706', border: '1px solid #fde68a' }}><strong>2,331</strong> <span style={{fontSize:'10px'}}>หมู่บ้าน</span></div>
+                  </div>
+
+                  <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '10px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>📊 ภาพรวมประชากรระดับจังหวัด</span>
+                      <span style={{ color: '#d97706', cursor: 'pointer', fontSize: '11px' }} onClick={() => navigate('/province-stats')}>ดูรายละเอียด ➔</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                       <div style={{ backgroundColor: '#f8fafc', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', flex: 1 }}>
+                          <div style={{ fontSize: '10px', color: '#64748b' }}>ประชากร (ทะเบียนราษฎร์)</div>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>1.79M <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></div>
+                       </div>
+                       <div style={{ backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '8px', border: '1px solid #bbf7d0', flex: 1 }}>
+                          <div style={{ fontSize: '10px', color: '#166534' }}>จำนวนครัวเรือน</div>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>580K <span style={{fontSize: '10px', fontWeight: 'normal'}}>หลัง</span></div>
+                       </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                       <div style={{ backgroundColor: '#fef2f2', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b91c1c' }}>+45K</div><div style={{ fontSize: '9px', color: '#ef4444' }}>ประชากรแฝง</div></div>
+                       <div style={{ backgroundColor: '#fffbeb', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b45309' }}>-120K</div><div style={{ fontSize: '9px', color: '#f59e0b' }}>ย้ายออก/ทำงาน</div></div>
+                       <div style={{ backgroundColor: '#eff6ff', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#1d4ed8' }}>15K</div><div style={{ fontSize: '9px', color: '#3b82f6' }}>ชาวต่างชาติ</div></div>
+                    </div>
                   </div>
                 </div>
 
               ) : userData.position_level === 'AMPHURE' ? (
                 <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
-                  <div><strong>อำเภอ:</strong> {userData.amphureName || 'เมือง (จำลอง)'} | <strong>จ.</strong>{userData.provinceName || 'ขอนแก่น'}</div>
-                  <div><strong>นายอำเภอ:</strong> {userData.firstName} {userData.lastName}</div>
-                   <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                     <div style={{ background: '#eff6ff', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#2563eb' }}><strong>18</strong><br/><span style={{fontSize:'10px'}}>ตำบล</span></div>
-                     <div style={{ background: '#eff6ff', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#2563eb' }}><strong>250</strong><br/><span style={{fontSize:'10px'}}>หมู่บ้าน</span></div>
-                     <div style={{ background: '#eff6ff', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#2563eb' }}><strong>45K</strong><br/><span style={{fontSize:'10px'}}>ประชากร</span></div>
+                  <div><strong>อำเภอ:</strong> {userData.amphureName || 'เมือง'} จ.{userData.provinceName || 'ขอนแก่น'} | <strong>นายอำเภอ:</strong> {userData.firstName}</div>
+                  
+                  <div style={{ display: 'flex', gap: '10px', margin: '10px 0' }}>
+                     <div style={{ background: '#eff6ff', padding: '4px', borderRadius: '6px', flex: 1, textAlign: 'center', color: '#2563eb', border: '1px solid #bfdbfe' }}><strong>18</strong> <span style={{fontSize:'10px'}}>ตำบล</span></div>
+                     <div style={{ background: '#eff6ff', padding: '4px', borderRadius: '6px', flex: 1, textAlign: 'center', color: '#2563eb', border: '1px solid #bfdbfe' }}><strong>250</strong> <span style={{fontSize:'10px'}}>หมู่บ้าน</span></div>
+                  </div>
+
+                  <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '10px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>📊 ภาพรวมประชากรระดับอำเภอ</span>
+                      <span style={{ color: '#2563eb', cursor: 'pointer', fontSize: '11px' }} onClick={() => navigate('/amphure-stats')}>ดูรายละเอียด ➔</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                       <div style={{ backgroundColor: '#f8fafc', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', flex: 1 }}>
+                          <div style={{ fontSize: '10px', color: '#64748b' }}>ประชากร (ทะเบียนราษฎร์)</div>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>412K <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></div>
+                       </div>
+                       <div style={{ backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '8px', border: '1px solid #bbf7d0', flex: 1 }}>
+                          <div style={{ fontSize: '10px', color: '#166534' }}>จำนวนครัวเรือน</div>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>150K <span style={{fontSize: '10px', fontWeight: 'normal'}}>หลัง</span></div>
+                       </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                       <div style={{ backgroundColor: '#fef2f2', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b91c1c' }}>+12K</div><div style={{ fontSize: '9px', color: '#ef4444' }}>ประชากรแฝง</div></div>
+                       <div style={{ backgroundColor: '#fffbeb', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b45309' }}>-8K</div><div style={{ fontSize: '9px', color: '#f59e0b' }}>ย้ายออก/ทำงาน</div></div>
+                       <div style={{ backgroundColor: '#eff6ff', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#1d4ed8' }}>4.5K</div><div style={{ fontSize: '9px', color: '#3b82f6' }}>ชาวต่างชาติ</div></div>
+                    </div>
                   </div>
                 </div>
 
               ) : userData.position_level === 'TAMBON' ? (
                 <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8' }}>
-                  <div><strong>ตำบล:</strong> {userData.tambonName || 'บ้านเป็ด (จำลอง)'} | <strong>อ.</strong>{userData.amphureName || 'เมือง'}</div>
-                  <div><strong>นายก อบต.:</strong> {userData.firstName} {userData.lastName}</div>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                     <div style={{ background: '#fdf2f8', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#db2777' }}><strong>15</strong><br/><span style={{fontSize:'10px'}}>หมู่บ้าน</span></div>
-                     <div style={{ background: '#fdf2f8', padding: '5px', borderRadius: '8px', flex: 1, textAlign: 'center', color: '#db2777' }}><strong>12K</strong><br/><span style={{fontSize:'10px'}}>ประชากร</span></div>
+                  <div><strong>ต.</strong>{userData.tambonName || 'บ้านเป็ด'} อ.{userData.amphureName || 'เมือง'} | <strong>นายกฯ:</strong> {userData.firstName}</div>
+                  
+                  <div style={{ display: 'flex', gap: '10px', margin: '10px 0' }}>
+                     <div style={{ background: '#fdf2f8', padding: '4px', borderRadius: '6px', flex: 1, textAlign: 'center', color: '#db2777', border: '1px solid #fbcfe8' }}><strong>15</strong> <span style={{fontSize:'10px'}}>หมู่บ้านรับผิดชอบ</span></div>
+                  </div>
+
+                  <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '10px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>📊 ภาพรวมประชากรระดับตำบล</span>
+                      <span style={{ color: '#db2777', cursor: 'pointer', fontSize: '11px' }} onClick={() => navigate('/tambon-stats')}>ดูรายละเอียด ➔</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                       <div style={{ backgroundColor: '#f8fafc', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', flex: 1 }}>
+                          <div style={{ fontSize: '10px', color: '#64748b' }}>ประชากร (ทะเบียนราษฎร์)</div>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>45K <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></div>
+                       </div>
+                       <div style={{ backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '8px', border: '1px solid #bbf7d0', flex: 1 }}>
+                          <div style={{ fontSize: '10px', color: '#166534' }}>จำนวนครัวเรือน</div>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>18K <span style={{fontSize: '10px', fontWeight: 'normal'}}>หลัง</span></div>
+                       </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                       <div style={{ backgroundColor: '#fef2f2', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b91c1c' }}>+2K</div><div style={{ fontSize: '9px', color: '#ef4444' }}>ประชากรแฝง</div></div>
+                       <div style={{ backgroundColor: '#fffbeb', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b45309' }}>-1.5K</div><div style={{ fontSize: '9px', color: '#f59e0b' }}>ย้ายออก/ทำงาน</div></div>
+                       <div style={{ backgroundColor: '#eff6ff', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#1d4ed8' }}>500</div><div style={{ fontSize: '9px', color: '#3b82f6' }}>ชาวต่างชาติ</div></div>
+                    </div>
                   </div>
                 </div>
 
               ) : (
-                /* โครงสร้างข้อมูลสำหรับระดับผู้ใหญ่บ้าน / ประชาชน / อสม. (แบบเดิม) */
-                <div style={{ display: 'flex', gap: '15px' }}>
-                  <img 
-                    src={userData.headmanImage || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80'} 
-                    alt="Headman Profile" 
-                    style={{ width: '65px', height: '65px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0', flexShrink: 0 }} 
-                  />
-                  <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8', flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <strong style={{ color: '#0f172a' }}>ผู้ใหญ่บ้าน:</strong> 
-                      <span style={{ fontWeight: 'bold', color: '#3b82f6' }}>{userData.headmanName || '-'}</span>
+                /* โครงสร้างระดับหมู่บ้าน (ผู้ใหญ่บ้าน/อสม./ประชาชน) - เหมือนที่คุณอัปเดตล่าสุด */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <img 
+                      src={userData.headmanImage || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80'} 
+                      alt="Headman Profile" 
+                      style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0', flexShrink: 0 }} 
+                    />
+                    <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.4', flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <strong style={{ color: '#0f172a' }}>ผู้ใหญ่บ้าน:</strong> 
+                        <span style={{ fontWeight: 'bold', color: '#3b82f6' }}>{userData.headmanName || '-'}</span>
+                      </div>
+                      <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
+                        <span style={{ marginTop: '1px' }}>📍</span>
+                        <span style={{ fontSize: '11px' }}>ต.{userData.tambonName || '-'} อ.{userData.amphureName || '-'} จ.{userData.provinceName || '-'}</span>
+                      </div>
                     </div>
-                    <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '4px' }}>
-                      <span style={{ marginTop: '2px' }}>📍</span>
-                      <span>ต.{userData.tambonName || '-'} <br/>อ.{userData.amphureName || '-'} <br/>จ.{userData.provinceName || '-'}</span>
+                  </div>
+
+                  <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '12px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>📊 สถิติประชากรในพื้นที่</span>
+                      <span style={{ color: '#10b981', cursor: 'pointer', fontSize: '11px' }} onClick={() => navigate('/population-details')}>ดูรายละเอียด ➔</span>
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                       <div style={{ backgroundColor: '#f8fafc', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ fontSize: '10px', color: '#64748b' }}>ตามทะเบียนบ้าน</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>125 <span style={{fontSize: '10px', fontWeight: 'normal'}}>ครัวเรือน</span></span>
+                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>450 <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></span>
+                          </div>
+                       </div>
+                       <div style={{ backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                          <div style={{ fontSize: '10px', color: '#166534' }}>อาศัยอยู่จริง (ลงทะเบียน)</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>118 <span style={{fontSize: '10px', fontWeight: 'normal'}}>ครัวเรือน</span></span>
+                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>412 <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></span>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '8px' }}>
+                       <div style={{ backgroundColor: '#fef2f2', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b91c1c' }}>+25</div><div style={{ fontSize: '9px', color: '#ef4444' }}>ประชากรแฝง</div></div>
+                       <div style={{ backgroundColor: '#fffbeb', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#b45309' }}>-63</div><div style={{ fontSize: '9px', color: '#f59e0b' }}>ย้ายออก/ทำงาน</div></div>
+                       <div style={{ backgroundColor: '#eff6ff', padding: '6px', borderRadius: '8px', textAlign: 'center' }}><div style={{ fontSize: '12px', fontWeight: 'bold', color: '#1d4ed8' }}>12</div><div style={{ fontSize: '9px', color: '#3b82f6' }}>ชาวต่างชาติ</div></div>
                     </div>
                   </div>
                 </div>
