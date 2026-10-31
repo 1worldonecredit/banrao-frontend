@@ -7,7 +7,7 @@ import {
   Building2, Home,
   Gift, Clock, 
   Ticket, Percent, Utensils, MapPin, ClipboardList, CalendarCheck, HardHat, Wrench, CarTaxiFront,
-  Droplets, Activity, ShieldCheck, Pencil
+  Droplets, Activity, ShieldCheck, Pencil, Shield
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
