@@ -50,7 +50,7 @@ function App() {
             <Route path="/post-vedio" element={<PostVedio />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/village-details" element={<villageDetails />} />
-            <Route path="/add-place" element={<AddCommunityPlace userData={userData} />} />
+           <Route path="/add-place" element={<AddCommunityPlace />} />
           </Routes>
         </div>
       </div>
