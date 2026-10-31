@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Building2, Utensils, MapPin, Home, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
-const AddCommunityPlace = ({ userData }) => {
+const AddCommunityPlace = () => {
   const navigate = useNavigate();
+// 🌟 2. เพิ่มบรรทัดนี้เพื่อดึงข้อมูลผู้ใช้ที่กำลัง Login อยู่
+  const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   
   // 🌟 หมวดหมู่ที่คุณเตรียมไว้ (ผมแอบเพิ่ม id เข้าไปเพื่อให้ส่งเข้า Database ได้ง่ายขึ้นครับ)
   const mainCategories = [
