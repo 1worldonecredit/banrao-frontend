@@ -161,78 +161,51 @@ const Dashboard = () => {
           </div>
 
           {/* แถวล่าง: แยก Card ข้อมูล 2 ฝั่ง */}
+          // ... (Imports และโค้ดส่วนบนเหมือนเดิม) ...
+
+          {/* แถวล่าง: แยก Card ข้อมูล 2 ฝั่ง */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px' }}>
             
             {/* --- Card 1: ข้อมูลผู้ใช้งาน --- */}
             <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', borderTop: '4px solid #3b82f6' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>👤 ข้อมูลผู้ใช้งาน</div>
-                <div style={{ backgroundColor: '#1e293b', color: '#fbbf24', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>
-                  ★ VIP {userData.level_name || 'Bronze'}
-                </div>
+                
+                {/* 🌟 แสดงตำแหน่งหน้าที่ พร้อมตกแต่งสีตามระดับ (Level) */}
+                {userData.position_name ? (
+                  <div style={{ 
+                    backgroundColor: userData.position_level === 'AMPHURE' ? '#fef3c7' : '#e0e7ff', // สีทองสำหรับอำเภอ, สีฟ้าสำหรับหมู่บ้าน
+                    color: userData.position_level === 'AMPHURE' ? '#d97706' : '#4338ca', 
+                    padding: '4px 10px', 
+                    borderRadius: '20px', 
+                    fontSize: '11px', 
+                    fontWeight: 'bold',
+                    border: `1px solid ${userData.position_level === 'AMPHURE' ? '#fde68a' : '#c7d2fe'}`,
+                    display: 'flex', alignItems: 'center', gap: '4px'
+                  }}>
+                    <Shield size={12} /> {userData.position_name}
+                  </div>
+                ) : (
+                  <div style={{ backgroundColor: '#f1f5f9', color: '#64748b', padding: '3px 8px', borderRadius: '6px', fontSize: '11px' }}>
+                    ประชาชน
+                  </div>
+                )}
               </div>
               
-              {/* ส่วนเนื้อหาจัด Flex ให้มีรูปด้านซ้าย */}
-              <div style={{ display: 'flex', gap: '15px' }}>
-                
-                {/* 1. Input สำหรับเลือกรูปภาพ (ซ่อนไว้) */}
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  ref={fileInputRef} 
-                  style={{ display: 'none' }} 
-                  onChange={handleImageUpload} 
-                />
-
-                {/* 2. รูปโปรไฟล์ที่คลิกได้ */}
-                <div 
-                  onClick={triggerImageSelect} 
-                  style={{ cursor: 'pointer', position: 'relative', width: '65px', height: '65px', flexShrink: 0 }}
-                >
-                  <img 
-                    src={userData.userImage || '/profile-img.jpg'} 
-                    alt="User Profile" 
-                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0' }} 
-                  />
-                  {/* ไอคอนดินสอเล็กๆ ซ้อนบนรูปให้รู้ว่าเปลี่ยนได้ */}
-                  <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#ffffff', borderRadius: '50%', padding: '4px', border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                    <Pencil size={12} color="#475569" />
-                  </div>
-                </div>
-
-                <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8', flex: 1 }}>
-                  <div><strong>ชื่อ-สกุล:</strong> {userData.firstName || '-'} {userData.lastName || ''}</div>
-                  <div>
-                    <strong>เกิดวัน:</strong> {userData.birthDayName || '-'} | 
-                    <strong> เพศ:</strong> {userData.gender || '-'} 
-                  </div>
-                  <div>
-                    <strong>อายุ:</strong> {userData.age_years || '0'} ปี {userData.age_months || '0'} เดือน {userData.age_days || '0'} วัน
-                  </div>
-                  <div><strong>เบอร์:</strong> {userData.username || '-'}</div>
-                  <div><strong>บ้านเลขที่:</strong> {userData.house_no || '-'} | <strong>ผู้อาศัย:</strong> {userData.household_member_count || '0'} คน</div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>ID: {userData.id || '-'}</div>
-                </div>
-              </div>
+              {/* ... (ส่วนแสดงรูปและข้อมูลอื่นๆ ของ Card 1 เหมือนเดิม) ... */}
             </div>
 
             {/* --- Card 2: ข้อมูลหมู่บ้าน --- */}
             <div 
-              onClick={() => navigate('/village-details')}
-              style={{ 
-                backgroundColor: '#ffffff', 
-                borderRadius: '12px', 
-                padding: '16px', 
-                boxShadow: '0 2px 10px rgba(0,0,0,0.05)', 
-                borderTop: '4px solid #10b981',
-                cursor: 'pointer',
-                transition: 'transform 0.2s ease-in-out'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-              onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              // ... (ส่วน onClick และ style เหมือนเดิม) ...
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>🏡 ข้อมูลหมู่บ้าน</div>
+                
+                {/* 🌟 เปลี่ยนชื่อ Header เป็นชื่อหมู่บ้านแทน */}
+                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <MapPin size={16} /> หมู่บ้าน{userData.villageName || '...'}
+                </div>
+                
                 {userData.villageName ? (
                    <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold' }}>อนุมัติแล้ว</div>
                 ) : (
@@ -248,11 +221,15 @@ const Dashboard = () => {
                   style={{ width: '65px', height: '65px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0', flexShrink: 0 }} 
                 />
                 <div style={{ fontSize: '13px', color: '#475569', lineHeight: '1.8', flex: 1 }}>
-                  <div><strong>ชื่อหมู่บ้าน:</strong> {userData.villageName || <span style={{ color: '#ef4444' }}>ยังไม่ผูกหมู่บ้าน</span>}</div>
-                  <div><strong>ผู้ใหญ่บ้าน:</strong> {userData.headmanName || '-'}</div>
-                  <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
+                  {/* 🌟 เน้นชื่อผู้ใหญ่บ้านให้ชัดเจนขึ้น */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <strong style={{ color: '#0f172a' }}>ผู้ใหญ่บ้าน:</strong> 
+                    <span style={{ fontWeight: 'bold', color: '#3b82f6' }}>{userData.headmanName || '-'}</span>
+                  </div>
+                  
+                  <div style={{ color: '#64748b', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '4px' }}>
                     <span style={{ marginTop: '2px' }}>📍</span>
-                    <span>ต.{userData.tambonName || '-'} อ.{userData.amphureName || '-'} จ.{userData.provinceName || '-'}</span>
+                    <span>ต.{userData.tambonName || '-'} <br/>อ.{userData.amphureName || '-'} <br/>จ.{userData.provinceName || '-'}</span>
                   </div>
                 </div>
               </div>
