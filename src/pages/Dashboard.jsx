@@ -41,7 +41,7 @@ const Dashboard = () => {
         };
         fetchPlaces();
     }, []);
-    
+
   const mainCategories = [
     { title: 'โรงเรียในหมู่บ้าน', icon: <Building2 size={40} color="#e11d48" />, bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', action: 'hotels' },
     { title: 'วัดในหมู่บ้าน', icon: <Utensils size={40} color="#7c3aed" />, bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', action: 'restaurants' },
@@ -568,6 +568,7 @@ const Dashboard = () => {
         </div>
             {/* ================= ส่วนแสดงสถานที่ในชุมชน (Community Places) ================= */}
           {/* ================= ส่วนแสดงสถานที่ในชุมชน (Community Places - Responsive Grid) ================= */}
+        {/* ================= ส่วนแสดงสถานที่ในชุมชน (Community Places - Responsive Grid & API) ================= */}
         <div style={{ marginTop: '30px', marginBottom: '25px', width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h3 style={{ margin: 0, fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>
@@ -581,7 +582,6 @@ const Dashboard = () => {
             </span>
           </div>
 
-          {/* 🌟 ใช้ CSS Grid ในการจัดเรียง Responsive: คอมพิวเตอร์โชว์เรียงกัน, มือถือโชว์แถวละ 1 */}
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
@@ -589,113 +589,108 @@ const Dashboard = () => {
             width: '100%'
           }}>
             
-            {/* --- Mock Data (จำกัดแสดงแค่ 2 รายการแรกบน Dashboard) --- */}
-            {[
-              {
-                id: 1,
-                name: 'โรงเรียนบ้านโคกสว่าง',
-                category: 'โรงเรียนในหมู่บ้าน',
-                desc: 'โรงเรียนประจำหมู่บ้าน เปิดสอนอนุบาล ถึง ป.6 (ส่วนราชการ)',
-                img: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&q=80',
-                isOpen: true,
-                visibility: 'ระดับตำบล',
-                services: ['รับสมัครครูอัตราจ้าง', 'มีสนามฟุตบอลสาธารณะ'],
-                owner: { name: 'นายก อบต', role: 'ส่วนราชการ', img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&q=80' }
-              },
-              {
-                id: 2,
-                name: 'แซ่บอีหลี ส้มตำไก่ย่าง',
-                category: 'ร้านอาหาร',
-                desc: 'ร้านส้มตำรสเด็ดประจำหมู่บ้าน อร่อยสะอาด ราคาเป็นกันเอง',
-                img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80',
-                isOpen: true,
-                visibility: 'สาธารณะ',
-                services: ['มีบริการส่งถึงบ้าน', 'รับคนล้างจาน ด่วน!'],
-                owner: { name: 'ป้าอสม ใจดี', role: 'อสม. / ชาวบ้าน', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&q=80' }
-              }
-            ].slice(0, 2).map((place) => ( // 🌟 .slice(0, 2) เพื่อจำกัดแสดงแค่ 2 รายการแรก
-              
-              /* --- ดีไซน์ Card สถานที่ --- */
-              <div key={place.id} style={{ 
-                backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', 
-                boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9',
-                cursor: 'pointer', display: 'flex', flexDirection: 'column'
-              }}>
-                {/* ส่วนรูปภาพปก */}
-                <div style={{ position: 'relative', height: '150px', width: '100%' }}>
-                  <img src={place.img} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  
-                  {/* ป้ายสถานะ เปิด/ปิด */}
-                  <div style={{ 
-                    position: 'absolute', top: '12px', right: '12px', 
-                    backgroundColor: place.isOpen ? '#10b981' : '#ef4444', 
-                    color: '#fff', padding: '4px 10px', borderRadius: '20px', 
-                    fontSize: '11px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                  }}>
-                    {place.isOpen ? '🟢 เปิดให้บริการ' : '🔴 ปิดแล้ว'}
-                  </div>
-
-                  {/* ป้ายหมวดหมู่ */}
-                  <div style={{ 
-                    position: 'absolute', top: '12px', left: '12px', 
-                    backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)',
-                    color: '#fff', padding: '4px 10px', borderRadius: '8px', 
-                    fontSize: '11px', fontWeight: 'bold'
-                  }}>
-                    {place.category}
-                  </div>
-                </div>
-
-                {/* ส่วนเนื้อหาและโปรไฟล์ผู้โพสต์ */}
-                <div style={{ padding: '15px', position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  
-                  {/* โปรไฟล์ผู้โพสต์ (ลอยทับรูประหว่างรอยต่อ) */}
-                  <div style={{ position: 'absolute', top: '-25px', right: '15px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', zIndex: 10 }}>
-                    <img 
-                      src={place.owner.img} 
-                      alt={place.owner.name} 
-                      style={{ width: '48px', height: '48px', borderRadius: '50%', border: '3px solid #fff', objectFit: 'cover', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} 
-                    />
-                    <div style={{ backgroundColor: '#fff', padding: '2px 6px', borderRadius: '6px', fontSize: '9px', fontWeight: 'bold', color: '#64748b', marginTop: '2px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                      เพิ่มโดย: {place.owner.name}
+            {/* 🌟 ดึงข้อมูลจาก State `communityPlaces` มาลูปแสดงผล */}
+            {communityPlaces && communityPlaces.length > 0 ? (
+              communityPlaces.slice(0, 2).map((place) => (
+                
+                /* --- ดีไซน์ Card สถานที่ --- */
+                <div key={place.id} style={{ 
+                  backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', 
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9',
+                  cursor: 'pointer', display: 'flex', flexDirection: 'column'
+                }}>
+                  {/* ส่วนรูปภาพปก */}
+                  <div style={{ position: 'relative', height: '150px', width: '100%' }}>
+                    <img src={place.img} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    
+                    {/* ป้ายสถานะ เปิด/ปิด */}
+                    <div style={{ 
+                      position: 'absolute', top: '12px', right: '12px', 
+                      backgroundColor: place.isOpen ? '#10b981' : '#ef4444', 
+                      color: '#fff', padding: '4px 10px', borderRadius: '20px', 
+                      fontSize: '11px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}>
+                      {place.isOpen ? '🟢 เปิดให้บริการ' : '🔴 ปิดแล้ว'}
                     </div>
-                  </div>
 
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '15px', color: '#0f172a', fontWeight: 'bold', paddingRight: '50px', lineHeight: '1.4' }}>
-                    {place.name}
-                  </h4>
-                  <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#64748b', lineHeight: '1.5', flex: 1 }}>
-                    {place.desc}
-                  </p>
+                    {/* ป้ายหมวดหมู่ */}
+                    <div style={{ 
+                      position: 'absolute', top: '12px', left: '12px', 
+                      backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)',
+                      color: '#fff', padding: '4px 10px', borderRadius: '8px', 
+                      fontSize: '11px', fontWeight: 'bold'
+                    }}>
+                      {place.category}
+                    </div>
 
-                  {/* บริการเสริม (Services Badges) */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '15px' }}>
-                    {place.services.map((srv, idx) => (
-                      <span key={idx} style={{ 
-                        backgroundColor: srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#fee2e2' : '#eff6ff', 
-                        color: srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#b91c1c' : '#2563eb', 
-                        padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold',
-                        border: `1px solid ${srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#fca5a5' : '#bfdbfe'}`
+                    {/* 🌟 ป้ายสถานะการอนุมัติ (ถ้ายังไม่ผ่านการอนุมัติ) */}
+                    {!place.isVerified && (
+                      <div style={{ 
+                        position: 'absolute', bottom: '12px', left: '12px', 
+                        backgroundColor: '#f59e0b', color: '#fff', padding: '3px 8px', 
+                        borderRadius: '6px', fontSize: '10px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                       }}>
-                        {srv.includes('ส่ง') ? '🛵' : srv.includes('สมัคร') || srv.includes('งาน') ? '💼' : '✨'} {srv}
-                      </span>
-                    ))}
+                        ⏳ รอผู้นำชุมชนอนุมัติ
+                      </div>
+                    )}
                   </div>
 
-                  <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '12px', marginTop: 'auto' }}>
-                     {/* Footer: สิทธิ์การมองเห็น */}
-                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94a3b8' }}>
-                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                         <ShieldCheck size={14} color="#64748b" /> 
-                         <span>สิทธิ์การมองเห็น: <strong style={{ color: '#475569' }}>{place.visibility}</strong></span>
+                  {/* ส่วนเนื้อหาและโปรไฟล์ผู้โพสต์ */}
+                  <div style={{ padding: '15px', position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    
+                    {/* โปรไฟล์ผู้โพสต์ */}
+                    <div style={{ position: 'absolute', top: '-25px', right: '15px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', zIndex: 10 }}>
+                      <img 
+                        src={place.owner.img} 
+                        alt={place.owner.name} 
+                        style={{ width: '48px', height: '48px', borderRadius: '50%', border: '3px solid #fff', objectFit: 'cover', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} 
+                      />
+                      <div style={{ backgroundColor: '#fff', padding: '2px 6px', borderRadius: '6px', fontSize: '9px', fontWeight: 'bold', color: '#64748b', marginTop: '2px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                        เพิ่มโดย: {place.owner.name}
+                      </div>
+                    </div>
+
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '15px', color: '#0f172a', fontWeight: 'bold', paddingRight: '50px', lineHeight: '1.4' }}>
+                      {place.name}
+                    </h4>
+                    <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#64748b', lineHeight: '1.5', flex: 1 }}>
+                      {place.desc}
+                    </p>
+
+                    {/* บริการเสริม (Services Badges) */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '15px' }}>
+                      {place.services && place.services.map((srv, idx) => (
+                        <span key={idx} style={{ 
+                          backgroundColor: srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#fee2e2' : '#eff6ff', 
+                          color: srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#b91c1c' : '#2563eb', 
+                          padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold',
+                          border: `1px solid ${srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#fca5a5' : '#bfdbfe'}`
+                        }}>
+                          {srv.includes('ส่ง') ? '🛵' : srv.includes('สมัคร') || srv.includes('งาน') ? '💼' : '✨'} {srv}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '12px', marginTop: 'auto' }}>
+                       {/* Footer: สิทธิ์การมองเห็น */}
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94a3b8' }}>
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                           <ShieldCheck size={14} color="#64748b" /> 
+                           <span>มองเห็น: <strong style={{ color: '#475569' }}>{place.visibility}</strong></span>
+                         </div>
+                         <strong style={{ color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '4px' }}>ดูรายละเอียด <span style={{fontSize: '14px'}}>➔</span></strong>
                        </div>
-                       <strong style={{ color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '4px' }}>ดูรายละเอียด <span style={{fontSize: '14px'}}>➔</span></strong>
-                     </div>
-                  </div>
+                    </div>
 
+                  </div>
                 </div>
+              ))
+            ) : (
+              /* --- กรณีอยู่ระหว่างรอโหลดข้อมูล API หรือยังไม่มีข้อมูล --- */
+              <div style={{ padding: '30px 20px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '12px', width: '100%', gridColumn: '1 / -1', border: '1px dashed #cbd5e1' }}>
+                <span style={{ color: '#64748b', fontSize: '14px' }}>กำลังโหลดข้อมูลสถานที่...</span>
               </div>
-            ))}
+            )}
             
           </div>
         </div>
