@@ -547,7 +547,126 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
+            {/* ================= ส่วนแสดงสถานที่ในชุมชน (Community Places) ================= */}
+        <div style={{ marginTop: '30px', marginBottom: '25px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>
+              สถานที่และบริการในพื้นที่
+            </h3>
+            <span style={{ color: '#3b82f6', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>ดูทั้งหมด</span>
+          </div>
 
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            
+            {/* --- Mock Data แบบ Array (ในอนาคตเปลี่ยนเป็น map จาก API) --- */}
+            {[
+              {
+                id: 1,
+                name: 'โรงเรียนบ้านโคกสว่าง',
+                category: 'โรงเรียนในหมู่บ้าน',
+                desc: 'โรงเรียนประจำหมู่บ้าน เปิดสอนอนุบาล ถึง ป.6 (ส่วนราชการ)',
+                img: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&q=80',
+                isOpen: true,
+                visibility: 'ระดับตำบล',
+                services: ['รับสมัครครูอัตราจ้าง', 'มีสนามฟุตบอลสาธารณะ'],
+                owner: { name: 'นายก อบต', role: 'ส่วนราชการ', img: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&q=80' }
+              },
+              {
+                id: 2,
+                name: 'แซ่บอีหลี ส้มตำไก่ย่าง',
+                category: 'ร้านอาหาร',
+                desc: 'ร้านส้มตำรสเด็ดประจำหมู่บ้าน อร่อยสะอาด ราคาเป็นกันเอง',
+                img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80',
+                isOpen: true,
+                visibility: 'สาธารณะ',
+                services: ['มีบริการส่งถึงบ้าน', 'รับคนล้างจาน ด่วน!'],
+                owner: { name: 'ป้าอสม ใจดี', role: 'อสม. / ชาวบ้าน', img: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&q=80' }
+              }
+            ].map((place) => (
+              
+              /* --- ดีไซน์ Card สถานที่ --- */
+              <div key={place.id} style={{ 
+                backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', 
+                boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9',
+                cursor: 'pointer'
+              }}>
+                {/* ส่วนรูปภาพปก */}
+                <div style={{ position: 'relative', height: '140px' }}>
+                  <img src={place.img} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  
+                  {/* ป้ายสถานะ เปิด/ปิด */}
+                  <div style={{ 
+                    position: 'absolute', top: '12px', right: '12px', 
+                    backgroundColor: place.isOpen ? '#10b981' : '#ef4444', 
+                    color: '#fff', padding: '4px 10px', borderRadius: '20px', 
+                    fontSize: '11px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                  }}>
+                    {place.isOpen ? '🟢 เปิดให้บริการ' : '🔴 ปิดแล้ว'}
+                  </div>
+
+                  {/* ป้ายหมวดหมู่ */}
+                  <div style={{ 
+                    position: 'absolute', top: '12px', left: '12px', 
+                    backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)',
+                    color: '#fff', padding: '4px 10px', borderRadius: '8px', 
+                    fontSize: '11px', fontWeight: 'bold'
+                  }}>
+                    {place.category}
+                  </div>
+                </div>
+
+                {/* ส่วนเนื้อหาและโปรไฟล์ผู้โพสต์ */}
+                <div style={{ padding: '15px', position: 'relative' }}>
+                  
+                  {/* โปรไฟล์ผู้โพสต์ (ลอยทับรูปปกและเนื้อหา) */}
+                  <div style={{ position: 'absolute', top: '-25px', right: '15px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <img 
+                      src={place.owner.img} 
+                      alt={place.owner.name} 
+                      style={{ width: '45px', height: '45px', borderRadius: '50%', border: '3px solid #fff', objectFit: 'cover', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} 
+                    />
+                    <div style={{ backgroundColor: '#fff', padding: '2px 6px', borderRadius: '6px', fontSize: '9px', fontWeight: 'bold', color: '#64748b', marginTop: '2px', border: '1px solid #e2e8f0' }}>
+                      เพิ่มโดย: {place.owner.name}
+                    </div>
+                  </div>
+
+                  <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#0f172a', fontWeight: 'bold', paddingRight: '50px' }}>
+                    {place.name}
+                  </h4>
+                  <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#64748b', lineHeight: '1.5' }}>
+                    {place.desc}
+                  </p>
+
+                  {/* บริการเสริม (Services Badges) */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+                    {place.services.map((srv, idx) => (
+                      <span key={idx} style={{ 
+                        backgroundColor: srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#fee2e2' : '#eff6ff', 
+                        color: srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#b91c1c' : '#2563eb', 
+                        padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold',
+                        border: `1px solid ${srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#fca5a5' : '#bfdbfe'}`
+                      }}>
+                        {srv.includes('ส่ง') ? '🛵' : srv.includes('สมัคร') || srv.includes('งาน') ? '💼' : '✨'} {srv}
+                      </span>
+                    ))}
+                  </div>
+
+                  <hr style={{ border: 'none', borderTop: '1px dashed #cbd5e1', margin: '0 0 10px 0' }} />
+
+                  {/* Footer: สิทธิ์การมองเห็น */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94a3b8' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <ShieldCheck size={14} color="#64748b" /> สิทธิ์การมองเห็น: <strong style={{ color: '#475569' }}>{place.visibility}</strong>
+                    </div>
+                    <strong style={{ color: '#3b82f6' }}>คลิกดูรายละเอียด ➔</strong>
+                  </div>
+
+                </div>
+              </div>
+            ))}
+            
+          </div>
+        </div>
       </div>
       <BottomNavbar />
     </div>
