@@ -54,7 +54,7 @@ function App() {
             <Route path="/village-details" element={<villageDetails />} />
            <Route path="/add-place" element={<AddCommunityPlace />} />
            <Route path="/my-places" element={<MyPlaces />} />
-           <Route path="/edit-place" element={<EditPlace />} />
+           <Route path="/edit-place/:id" element={<EditPlace />} />
 
           </Routes>
         </div>
