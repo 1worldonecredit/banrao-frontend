@@ -52,7 +52,7 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/village-details" element={<villageDetails />} />
            <Route path="/add-place" element={<AddCommunityPlace />} />
-           <Route path="/my-place" element={<MyPlaces />} />
+           <Route path="/my-places" element={<MyPlaces />} />
           </Routes>
         </div>
       </div>
