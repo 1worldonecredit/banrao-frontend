@@ -23,6 +23,25 @@ const Dashboard = () => {
 
   const currencySymbol = userData.currency_code === 'USD' ? '$' : '฿';
 
+  // 🌟 1. สร้าง State สำหรับเก็บข้อมูลสถานที่
+    const [communityPlaces, setCommunityPlaces] = useState([]);
+
+    // 🌟 2. ดึงข้อมูลจาก API เมื่อเปิดหน้าเว็บ
+    useEffect(() => {
+        const fetchPlaces = async () => {
+            try {
+                // เปลี่ยนโดเมนให้ตรงกับ Backend ของคุณ (เช่น api.banrao.life)
+                const response = await axios.get('https://api.banrao.life/api/community-places');
+                if (response.data.success) {
+                    setCommunityPlaces(response.data.places);
+                }
+            } catch (error) {
+                console.error("Error fetching places", error);
+            }
+        };
+        fetchPlaces();
+    }, []);
+    
   const mainCategories = [
     { title: 'โรงเรียในหมู่บ้าน', icon: <Building2 size={40} color="#e11d48" />, bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', action: 'hotels' },
     { title: 'วัดในหมู่บ้าน', icon: <Utensils size={40} color="#7c3aed" />, bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', action: 'restaurants' },
