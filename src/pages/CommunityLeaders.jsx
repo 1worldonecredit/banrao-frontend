@@ -176,7 +176,7 @@ const CommunityLeaders = () => {
         </div>
 
         {/* ========================================== */}
-        {/* 🌟 วาดผังองค์กร (Organization Chart Structure) */}
+        {/* 🌟 วาดผังองค์กร (Organization Chart Structure) */}ไไไ
         {/* ========================================== */}
         <div className="relative py-10 overflow-x-auto text-center flex flex-col items-center">
           
