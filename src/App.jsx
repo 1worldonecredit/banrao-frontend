@@ -24,6 +24,7 @@ import AddCommunityPlace from './pages/AddCommunityPlace';
 import MyPlaces from './pages/MyPlaces';
 import EditPlace from './pages/EditPlace';
 import RegisterVillage from './pages/RegisterVillage';
+import MenuManagement from './pages/MenuManagement';
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
            <Route path="/my-places" element={<MyPlaces />} />
            <Route path="/edit-place/:id" element={<EditPlace />} />
            <Route path="/register-village" element={<RegisterVillage />} />
+            <Route path="/menu-management" element={<MenuManagement />} />
           </Routes>
         </div>
       </div>
