@@ -23,6 +23,7 @@ import villageDetails from './pages/TempVillageDetails';
 import AddCommunityPlace from './pages/AddCommunityPlace';
 import MyPlaces from './pages/MyPlaces';
 import EditPlace from './pages/EditPlace';
+import RegisterVillage from './pages/RegisterVillage';
 
 function App() {
   return (
@@ -55,7 +56,7 @@ function App() {
            <Route path="/add-place" element={<AddCommunityPlace />} />
            <Route path="/my-places" element={<MyPlaces />} />
            <Route path="/edit-place/:id" element={<EditPlace />} />
-
+           <Route path="/register-village" element={<RegisterVillage />} />
           </Routes>
         </div>
       </div>
