@@ -26,6 +26,7 @@ import EditPlace from './pages/EditPlace';
 import RegisterVillage from './pages/RegisterVillage';
 import MenuManagement from './pages/MenuManagement';
 import PositionManagement from './pages/PositionManagement';
+import CommunityLeaders from './pages/CommunityLeaders';
 
 function App() {
   return (
@@ -61,6 +62,7 @@ function App() {
            <Route path="/register-village" element={<RegisterVillage />} />
             <Route path="/menu-management" element={<MenuManagement />} />
             <Route path="/position-management" element={<PositionManagement />} />
+            <Route path="/community-leaders" element={<CommunityLeaders />} />
           </Routes>
         </div>
       </div>
