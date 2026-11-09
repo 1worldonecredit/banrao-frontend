@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, PlaySquare, Users, Settings, LogOut, X, Bell, Camera, Save, XCircle, CheckCircle2, User, Shield, BookOpen, BookHeart, MapPin } from 'lucide-react';
+import { 
+  ClipboardList, PlaySquare, Users, Settings, LogOut, X, Bell, 
+  Camera, Save, XCircle, CheckCircle2, User, Shield, BookOpen, 
+  BookHeart, MapPin, Activity, FileText, LayoutList, HeartPulse, Stethoscope 
+} from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
-// ตัวช่วยแปลงชื่อไอคอนเป็น Component จริง
+// 🌟 ตัวช่วยแปลงชื่อไอคอน (เพิ่มไอคอนพื้นฐานที่อาจจะได้ใช้บ่อยในชุมชน/อสม.)
 const IconMapper = ({ name, size, color }) => {
   const icons = {
     User: <User size={size} color={color} />,
@@ -15,8 +19,14 @@ const IconMapper = ({ name, size, color }) => {
     Shield: <Shield size={size} color={color} />,
     BookOpen: <BookOpen size={size} color={color} />,
     BookHeart: <BookHeart size={size} color={color} />,
-    MapPin: <MapPin size={size} color={color} />
+    MapPin: <MapPin size={size} color={color} />,
+    Activity: <Activity size={size} color={color} />,
+    FileText: <FileText size={size} color={color} />,
+    LayoutList: <LayoutList size={size} color={color} />,
+    HeartPulse: <HeartPulse size={size} color={color} />,
+    Stethoscope: <Stethoscope size={size} color={color} />
   };
+  // ถ้าพิมพ์ชื่อไอคอนผิด หรือไม่มีในระบบ ให้แสดง ClipboardList เป็นค่าเริ่มต้น
   return icons[name] || <ClipboardList size={size} color={color} />;
 };
 
@@ -36,23 +46,30 @@ const Sidebar = ({ isOpen, onClose }) => {
   // ดึงเมนูจาก Backend ทันทีที่เปิด Sidebar
   useEffect(() => {
      const fetchMenus = async () => {
+         // ดักหา ID จากหลายรูปแบบเผื่อฐานข้อมูลใช้ชื่อคอลัมน์ต่างกัน
          const accountId = userData.account_id || userData.id || userData.user_id;
          if (!accountId) return;
 
          try {
              const response = await fetch(`${API_URL}/api/sidebar-menus/${accountId}`);
              const result = await response.json();
-             if (result.success) {
+             
+             // ตรวจสอบว่ามี data ส่งมาจริงๆ ป้องกันแอปพัง (Crash)
+             if (result.success && Array.isArray(result.data)) {
                  setMenuGroups(result.data);
              } else {
                  console.error("Failed to load menus:", result.message);
+                 setMenuGroups([]); // ล้างเมนูถ้าโหลดไม่สำเร็จ
              }
          } catch (error) {
              console.error("API Error fetching menus:", error);
          }
      };
-     fetchMenus();
-  }, [userData]);
+
+     if (isOpen) {
+       fetchMenus(); // เรียกใช้ใหม่เมื่อมีการเปิด Sidebar เผื่อมีการอัปเดตสิทธิ์
+     }
+  }, [userData, isOpen]); // อัปเดตเมื่อ userData หรือสถานะการเปิด/ปิดเปลี่ยน
 
   const handleLogout = () => {
     localStorage.removeItem('userData');
@@ -75,7 +92,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     setPreviewUrl(userData.userImage || '/profile-img.jpg');
   };
 
-  // 🌟 ฟังก์ชันอัปโหลดรูปภาพ (ใช้ API Cloudflare ที่เราสร้างไว้)
+  // 🌟 ฟังก์ชันอัปโหลดรูปภาพ
   const handleSaveProfile = async () => {
     if (!selectedFile) return;
     setIsUploading(true);
@@ -153,7 +170,6 @@ const Sidebar = ({ isOpen, onClose }) => {
         <div style={{ padding: '0 20px', marginBottom: '20px', display: 'flex', flexDirection: 'column', marginTop: '10px' }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            {/* กล่องรูป Profile ที่คลิกเพื่อเลือกไฟล์ได้ */}
             <div style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }} onClick={() => document.getElementById('profile-upload-sidebar').click()}>
               <img 
                 src={previewUrl} 
@@ -174,11 +190,11 @@ const Sidebar = ({ isOpen, onClose }) => {
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ color: '#ffffff', fontSize: '16px', fontWeight: 'bold' }}>
-                {userData.firstName ? `${userData.firstName} ${userData.lastName}` : 'ผู้ใช้งานระบบ'}
+                {userData.firstName || userData.username_phone || 'ผู้ใช้งานระบบ'}
               </span>
               
-              {/* 🌟 แสดงตำแหน่งหน้าที่แทนที่ My Account */}
-              {userData.position_name ? (
+              {/* 🌟 แสดงตำแหน่งหน้าที่ */}
+              {userData.position_name || userData.role_name ? (
                 <div style={{ 
                   display: 'inline-flex', alignItems: 'center', gap: '4px', 
                   backgroundColor: 'rgba(16, 185, 129, 0.2)',
@@ -190,7 +206,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   fontWeight: 'bold',
                   width: 'fit-content'
                 }}>
-                  <Shield size={10} /> {userData.position_name}
+                  <Shield size={10} /> {userData.position_name || userData.role_name}
                 </div>
               ) : (
                 <span style={{ color: '#94a3b8', fontSize: '12px', marginTop: '2px' }}>ประชาชน</span>
@@ -198,7 +214,6 @@ const Sidebar = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* 🌟 ปุ่มบันทึก จะโชว์เมื่อมีการเลือกไฟล์ใหม่เท่านั้น */}
           {selectedFile && (
             <div style={{ display: 'flex', gap: '8px', marginTop: '15px' }}>
               <button 
@@ -218,13 +233,11 @@ const Sidebar = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* 🌟 ข้อความแจ้งเตือนเมื่อบันทึกสำเร็จ */}
           {uploadSuccess && (
             <div style={{ marginTop: '10px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#4ade80', padding: '8px', borderRadius: '8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold' }}>
               <CheckCircle2 size={16} /> บันทึกโปรไฟล์สำเร็จ!
             </div>
           )}
-
         </div>
 
         <div style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', margin: '0 20px 15px 20px' }} />
@@ -236,14 +249,15 @@ const Sidebar = ({ isOpen, onClose }) => {
         >
           <style>{`.sidebar-menu-container::-webkit-scrollbar { display: none; }`}</style>
           
-          {menuGroups.map((group, gIndex) => (
+          {menuGroups.length > 0 ? (
+            menuGroups.map((group, gIndex) => (
               <div key={gIndex}>
                   <div style={{ padding: '0 10px', color: '#94a3b8', fontSize: '11px', fontWeight: 'bold', marginBottom: '8px', letterSpacing: '1px' }}>
                       {group.group_name}
                   </div>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                      {group.menus.map((menu, mIndex) => (
+                      {Array.isArray(group.menus) && group.menus.map((menu, mIndex) => (
                           <button 
                               key={mIndex}
                               onClick={() => { navigate(menu.path); onClose(); }} 
@@ -262,7 +276,12 @@ const Sidebar = ({ isOpen, onClose }) => {
                       ))}
                   </div>
               </div>
-          ))}
+            ))
+          ) : (
+            <div style={{ textAlign: 'center', color: '#64748b', fontSize: '12px', marginTop: '20px' }}>
+              กำลังโหลดเมนู...
+            </div>
+          )}
         </div>
 
         {/* 🌟 3. Bottom Actions */}
