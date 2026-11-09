@@ -297,7 +297,7 @@ const CommunityLeaders = () => {
             <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 text-white flex justify-between items-center shrink-0">
               <h2 className="text-lg font-bold flex items-center gap-2">
                 {editingSlot?.isNew ? <UserPlus size={20} /> : <Edit size={20} />} 
-                {editingSlot?.isNew ? 'เพิ่มบุคลากร' : 'แก้ไขข้อมูล'}
+                {editingSlot?.isNew ? 'เพิ่มผู้นำชุมชน' : 'แก้ไขข้อมูล'}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="hover:text-blue-200 transition-colors">
                 <X size={24} />
