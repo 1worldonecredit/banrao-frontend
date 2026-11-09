@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Edit, Camera, Save, X } from 'lucide-react';
+import { Users, Calendar, Edit, Camera, Save, X, UserPlus } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
@@ -7,15 +7,16 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-  const villageId = userData.village_id || 1; // ดึง Village ID ของผู้ใช้งาน
+  const villageId = userData.village_id || 1; 
   
   const [leaders, setLeaders] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(''); // สำหรับเลือกดูวาระย้อนหลัง
+  const [selectedDate, setSelectedDate] = useState(''); 
   
   // State สำหรับ Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingLeader, setEditingLeader] = useState(null);
+  const [editingSlot, setEditingSlot] = useState(null); // เก็บข้อมูลว่ากำลังกดแก้ไข/เพิ่ม ที่กล่องตำแหน่งไหน
   const [formData, setFormData] = useState({
+    account_id: '', // ในอนาคตคุณอาจจะต้องทำ Dropdown ค้นหาลูกบ้านมาใส่ตรงนี้
     start_date: '',
     end_date: '',
     responsibilities: '',
@@ -23,7 +24,6 @@ const CommunityLeaders = () => {
     previewUrl: ''
   });
 
-  // ดึงข้อมูลผู้นำ
   const fetchLeaders = async (dateQuery = '') => {
     try {
       const url = `${API_URL}/api/community-leaders/${villageId}${dateQuery ? `?term_date=${dateQuery}` : ''}`;
@@ -47,21 +47,52 @@ const CommunityLeaders = () => {
     fetchLeaders(date);
   };
 
-  // จัดกลุ่มผู้นำตามลำดับชั้น (จำลองตรรกะแบบง่าย)
-  const headman = leaders.find(l => l.position_name.includes('ผู้ใหญ่บ้าน') && !l.position_name.includes('ผู้ช่วย'));
-  const assistants = leaders.filter(l => l.position_name.includes('ผู้ช่วย'));
-  const others = leaders.filter(l => l !== headman && !assistants.includes(l));
+  // ==========================================
+  // 🌟 กำหนด "แม่แบบโครงสร้าง" (Blueprint) ของหมู่บ้าน
+  // ==========================================
+  const orgStructure = {
+    level1: [ { role_name: 'ผู้ใหญ่บ้าน', isHead: true } ],
+    level2: [ 
+        { role_name: 'ผู้ช่วยผู้ใหญ่บ้าน ฝ่ายปกครอง' }, 
+        { role_name: 'ผู้ช่วยผู้ใหญ่บ้าน ฝ่ายรักษาความสงบ' } 
+    ],
+    level3: [
+        { role_name: 'อสม.' },
+        { role_name: 'คณะกรรมการหมู่บ้าน' },
+        { role_name: 'เจ้าหน้าที่อื่นๆ' }
+    ]
+  };
 
-  // เปิด Modal แก้ไข
-  const handleEditClick = (leader) => {
-    setEditingLeader(leader);
-    setFormData({
-      start_date: leader.start_date ? leader.start_date.split('T')[0] : '',
-      end_date: leader.end_date ? leader.end_date.split('T')[0] : '',
-      responsibilities: leader.responsibilities || '',
-      previewUrl: leader.user_image || '/profile-img.jpg',
-      image_file: null
-    });
+  // ==========================================
+  // 🌟 ฟังก์ชันเปิด Modal (รองรับทั้งช่องว่าง และ ช่องที่มีคนแล้ว)
+  // ==========================================
+  const handleSlotClick = (roleDef) => {
+    // ค้นหาว่าในตำแหน่ง (roleDef.role_name) นี้ มีคนดำรงตำแหน่งอยู่แล้วหรือไม่
+    const existingLeader = leaders.find(l => l.position_name.includes(roleDef.role_name));
+
+    if (existingLeader) {
+      // โหมด: แก้ไขคนที่มีอยู่แล้ว
+      setEditingSlot({ ...roleDef, isNew: false, recordId: existingLeader.position_record_id });
+      setFormData({
+        account_id: existingLeader.account_id,
+        start_date: existingLeader.start_date ? existingLeader.start_date.split('T')[0] : '',
+        end_date: existingLeader.end_date ? existingLeader.end_date.split('T')[0] : '',
+        responsibilities: existingLeader.responsibilities || '',
+        previewUrl: existingLeader.user_image || '/profile-img.jpg',
+        image_file: null
+      });
+    } else {
+      // โหมด: ช่องว่าง (เพิ่มคนใหม่ลงในตำแหน่งนี้)
+      setEditingSlot({ ...roleDef, isNew: true });
+      setFormData({
+        account_id: '',
+        start_date: new Date().toISOString().split('T')[0], // ตั้งค่าเริ่มต้นเป็นวันนี้
+        end_date: '',
+        responsibilities: '',
+        previewUrl: '/profile-img.jpg',
+        image_file: null
+      });
+    }
     setIsModalOpen(true);
   };
 
@@ -72,73 +103,54 @@ const CommunityLeaders = () => {
     }
   };
 
-  // บันทึกข้อมูล
-  const handleSave = async (e) => {
-    e.preventDefault();
-    try {
-      // 1. อัปเดตข้อมูลตำแหน่งและวันที่
-      await fetch(`${API_URL}/api/community-leaders/${editingLeader.position_record_id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+  // ==========================================
+  // 🌟 Component การ์ดผู้นำ (รองรับแบบมีคน และแบบว่างเปล่า)
+  // ==========================================
+  const LeaderCard = ({ roleDef }) => {
+    // หาว่าตำแหน่งนี้มีคนอยู่ไหม
+    const leader = leaders.find(l => l.position_name.includes(roleDef.role_name));
+    const isHead = roleDef.isHead;
 
-      // 2. ถ้ามีการเปลี่ยนรูปภาพ ให้เรียก API อัปโหลดรูปที่เคยสร้างไว้
-      if (formData.image_file) {
-        const imgData = new FormData();
-        imgData.append('profileImage', formData.image_file);
-        imgData.append('userId', editingLeader.account_id);
-        const token = localStorage.getItem('token');
-        await fetch(`${API_URL}/api/upload-profile`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: imgData
-        });
-      }
-
-      alert('บันทึกข้อมูลเรียบร้อยแล้ว');
-      setIsModalOpen(false);
-      fetchLeaders(selectedDate);
-    } catch (error) {
-      console.error("Save error:", error);
-      alert('เกิดข้อผิดพลาดในการบันทึก');
-    }
-  };
-
-  // Component สำหรับการ์ดผู้นำ (ใช้ซ้ำได้)
-  const LeaderCard = ({ leader, isHead = false }) => {
-    if (!leader) return null;
     return (
-      <div className="flex flex-col items-center relative z-10">
-        {/* เส้นเชื่อมโยงสายงานด้านบน (ยกเว้นหัวหน้า) */}
-        {!isHead && <div className="w-px h-6 bg-slate-400"></div>}
+      <div className="flex flex-col items-center relative z-10 mx-4 my-2">
+        {!isHead && <div className="w-px h-6 bg-slate-300"></div>}
         
-        <div 
-          onClick={() => handleEditClick(leader)}
-          className={`cursor-pointer group relative bg-white rounded-xl shadow-lg border-2 ${isHead ? 'border-yellow-500' : 'border-blue-400'} p-3 w-48 text-center hover:scale-105 transition-transform overflow-hidden`}
-        >
-          {/* กรอบรูปภาพ */}
-          <div className={`w-24 h-24 mx-auto rounded-lg overflow-hidden border-2 ${isHead ? 'border-yellow-400' : 'border-slate-200'} mb-3 relative`}>
-            <img src={leader.user_image || '/profile-img.jpg'} alt="Profile" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-              <Edit className="text-white" size={24} />
+        {leader ? (
+          // 🟩 กรณีที่ 1: มีคนดำรงตำแหน่งแล้ว (แสดงรูปและชื่อ)
+          <div 
+            onClick={() => handleSlotClick(roleDef)}
+            className={`cursor-pointer group relative bg-white rounded-xl shadow-md border-2 ${isHead ? 'border-blue-500' : 'border-blue-300'} p-3 w-48 text-center hover:shadow-lg transition-all overflow-hidden`}
+          >
+            <div className={`w-20 h-20 mx-auto rounded-full overflow-hidden border-4 ${isHead ? 'border-blue-100' : 'border-slate-100'} mb-3 relative`}>
+              <img src={leader.user_image || '/profile-img.jpg'} alt="Profile" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Edit className="text-white" size={20} />
+              </div>
+            </div>
+            <h3 className="font-bold text-slate-800 text-sm line-clamp-1">{leader.first_name} {leader.last_name}</h3>
+            <div className={`text-xs font-bold px-2 py-1 mt-1 rounded-full ${isHead ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700'} line-clamp-1`}>
+              {roleDef.role_name}
             </div>
           </div>
-          
-          <h3 className="font-bold text-slate-800 text-sm">{leader.first_name} {leader.last_name}</h3>
-          <p className={`text-xs font-medium px-2 py-1 mt-1 rounded-full ${isHead ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>
-            {leader.position_name}
-          </p>
-          {leader.responsibilities && (
-            <p className="text-xs text-slate-500 mt-2 line-clamp-2">{leader.responsibilities}</p>
-          )}
-        </div>
+        ) : (
+          // ⬜ กรณีที่ 2: ช่องว่างเปล่า (รอการเพิ่มข้อมูล)
+          <div 
+            onClick={() => handleSlotClick(roleDef)}
+            className={`cursor-pointer group relative bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl p-3 w-48 h-[160px] flex flex-col items-center justify-center text-center hover:bg-blue-50 hover:border-blue-400 transition-all`}
+          >
+            <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-500 mb-3">
+              <UserPlus size={28} />
+            </div>
+            <p className="text-xs font-bold text-slate-500 group-hover:text-blue-600">คลิกเพื่อเพิ่ม</p>
+            <p className="text-xs text-slate-400 mt-1">{roleDef.role_name}</p>
+          </div>
+        )}
       </div>
     );
   };
 
   return (
-    <div className="bg-slate-100 min-h-screen pb-24">
+    <div className="bg-slate-50 min-h-screen pb-24">
       <TopNavbar userData={userData} />
       
       <div className="max-w-6xl mx-auto p-4 pt-20">
@@ -151,7 +163,6 @@ const CommunityLeaders = () => {
             </div>
           </div>
           
-          {/* ตัวเลือกดูวาระย้อนหลัง */}
           <div className="mt-4 md:mt-0 flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
             <Calendar size={18} className="text-slate-500" />
             <span className="text-sm font-medium text-slate-700">ดูวาระ ณ วันที่:</span>
@@ -164,106 +175,112 @@ const CommunityLeaders = () => {
           </div>
         </div>
 
-        {/* 🌟 ผังองค์กร (Org Chart UI) */}
-        <div className="relative py-10 overflow-x-auto text-center">
+        {/* ========================================== */}
+        {/* 🌟 วาดผังองค์กร (Organization Chart Structure) */}
+        {/* ========================================== */}
+        <div className="relative py-10 overflow-x-auto text-center flex flex-col items-center">
           
           {/* Level 1: ผู้ใหญ่บ้าน */}
           <div className="flex justify-center">
-            <LeaderCard leader={headman} isHead={true} />
+            {orgStructure.level1.map((role, idx) => (
+               <LeaderCard key={`l1-${idx}`} roleDef={role} />
+            ))}
           </div>
 
-          {/* เส้นเชื่อม Level 1 ลงมา Level 2 */}
-          {headman && (assistants.length > 0 || others.length > 0) && (
-            <div className="flex flex-col items-center">
-              <div className="w-px h-8 bg-slate-400"></div>
-              {/* เส้นแนวนอนเชื่อมลูกๆ */}
-              <div className="h-px bg-slate-400 w-3/4 max-w-2xl"></div>
-            </div>
-          )}
+          {/* เส้นเชื่อม Level 1 -> Level 2 */}
+          <div className="flex flex-col items-center">
+            <div className="w-px h-8 bg-slate-300"></div>
+            <div className="h-px bg-slate-300 w-[300px]"></div>
+          </div>
 
           {/* Level 2: ผู้ช่วยผู้ใหญ่บ้าน */}
-          {assistants.length > 0 && (
-            <div className="flex justify-center gap-8 mt-6">
-              {assistants.map((ast, idx) => (
-                <LeaderCard key={idx} leader={ast} />
-              ))}
-            </div>
-          )}
+          <div className="flex justify-center gap-4 mt-0">
+            {orgStructure.level2.map((role, idx) => (
+               <LeaderCard key={`l2-${idx}`} roleDef={role} />
+            ))}
+          </div>
 
-          {/* เส้นเชื่อม Level 2 ลงมา Level 3 */}
-          {assistants.length > 0 && others.length > 0 && (
-            <div className="flex flex-col items-center mt-6">
-              <div className="w-px h-8 bg-slate-400"></div>
-              <div className="h-px bg-slate-400 w-11/12 max-w-4xl"></div>
-            </div>
-          )}
+          {/* เส้นเชื่อม Level 2 -> Level 3 */}
+          <div className="flex flex-col items-center mt-2">
+            <div className="w-px h-8 bg-slate-300"></div>
+            <div className="h-px bg-slate-300 w-[600px] max-w-[90%]"></div>
+          </div>
 
-          {/* Level 3: คณะกรรมการ / อสม. / อื่นๆ */}
-          {others.length > 0 && (
-            <div className="flex justify-center flex-wrap gap-6 mt-6 max-w-5xl mx-auto">
-              {others.map((oth, idx) => (
-                <LeaderCard key={idx} leader={oth} />
-              ))}
-            </div>
-          )}
-          
-          {leaders.length === 0 && (
-            <div className="text-slate-400 py-10">ไม่พบข้อมูลผู้นำชุมชนในวาระที่ระบุ</div>
-          )}
+          {/* Level 3: ตำแหน่งอื่นๆ */}
+          <div className="flex justify-center flex-wrap gap-4 mt-0 max-w-5xl">
+             {orgStructure.level3.map((role, idx) => (
+               <LeaderCard key={`l3-${idx}`} roleDef={role} />
+            ))}
+          </div>
+
         </div>
       </div>
 
-      {/* 🌟 Modal แก้ไขข้อมูล (เมื่อคลิกที่การ์ด) */}
+      {/* ========================================== */}
+      {/* 🌟 Modal เพิ่ม/แก้ไข ข้อมูลผู้นำ */}
+      {/* ========================================== */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl transform transition-all">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 text-white flex justify-between items-center">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
               <h2 className="text-lg font-bold flex items-center gap-2">
-                <Edit size={18} /> แก้ไขข้อมูลผู้นำชุมชน
+                {editingSlot?.isNew ? <UserPlus size={20} /> : <Edit size={20} />} 
+                {editingSlot?.isNew ? 'เพิ่มบุคลากรในตำแหน่ง' : 'แก้ไขข้อมูลตำแหน่ง'}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="hover:text-blue-200"><X size={24} /></button>
             </div>
             
-            <form onSubmit={handleSave} className="p-6">
+            <form className="p-6">
+              <div className="text-center mb-4">
+                <span className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-bold">
+                  ตำแหน่ง: {editingSlot?.role_name}
+                </span>
+              </div>
+
               {/* อัปโหลดรูป */}
               <div className="flex flex-col items-center mb-6">
-                <div className="relative w-28 h-28 rounded-full border-4 border-slate-100 overflow-hidden shadow-md group cursor-pointer" onClick={() => document.getElementById('leader-img-upload').click()}>
+                <div className="relative w-24 h-24 rounded-full border-4 border-slate-100 overflow-hidden shadow-sm group cursor-pointer" onClick={() => document.getElementById('leader-img-upload').click()}>
                   <img src={formData.previewUrl} alt="Preview" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Camera size={24} className="text-white" />
                   </div>
                 </div>
-                <p className="text-xs text-slate-400 mt-2">คลิกเพื่อเปลี่ยนรูปประจำตัว</p>
                 <input type="file" id="leader-img-upload" accept="image/*" onChange={handleImageChange} className="hidden" />
               </div>
 
               <div className="space-y-4">
+                {editingSlot?.isNew && (
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">รหัสบัญชีลูกบ้าน (Account ID)</label>
+                    <input type="text" placeholder="ระบุ ID ผู้ใช้งานเพื่อแต่งตั้ง" value={formData.account_id} onChange={e => setFormData({...formData, account_id: e.target.value})} className="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none" />
+                    <p className="text-[10px] text-red-500 mt-1">* ในระบบจริงควรทำเป็นช่องค้นหาชื่อลูกบ้าน</p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">วันที่รับตำแหน่ง</label>
-                    <input type="date" required value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-blue-500" />
+                    <input type="date" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">วันหมดวาระ (ทิ้งว่างถ้ายังดำรงตำแหน่ง)</label>
-                    <input type="date" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-blue-500" />
+                    <label className="block text-sm font-bold text-slate-700 mb-1">วันหมดวาระ</label>
+                    <input type="date" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full p-2 border border-slate-300 rounded-lg text-sm outline-none" />
                   </div>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">หน้าที่รับผิดชอบ</label>
                   <textarea 
-                    rows="3"
-                    value={formData.responsibilities}
-                    onChange={e => setFormData({...formData, responsibilities: e.target.value})}
-                    placeholder="ระบุหน้าที่ความรับผิดชอบที่ดูแล เช่น ฝ่ายรักษาความสงบ, ดูแลสวัสดิการชุมชน..."
-                    className="w-full p-3 border border-slate-300 rounded-lg text-sm outline-none focus:border-blue-500 resize-none"
+                    rows="3" value={formData.responsibilities} onChange={e => setFormData({...formData, responsibilities: e.target.value})}
+                    placeholder="ระบุหน้าที่ความรับผิดชอบ..."
+                    className="w-full p-3 border border-slate-300 rounded-lg text-sm outline-none resize-none"
                   ></textarea>
                 </div>
               </div>
 
               <div className="mt-8 flex gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 rounded-lg border border-slate-300 font-bold text-slate-600 hover:bg-slate-50">ยกเลิก</button>
-                <button type="submit" className="flex-1 py-3 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 flex items-center justify-center gap-2">
+                <button type="button" className="flex-1 py-3 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 flex items-center justify-center gap-2">
                   <Save size={18} /> บันทึกข้อมูล
                 </button>
               </div>
