@@ -150,12 +150,36 @@ const CommunityLeaders = () => {
     fetchLeaders(date);
   };
 
+  // ฟังก์ชันจัดรูปแบบเลขบัตรประชาชน (เพิ่มขีดอัตโนมัติ)
+  const formatCitizenId = (value) => {
+    // ลบตัวอักษรที่ไม่ใช่ตัวเลขออกให้หมด
+    const numbers = value.replace(/\D/g, '');
+    
+    // จัดกลุ่มตัวเลขและเติมขีด
+    let formatted = '';
+    if (numbers.length > 0) formatted += numbers.substring(0, 1);
+    if (numbers.length > 1) formatted += '-' + numbers.substring(1, 5);
+    if (numbers.length > 5) formatted += '-' + numbers.substring(5, 10);
+    if (numbers.length > 10) formatted += '-' + numbers.substring(10, 12);
+    if (numbers.length > 12) formatted += '-' + numbers.substring(12, 13);
+    
+    return formatted;
+  };
+
+  // ฟังก์ชันจัดการการพิมพ์ในช่องค้นหา
+  const handleCitizenIdChange = (e) => {
+    const formatted = formatCitizenId(e.target.value);
+    setSearchCitizenId(formatted);
+  };
+
   // 🌟 ฟังก์ชันค้นหาลูกบ้าน
   const handleSearchUser = async () => {
+    const rawCitizenId = searchCitizenId.replace(/-/g, '');
     if (searchCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
     setIsLoading(true);
     try {
-        const res = await fetch(`${API_URL}/api/search-citizen/${searchCitizenId}`);
+        const res = await fetch(`${API_URL}/api/search-citizen/${rawCitizenId}`);
+
         const result = await res.json();
         if (result.success) {
             setFoundUser(result.data);
@@ -266,7 +290,14 @@ const CommunityLeaders = () => {
           <div className="mt-4 md:mt-0 flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
             <Calendar size={18} className="text-slate-500" />
             <span className="text-sm font-medium text-slate-700">ดูวาระ ณ วันที่:</span>
-            <input type="date" value={selectedDate} onChange={handleDateSearch} className="text-sm p-1.5 border border-slate-300 rounded outline-none focus:border-blue-500" />
+           <input 
+    type="text" 
+    maxLength="17" // 🛠 เปลี่ยนจาก 13 เป็น 17 เพื่อเผื่อที่ให้ขีด (13 ตัวเลข + 4 ขีด)
+    value={searchCitizenId} 
+    onChange={handleCitizenIdChange} // 🌟 เรียกใช้ฟังก์ชันที่สร้างใหม่
+    placeholder="X-XXXX-XXXXX-XX-X" // 🌟 แนะนำรูปแบบให้ผู้ใช้เห็น
+    className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-wider" // 🌟 เพิ่ม font-mono tracking-wider ให้ตัวเลขดูชัดเจนขึ้น
+  />
           </div>
         </div>
 
