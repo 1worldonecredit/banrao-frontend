@@ -6,7 +6,7 @@ import BottomNavbar from '../components/BottomNavbar';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 // ==========================================
-// 🌟 1. Component ก้อน Node (สำหรับวาดผัง - ดีไซน์โปร่งใส สวยงาม)
+// 🌟 1. Component ก้อน Node (สำหรับวาดผัง)
 // ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   const hasUser = !!node.account_id;
@@ -14,8 +14,8 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   return (
     <div className="flex flex-col items-center">
       <div className="relative group m-1 md:m-2 mt-4">
-        {/* 🌟 ปรับดีไซน์ Card ให้โปร่งใส 50% (bg-white/50) พร้อม Backdrop Blur */}
-        <div className="bg-white/50 backdrop-blur-sm border border-slate-200/60 shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-4 w-36 sm:w-48 md:w-56 flex flex-col items-center z-10 relative overflow-hidden">
+        {/* ดีไซน์ Card ให้โปร่งใสสวยงาม */}
+        <div className="bg-white/60 backdrop-blur-md border border-slate-200/60 shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-4 w-36 sm:w-48 md:w-56 flex flex-col items-center z-10 relative overflow-hidden">
           
           <div className={`absolute top-0 left-0 w-full h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-gradient-to-r from-emerald-400 to-teal-400'}`}></div>
           
@@ -50,6 +50,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
           </div>
         </div>
 
+        {/* 🌟 ปุ่มเพิ่มลูกน้อง (ด่านล่าง) โชว์เสมอถ้ามีคนอยู่แล้ว เพื่อให้สร้างผังต่อได้ */}
         {hasUser ? (
            <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา / ทีมย่อย">
              <Plus size={14} />
@@ -58,17 +59,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
            <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
              <Edit size={18} />
            </button>
-        )}
-        
-        {!node.isRoot && (
-           <>
-             <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-slate-300 text-slate-700 rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 hover:text-white transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
-               <Plus size={12} />
-             </button>
-             <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-slate-300 text-slate-700 rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 hover:text-white transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
-               <Plus size={12} />
-             </button>
-           </>
         )}
       </div>
 
@@ -92,6 +82,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   );
 };
 
+
 // ==========================================
 // 🌟 2. Main Component
 // ==========================================
@@ -102,7 +93,7 @@ const CommunityLeaders = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
   
-  // State สำหรับระบบ Tabs (คณะทำงาน)
+  // State สำหรับระบบ Tabs 
   const [committees, setCommittees] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
   const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
@@ -126,8 +117,37 @@ const CommunityLeaders = () => {
   });
 
   // ==========================================
-  // การเชื่อมต่อ API
+  // ฟังก์ชันช่วยเหลือต่างๆ
   // ==========================================
+  
+  // 🌟 ฟังก์ชันแปลงข้อมูลแบนๆ (Flat) ให้เป็นต้นไม้ (Tree)
+  const buildTree = (data) => {
+    let tree = [];
+    let lookup = {};
+
+    data.forEach(item => {
+      lookup[item.position_record_id] = { 
+        ...item, 
+        id: item.position_record_id, 
+        role_name: item.position_name,
+        userName: `${item.first_name || ''} ${item.last_name || ''}`,
+        children: [] 
+      };
+    });
+
+    data.forEach(item => {
+      if (item.parent_id && lookup[item.parent_id]) {
+        lookup[item.parent_id].children.push(lookup[item.position_record_id]);
+      } else {
+        // ใครไม่มี parent_id ถือว่าเป็น Root ของผังนั้น
+        lookup[item.position_record_id].isRoot = true;
+        tree.push(lookup[item.position_record_id]);
+      }
+    });
+
+    return tree[0] || null; 
+  };
+
 
   const fetchCommittees = async () => {
     try {
@@ -137,52 +157,27 @@ const CommunityLeaders = () => {
         setCommittees(result.data);
         if (!activeTab) setActiveTab(result.data[0].committee_id);
       }
-    } catch (error) {
-      console.error("Error fetching committees:", error);
-    }
+    } catch (error) { console.error("Error fetching committees:", error); }
   };
 
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
-    
     try {
       const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
       
       if (result.success && result.data.length > 0) {
-        let rootNode = result.data.find(l => l.position_name?.includes('ผู้ใหญ่บ้าน') || l.position_name?.includes('ประธาน')) || result.data[0];
-        const childrenList = result.data.filter(l => l.position_record_id !== rootNode.position_record_id);
-
-        const childrenNodes = childrenList.map(l => ({
-            ...l, 
-            id: l.position_record_id,
-            role_name: l.position_name,
-            userName: `${l.first_name} ${l.last_name}`
-        }));
-        
-        setOrgTree({
-            ...rootNode,
-            isRoot: true,
-            id: rootNode.position_record_id,
-            role_name: rootNode.position_name || 'ประธาน / หัวหน้าชุด',
-            userName: `${rootNode.first_name} ${rootNode.last_name}`,
-            children: childrenNodes
-        });
+        // 🌟 ใช้ฟังก์ชันสร้าง Tree ที่เราเพิ่งเขียน
+        const treeData = buildTree(result.data);
+        setOrgTree(treeData);
       } else {
-        setOrgTree({
-            isRoot: true, role_name: 'ประธาน / หัวหน้าชุด', id: 'root-0', children: []
-        });
+        setOrgTree({ isRoot: true, role_name: 'ประธาน / หัวหน้าชุด', id: 'root-0', children: [] });
       }
-    } catch (error) {
-      console.error("Error fetching leaders:", error);
-    }
+    } catch (error) { console.error("Error fetching leaders:", error); }
   };
 
-  useEffect(() => {
-    fetchCommittees();
-  }, []);
-
+  useEffect(() => { fetchCommittees(); }, []);
   useEffect(() => {
     if (activeTab) {
       setOrgTree(null); 
@@ -190,9 +185,6 @@ const CommunityLeaders = () => {
     }
   }, [activeTab, selectedDate]);
 
-  // ==========================================
-  // ฟังก์ชันช่วยเหลือต่างๆ
-  // ==========================================
   const formatCitizenId = (value) => {
     const numbers = value.replace(/\D/g, '');
     let formatted = '';
@@ -203,9 +195,7 @@ const CommunityLeaders = () => {
     if (numbers.length > 12) formatted += '-' + numbers.substring(12, 13);
     return formatted;
   };
-
   const handleCitizenIdChange = (e) => setSearchCitizenId(formatCitizenId(e.target.value));
-
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
@@ -214,7 +204,6 @@ const CommunityLeaders = () => {
   const handleSearchUser = async () => {
     const rawCitizenId = searchCitizenId.replace(/-/g, ''); 
     if (rawCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
-    
     setIsLoading(true);
     try {
         const res = await fetch(`${API_URL}/api/search-citizen/${rawCitizenId}`);
@@ -232,8 +221,8 @@ const CommunityLeaders = () => {
   };
 
   const handleAddNode = (parentNode, direction) => {
-    setEditingSlot({ isNew: true, parentNode, direction });
-    // 🌟 ดึงวันที่ปัจจุบันมาเป็นค่าเริ่มต้น
+    // 🌟 จำไว้ว่ากล่องที่กำลังจะเพิ่ม เป็นลูกของกล่องไหน
+    setEditingSlot({ isNew: true, parentId: parentNode.position_record_id || parentNode.id }); 
     const today = new Date().toISOString().split('T')[0];
     setFormData({ role_name: '', account_id: '', start_date: today, end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null });
     setFoundUser(null);
@@ -242,19 +231,15 @@ const CommunityLeaders = () => {
   };
 
   const handleEditNode = (node) => {
-    // 🌟 1. ตรวจสอบว่านี่คือ "กล่องจำลอง" (ยังไม่มีในฐานข้อมูล) หรือไม่
-    // ถ้า node.id ไม่มีอยู่ หรือเป็นข้อความที่ขึ้นต้นด้วย 'root-' ให้ถือว่าเป็นของจำลอง
     const isMockNode = !node.position_record_id || String(node.id).startsWith('root-');
     
-    // 🌟 2. เซ็ตค่าการแก้ไข: ถ้าเป็นกล่องจำลอง ให้ isNew = true (ใช้ POST) และ recordId = null
     setEditingSlot({ 
       isNew: isMockNode, 
-      recordId: isMockNode ? null : (node.position_record_id || node.id) 
+      recordId: isMockNode ? null : (node.position_record_id || node.id),
+      parentId: node.parent_id || null // ถ่ายทอด parent_id เดิม
     });
     
     const today = new Date().toISOString().split('T')[0];
-    
-    // 🌟 3. เติมข้อมูลลงฟอร์ม
     setFormData({
       role_name: node.role_name, 
       account_id: node.account_id || '',
@@ -265,15 +250,12 @@ const CommunityLeaders = () => {
       image_file: null
     });
 
-    // 🌟 4. จัดการเรื่องช่องค้นหาคน
     if (node.account_id) {
         setFoundUser({
           first_name: node.first_name, last_name: node.last_name,
           village_name: node.village_name || userData.villageName, tambon_name_th: node.tambon_name_th || userData.tambonName
         });
-    } else {
-        setFoundUser(null); 
-    }
+    } else setFoundUser(null); 
     
     setIsModalOpen(true);
   };
@@ -293,7 +275,7 @@ const CommunityLeaders = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.account_id) return alert("กรุณาระบุบุคลากร");
-    if (!formData.role_name) return alert("กรุณาระบุชื่อตำแหน่ง/โครงการ");
+    if (!formData.role_name) return alert("กรุณาระบุชื่อตำแหน่ง");
 
     try {
       const payload = {
@@ -303,7 +285,8 @@ const CommunityLeaders = () => {
         account_id: formData.account_id,
         start_date: formData.start_date,
         end_date: formData.end_date || null,
-        responsibilities: formData.responsibilities
+        responsibilities: formData.responsibilities,
+        parent_id: editingSlot.parentId || null // 🌟 ส่ง parent_id ไปให้ Backend ด้วย
       };
 
       const url = editingSlot.isNew ? `${API_URL}/api/community-leaders` : `${API_URL}/api/community-leaders/${editingSlot.recordId}`;
@@ -389,7 +372,6 @@ const CommunityLeaders = () => {
           </div>
         )}
 
-        {/* 🌟 พื้นหลังผัง เป็นลายตารางอ่อนๆ ดูทันสมัย */}
         <div className="relative py-12 overflow-x-auto flex justify-center min-w-max md:min-w-full bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] rounded-[2.5rem] border border-slate-200/50">
           {orgTree && orgTree.role_name ? (
             <OrgNode node={orgTree} onAddNode={handleAddNode} onEditNode={handleEditNode} onDeleteNode={handleDeleteNode} />
@@ -442,7 +424,6 @@ const CommunityLeaders = () => {
         </div>
       )}
 
-      {/* 🌟 Modal เพิ่ม/แก้ไข บุคลากร */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
@@ -467,7 +448,6 @@ const CommunityLeaders = () => {
                  />
               </div>
 
-              {/* 🌟 แสดงช่องค้นหาเมื่อยังไม่พบผู้ใช้งาน */}
               {!foundUser && (
                 <div className="mb-6 p-5 bg-slate-50 border border-slate-200 rounded-2xl">
                   <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
@@ -486,7 +466,6 @@ const CommunityLeaders = () => {
                 </div>
               )}
 
-              {/* 🌟 แสดงฟอร์มเมื่อพบผู้ใช้งานแล้ว */}
               {foundUser && (
                 <form id="leaderForm" onSubmit={handleSave} className="animate-fade-in-up">
                   <div className="flex flex-col items-center mb-8 p-6 bg-slate-50 rounded-3xl border border-slate-100">
