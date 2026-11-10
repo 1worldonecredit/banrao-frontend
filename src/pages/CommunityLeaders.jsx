@@ -107,7 +107,7 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
-  // 🌟 ดึงข้อมูลและแปลงเป็นแบบ Tree (Mind Map)
+  // 🌟 ดึงข้อมูลและสร้าง Tree แบบง่ายๆ (ให้ทุกคนอยู่ใต้ผู้ใหญ่บ้าน)
   const fetchLeaders = async (dateQuery = '') => {
     try {
       const url = `${API_URL}/api/community-leaders/${villageId}${dateQuery ? `?term_date=${dateQuery}` : ''}`;
@@ -115,22 +115,37 @@ const CommunityLeaders = () => {
       const result = await res.json();
       
       if (result.success && result.data.length > 0) {
-        // หาตัวผู้ใหญ่บ้านให้เป็นกล่องบนสุด
-        const rootNode = result.data.find(l => l.position_name?.includes('ผู้ใหญ่บ้าน')) || result.data[0];
-        // ที่เหลือให้เป็นลูกทีมชั่วคราวก่อน (เพื่อให้แสดงผลแบบแตกสาขาได้)
-        const childrenNodes = result.data.filter(l => l.position_record_id !== rootNode.position_record_id).map(l => ({
-            ...l, role_name: l.position_name
+        
+        // 1. หาคนที่เป็นผู้ใหญ่บ้านมาตั้งเป็น Root
+        let rootNode = result.data.find(l => l.position_name?.includes('ผู้ใหญ่บ้าน'));
+        
+        // 2. ถ้าไม่มีผู้ใหญ่บ้าน ให้เอาคนแรกสุดที่ดึงมาได้เป็น Root แทนชั่วคราว
+        if (!rootNode) {
+             rootNode = result.data[0];
+        }
+
+        // 3. กรองเอา Root ออกจากรายชื่อที่เหลือ เพื่อเอาไปทำเป็นกล่องลูก
+        const childrenList = result.data.filter(l => l.position_record_id !== rootNode.position_record_id);
+
+        // 4. แปลงข้อมูลให้อยู่ในรูปแบบที่ OrgNode นำไปใช้แสดงผลได้
+        const childrenNodes = childrenList.map(l => ({
+            ...l, 
+            id: l.position_record_id,
+            role_name: l.position_name,
+            userName: `${l.first_name} ${l.last_name}`
         }));
         
+        // 5. ประกอบร่างเป็น Tree กลับไปเซ็ตค่าให้ orgTree
         setOrgTree({
             ...rootNode,
             isRoot: true,
+            id: rootNode.position_record_id,
             role_name: rootNode.position_name || 'ผู้ใหญ่บ้าน',
-            id: rootNode.position_record_id || 'root-0',
+            userName: `${rootNode.first_name} ${rootNode.last_name}`,
             children: childrenNodes
         });
       } else {
-        // ถ้ายังไม่มีข้อมูลเลย ให้สร้างกล่องว่าง 1 กล่องรอไว้
+        // กรณีไม่มีข้อมูลเลย ให้สร้างกล่องว่างรอไว้
         setOrgTree({
             isRoot: true, role_name: 'ผู้ใหญ่บ้าน', id: 'root-0', children: []
         });
