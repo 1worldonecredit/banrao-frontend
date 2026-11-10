@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Edit, Camera, Save, X, UserPlus, Search, Plus } from 'lucide-react';
+import { Users, Calendar, Edit, Camera, Save, X, UserPlus, Search, Plus ,Trash2} from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
