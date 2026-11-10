@@ -242,9 +242,19 @@ const CommunityLeaders = () => {
   };
 
   const handleEditNode = (node) => {
-    setEditingSlot({ isNew: false, recordId: node.position_record_id || node.id });
+    // 🌟 1. ตรวจสอบว่านี่คือ "กล่องจำลอง" (ยังไม่มีในฐานข้อมูล) หรือไม่
+    // ถ้า node.id ไม่มีอยู่ หรือเป็นข้อความที่ขึ้นต้นด้วย 'root-' ให้ถือว่าเป็นของจำลอง
+    const isMockNode = !node.position_record_id || String(node.id).startsWith('root-');
+    
+    // 🌟 2. เซ็ตค่าการแก้ไข: ถ้าเป็นกล่องจำลอง ให้ isNew = true (ใช้ POST) และ recordId = null
+    setEditingSlot({ 
+      isNew: isMockNode, 
+      recordId: isMockNode ? null : (node.position_record_id || node.id) 
+    });
+    
     const today = new Date().toISOString().split('T')[0];
     
+    // 🌟 3. เติมข้อมูลลงฟอร์ม
     setFormData({
       role_name: node.role_name, 
       account_id: node.account_id || '',
@@ -255,6 +265,7 @@ const CommunityLeaders = () => {
       image_file: null
     });
 
+    // 🌟 4. จัดการเรื่องช่องค้นหาคน
     if (node.account_id) {
         setFoundUser({
           first_name: node.first_name, last_name: node.last_name,
