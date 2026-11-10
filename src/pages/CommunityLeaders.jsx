@@ -10,7 +10,7 @@ const CommunityLeaders = () => {
   const villageId = userData.village_id || 1; 
   
   const [leaders, setLeaders] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(''); 
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   
   // State สำหรับ Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -44,7 +44,7 @@ const CommunityLeaders = () => {
   };
 
   useEffect(() => {
-    fetchLeaders();
+    fetchLeaders(selectedDate);
   }, []);
 
   const handleDateSearch = (e) => {
@@ -64,13 +64,13 @@ const CommunityLeaders = () => {
     ],
     level3: [
         { role_name: 'อสม.', position_id: 8 },
-        { role_name: 'คณะกรรมการหมู่บ้าน', position_id: 11 }, // สมมติรหัสตำแหน่ง
+        { role_name: 'คณะกรรมการหมู่บ้าน', position_id: 11 }, 
         { role_name: 'เจ้าหน้าที่อื่นๆ', position_id: 12 }
     ]
   };
 
   // ==========================================
-  // 🌟 ฟังก์ชัน: ค้นหาข้อมูลลูกบ้านด้วยเลขบัตร
+  // 🌟 ฟังก์ชัน: ค้นหาข้อมูลลูกบ้านด้วยเลขบัตร (ปรับปรุงให้ดึงที่อยู่ด้วย)
   // ==========================================
   const handleSearchUser = async () => {
     if (!searchCitizenId) {
@@ -78,17 +78,19 @@ const CommunityLeaders = () => {
         return;
     }
     try {
-        const res = await fetch(`${API_URL}/api/search-citizen/${searchCitizenId}`);
+        // 🌟 ส่ง village_id ไปเช็คด้วย เพื่อให้ค้นหาเฉพาะคนในหมู่บ้าน
+        const res = await fetch(`${API_URL}/api/search-citizen/${searchCitizenId}?village_id=${villageId}`);
         const result = await res.json();
         if (result.success) {
             setFoundUser(result.data);
-            setFormData({
-                ...formData, 
+            setFormData(prev => ({
+                ...prev, 
                 account_id: result.data.account_id, 
-                previewUrl: result.data.user_image || '/profile-img.jpg'
-            });
+                previewUrl: result.data.user_image || '/profile-img.jpg',
+                responsibilities: result.data.responsibilities || prev.responsibilities
+            }));
         } else {
-            alert('ไม่พบข้อมูลลูกบ้านจากเลขบัตรประชาชนนี้');
+            alert(result.message || 'ไม่พบข้อมูลลูกบ้านจากเลขบัตรประชาชนนี้');
             setFoundUser(null);
         }
     } catch (error) {
@@ -114,7 +116,14 @@ const CommunityLeaders = () => {
         previewUrl: existingLeader.user_image || '/profile-img.jpg',
         image_file: null
       });
-      setFoundUser(existingLeader); // ให้มีค่าเพื่อให้โชว์ฟอร์ม
+      // 🌟 สร้าง Object foundUser จำลองขึ้นมาเพื่อให้โชว์ข้อมูลใน Modal
+      setFoundUser({
+        first_name: existingLeader.first_name,
+        last_name: existingLeader.last_name,
+        village_name: existingLeader.village_name || userData.villageName, // ดึงจาก existingLeader หรือ userData ก็ได้
+        tambon_name_th: existingLeader.tambon_name_th || userData.tambonName,
+        responsibilities: existingLeader.responsibilities
+      });
     } else {
       // โหมดเพิ่มใหม่ (ช่องว่าง)
       setEditingSlot({ ...roleDef, isNew: true });
@@ -288,7 +297,7 @@ const CommunityLeaders = () => {
         </div>
       </div>
 
-      {/* 🌟 Modal เพิ่ม/แก้ไข (แก้ปัญหาความสูงและปุ่มหาย) */}
+      {/* 🌟 Modal เพิ่ม/แก้ไข (ปรับข้อมูลที่อยู่และหน้าที่รับผิดชอบ) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
@@ -348,10 +357,20 @@ const CommunityLeaders = () => {
                         <Camera size={24} className="text-white" />
                       </div>
                     </div>
+                    {/* 🌟 แสดงชื่อ และข้อมูลที่อยู่ */}
                     {foundUser && (
-                      <h3 className="mt-3 font-bold text-slate-800 text-lg">
-                        {foundUser.first_name} {foundUser.last_name}
-                      </h3>
+                      <>
+                        <h3 className="mt-3 font-bold text-slate-800 text-lg">
+                          {foundUser.first_name} {foundUser.last_name}
+                        </h3>
+                        <p className="text-sm text-slate-500 text-center mt-1">
+                          {foundUser.village_name || foundUser.tambon_name_th ? (
+                            <>หมู่บ้าน: {foundUser.village_name || '-'} <br/> ตำบล: {foundUser.tambon_name_th || '-'}</>
+                          ) : (
+                            <span className="text-red-400">ไม่มีข้อมูลที่อยู่</span>
+                          )}
+                        </p>
+                      </>
                     )}
                     <input type="file" id="leader-img-upload" accept="image/*" onChange={handleImageChange} className="hidden" />
                   </div>
@@ -371,7 +390,9 @@ const CommunityLeaders = () => {
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-1">หน้าที่รับผิดชอบ</label>
                       <textarea 
-                        rows="3" value={formData.responsibilities} onChange={e => setFormData({...formData, responsibilities: e.target.value})}
+                        rows="3" 
+                        value={formData.responsibilities} 
+                        onChange={e => setFormData({...formData, responsibilities: e.target.value})}
                         placeholder="เช่น ดูแลความสงบเรียบร้อย, ประสานงานลูกบ้าน..."
                         className="w-full p-3 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white"
                       ></textarea>
