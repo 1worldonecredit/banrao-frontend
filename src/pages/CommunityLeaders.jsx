@@ -8,15 +8,18 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 // ==========================================
 // 🌟 1. Component ก้อน Node (สำหรับวาดกล่องทีละกล่องแบบ Mind Map)
 // ==========================================
-const OrgNode = ({ node, onAddNode, onEditNode }) => {
+const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
+  // เช็คว่า Node นี้มีข้อมูลบุคคลอยู่หรือไม่
+  const hasUser = !!node.account_id;
+
   return (
     <div className="flex flex-col items-center">
       {/* 🌟 ตัวกล่องข้อมูล (Card) */}
       <div className="relative group m-2 mt-4">
-        <div className="bg-white border border-slate-200 shadow-sm hover:shadow-lg transition-all rounded-2xl p-4 w-56 md:w-64 flex flex-col items-center z-10 relative">
+        <div className="bg-white border border-slate-200 shadow-sm hover:shadow-lg transition-all rounded-2xl p-4 w-56 md:w-64 flex flex-col items-center z-10 relative overflow-hidden">
           
-          {/* แถบสีด้านบนกล่อง (สีน้ำเงิน=หัวหน้า, สีเขียว=ลูกทีม) */}
-          <div className={`absolute top-0 left-0 w-full h-1.5 rounded-t-2xl ${node.isRoot ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
+          {/* แถบสีด้านบนกล่อง */}
+          <div className={`absolute top-0 left-0 w-full h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
           
           <img 
             src={node.user_image || '/profile-img.jpg'} 
@@ -28,48 +31,63 @@ const OrgNode = ({ node, onAddNode, onEditNode }) => {
             {node.role_name || 'ตำแหน่งใหม่'}
           </span>
           <h3 className="font-bold text-slate-800 text-xs md:text-sm truncate w-full text-center">
-            {node.first_name ? `${node.first_name} ${node.last_name}` : 'คลิกเพื่อระบุบุคลากร'}
+            {hasUser ? `${node.first_name} ${node.last_name}` : 'คลิกเพื่อระบุบุคลากร'}
           </h3>
-          <p className="text-[10px] text-slate-500 mt-1 truncate w-full text-center">
+          <p className="text-[10px] text-slate-500 mt-1 truncate w-full text-center line-clamp-2">
             {node.responsibilities || 'ยังไม่ระบุหน้าที่รับผิดชอบ'}
           </p>
 
-          {/* ปุ่มแก้ไข (โชว์ตอนเอาเมาส์ชี้) */}
-          <button onClick={() => onEditNode(node)} className="absolute top-3 right-3 text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Edit size={16} />
-          </button>
+          {/* 🌟 ชุดปุ่มจัดการ (โชว์ตอนเอาเมาส์ชี้) */}
+          <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+             {/* ปุ่มแก้ไข: โชว์เสมอ ไม่ว่าจะมีคนหรือไม่มี เพื่อแก้ไขชื่อตำแหน่งได้ */}
+             <button onClick={() => onEditNode(node)} className="p-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors" title="แก้ไขข้อมูล">
+               <Edit size={14} />
+             </button>
+             
+             {/* ปุ่มลบ: โชว์เฉพาะถ้ามีข้อมูลบุคคล หรือไม่ใช่ Root (ผู้ใหญ่บ้านลบไม่ได้) */}
+             {(!node.isRoot && hasUser) && (
+               <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors mt-1" title="ลบบุคลากรออกจากตำแหน่ง">
+                 <Trash2 size={14} /> {/* 🛠 อย่าลืม import Trash2 จาก lucide-react ด้วยนะครับ */}
+               </button>
+             )}
+          </div>
         </div>
 
-        {/* 🌟 ปุ่มเพิ่ม Node ซ้าย ขวา ล่าง (โชว์ตอนเอาเมาส์ชี้กล่อง) */}
-        {!node.isRoot && (
-          <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-blue-500 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-600 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
-            <Plus size={14} />
-          </button>
+        {/* 🌟 ปุ่มเพิ่ม/แก้ไข (ด้านล่างกล่อง) */}
+        {hasUser ? (
+           // ถ้ามีคนแล้ว ปุ่มข้างล่างจะเป็นปุ่มเพิ่มลูกน้อง
+           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 hover:bg-emerald-600 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา / ทีมย่อย">
+             <Plus size={14} />
+           </button>
+        ) : (
+           // ถ้ายังไม่มีคน ปุ่มตรงกลางจะเป็นปุ่มแก้ไข (Edit) แทนการเพิ่ม
+           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
+             <Edit size={20} />
+           </button>
         )}
         
+        {/* ปุ่มเพิ่มซ้าย/ขวา (ถ้าไม่ใช่ Root) */}
         {!node.isRoot && (
-          <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-blue-500 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-600 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
-            <Plus size={14} />
-          </button>
+           <>
+             <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-slate-400 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
+               <Plus size={12} />
+             </button>
+             <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-slate-400 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
+               <Plus size={12} />
+             </button>
+           </>
         )}
-
-        <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 hover:bg-emerald-600 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา / ทีมย่อย">
-          <Plus size={14} />
-        </button>
       </div>
 
-      {/* 🌟 วาดเส้นและลูกหลาน (ถ้ามี) */}
+      {/* 🌟 วาดเส้นและลูกหลาน */}
       {node.children && node.children.length > 0 && (
         <div className="flex flex-col items-center w-full">
-          {/* เส้นแนวตั้งลงมา */}
           <div className="w-px h-6 bg-slate-300"></div>
-          {/* กล่องบรรจุลูกหลาน พร้อมเส้นแนวนอนเชื่อมต่อ */}
           <div className="flex justify-center relative pt-4 border-t-2 border-slate-300 gap-4 md:gap-8 px-4">
             {node.children.map((child, index) => (
               <div key={child.id || index} className="relative flex flex-col items-center">
-                {/* เส้นแนวตั้งเล็กๆ ชี้ลงไปที่ลูกแต่ละคน */}
                 <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
-                <OrgNode node={child} onAddNode={onAddNode} onEditNode={onEditNode} />
+                <OrgNode node={child} onAddNode={onAddNode} onEditNode={onEditNode} onDeleteNode={onDeleteNode} />
               </div>
             ))}
           </div>
