@@ -89,7 +89,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 };
 
 // ==========================================
-// 🌟 2. Main Component (เพิ่มระบบ Tabs คณะทำงาน)
+// 🌟 2. Main Component
 // ==========================================
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
@@ -98,12 +98,9 @@ const CommunityLeaders = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
   
-  // 🌟 State สำหรับระบบ Tabs (คณะทำงาน)
-  const [committees, setCommittees] = useState([
-    { id: 1, name: 'คณะกรรมการหมู่บ้าน', description: 'บริหารจัดการและดูแลความเรียบร้อยโดยรวมของหมู่บ้าน' },
-    { id: 2, name: 'กองทุนหมู่บ้าน', description: 'บริหารจัดการเงินทุนและสินเชื่อเพื่อชุมชน' }
-  ]);
-  const [activeTab, setActiveTab] = useState(1);
+  // State สำหรับระบบ Tabs (คณะทำงาน)
+  const [committees, setCommittees] = useState([]);
+  const [activeTab, setActiveTab] = useState(null);
   const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
   const [committeeForm, setCommitteeForm] = useState({ name: '', description: '' });
 
@@ -124,24 +121,31 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
-  const formatCitizenId = (value) => {
-    const numbers = value.replace(/\D/g, '');
-    let formatted = '';
-    if (numbers.length > 0) formatted += numbers.substring(0, 1);
-    if (numbers.length > 1) formatted += '-' + numbers.substring(1, 5);
-    if (numbers.length > 5) formatted += '-' + numbers.substring(5, 10);
-    if (numbers.length > 10) formatted += '-' + numbers.substring(10, 12);
-    if (numbers.length > 12) formatted += '-' + numbers.substring(12, 13);
-    return formatted;
-  };
+  // ==========================================
+  // การเชื่อมต่อ API
+  // ==========================================
 
-  const handleCitizenIdChange = (e) => {
-    setSearchCitizenId(formatCitizenId(e.target.value));
-  };
-
-  const fetchLeaders = async (dateQuery = '') => {
+  // 1. ดึงรายชื่อแท็บ (คณะทำงาน)
+  const fetchCommittees = async () => {
     try {
-      const url = `${API_URL}/api/community-leaders/${villageId}${dateQuery ? `?term_date=${dateQuery}` : ''}`;
+      const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
+      const result = await res.json();
+      if (result.success && result.data.length > 0) {
+        setCommittees(result.data);
+        if (!activeTab) setActiveTab(result.data[0].committee_id); // ตั้งค่า Tab แรกให้อัตโนมัติถ้าเพิ่งโหลด
+      }
+    } catch (error) {
+      console.error("Error fetching committees:", error);
+    }
+  };
+
+  // 2. ดึงข้อมูลผังองค์กร (ตาม Tab ที่เลือก)
+  const fetchLeaders = async (dateQuery = '', committeeId) => {
+    if (!committeeId) return; // ถ้ายังไม่มี Tab ไม่ต้องดึง
+    
+    try {
+      // 🌟 ส่ง committee_id ไปกรองด้วย
+      const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
       
@@ -174,10 +178,39 @@ const CommunityLeaders = () => {
     }
   };
 
+  // 🌟 Effect: โหลดแท็บตอนเข้าหน้าเว็บครั้งแรก
   useEffect(() => {
-    fetchLeaders(selectedDate);
-    // Note: ถ้า Backend รองรับ committee_id แล้ว ให้ดึงข้อมูลแยกตาม activeTab ที่ตรงนี้ครับ
+    fetchCommittees();
+  }, []);
+
+  // 🌟 Effect: โหลดผังใหม่ ทุกครั้งที่เปลี่ยน Tab หรือเปลี่ยนวันที่
+  useEffect(() => {
+    if (activeTab) {
+      setOrgTree(null); // เคลียร์หน้าจอผังเดิมให้ขึ้น Loading ก่อน
+      fetchLeaders(selectedDate, activeTab);
+    }
   }, [activeTab, selectedDate]);
+
+  // ==========================================
+  // ฟังก์ชันช่วยเหลือต่างๆ
+  // ==========================================
+  const formatCitizenId = (value) => {
+    const numbers = value.replace(/\D/g, '');
+    let formatted = '';
+    if (numbers.length > 0) formatted += numbers.substring(0, 1);
+    if (numbers.length > 1) formatted += '-' + numbers.substring(1, 5);
+    if (numbers.length > 5) formatted += '-' + numbers.substring(5, 10);
+    if (numbers.length > 10) formatted += '-' + numbers.substring(10, 12);
+    if (numbers.length > 12) formatted += '-' + numbers.substring(12, 13);
+    return formatted;
+  };
+
+  const handleCitizenIdChange = (e) => setSearchCitizenId(formatCitizenId(e.target.value));
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
+  };
 
   const handleSearchUser = async () => {
     const rawCitizenId = searchCitizenId.replace(/-/g, ''); 
@@ -190,20 +223,13 @@ const CommunityLeaders = () => {
         if (result.success) {
             setFoundUser(result.data);
             setFormData(prev => ({
-                ...prev, 
-                account_id: result.data.account_id, 
-                previewUrl: result.data.user_image || '/profile-img.jpg',
-                responsibilities: result.data.responsibilities || prev.responsibilities
+                ...prev, account_id: result.data.account_id, previewUrl: result.data.user_image || '/profile-img.jpg', responsibilities: result.data.responsibilities || prev.responsibilities
             }));
         } else {
             alert(result.message || 'ไม่พบข้อมูลลูกบ้าน');
             setFoundUser(null);
         }
-    } catch (error) {
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
-    } finally {
-        setIsLoading(false);
-    }
+    } catch (error) { alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); } finally { setIsLoading(false); }
   };
 
   const handleAddNode = (parentNode, direction) => {
@@ -217,49 +243,28 @@ const CommunityLeaders = () => {
   const handleEditNode = (node) => {
     setEditingSlot({ isNew: false, recordId: node.position_record_id || node.id });
     setFormData({
-      role_name: node.role_name,
-      account_id: node.account_id,
+      role_name: node.role_name, account_id: node.account_id,
       start_date: node.start_date ? node.start_date.split('T')[0] : '',
       end_date: node.end_date ? node.end_date.split('T')[0] : '',
-      responsibilities: node.responsibilities || '',
-      previewUrl: node.user_image || '/profile-img.jpg',
-      image_file: null
+      responsibilities: node.responsibilities || '', previewUrl: node.user_image || '/profile-img.jpg', image_file: null
     });
     setFoundUser({
-      first_name: node.first_name,
-      last_name: node.last_name,
-      village_name: node.village_name || userData.villageName,
-      tambon_name_th: node.tambon_name_th || userData.tambonName
+      first_name: node.first_name, last_name: node.last_name,
+      village_name: node.village_name || userData.villageName, tambon_name_th: node.tambon_name_th || userData.tambonName
     });
     setIsModalOpen(true);
   };
 
   const handleDeleteNode = async (node) => {
-    if (node.isRoot) {
-        alert("ไม่สามารถลบหัวหน้าชุด/ประธานได้โดยตรง กรุณาใช้ฟังก์ชันแก้ไขแทน");
-        return;
-    }
-
-    if (window.confirm(`คุณต้องการลบ "${node.first_name} ${node.last_name}" ออกจากตำแหน่ง "${node.role_name}" ใช่หรือไม่?`)) {
+    if (node.isRoot) return alert("ไม่สามารถลบประธาน/หัวหน้าชุดได้ กรุณาใช้ฟังก์ชันแก้ไขแทน");
+    if (window.confirm(`คุณต้องการลบ "${node.first_name} ${node.last_name}" ใช่หรือไม่?`)) {
         try {
-            const response = await fetch(`${API_URL}/api/community-leaders/${node.position_record_id}`, { method: 'DELETE' });
-            const result = await response.json();
-            
-            if (result.success) {
-                alert(result.message);
-                fetchLeaders(selectedDate);
-            } else {
-                alert('ลบข้อมูลไม่สำเร็จ: ' + result.message);
-            }
-        } catch (error) {
-            alert('เกิดข้อผิดพลาดในการลบข้อมูล');
-        }
+            const res = await fetch(`${API_URL}/api/community-leaders/${node.position_record_id}`, { method: 'DELETE' });
+            const result = await res.json();
+            if (result.success) { alert(result.message); fetchLeaders(selectedDate, activeTab); } 
+            else alert('ลบข้อมูลไม่สำเร็จ: ' + result.message);
+        } catch (error) { alert('เกิดข้อผิดพลาดในการลบข้อมูล'); }
     }
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
   };
 
   const handleSave = async (e) => {
@@ -270,7 +275,7 @@ const CommunityLeaders = () => {
     try {
       const payload = {
         village_id: villageId,
-        committee_id: activeTab, // 🌟 ส่ง ID คณะทำงานไปด้วย (สำหรับ Backend ในอนาคต)
+        committee_id: activeTab, // 🌟 ส่ง ID คณะทำงานที่กำลังเปิดอยู่ไปบันทึก
         position_name: formData.role_name, 
         account_id: formData.account_id,
         start_date: formData.start_date,
@@ -281,44 +286,37 @@ const CommunityLeaders = () => {
       const url = editingSlot.isNew ? `${API_URL}/api/community-leaders` : `${API_URL}/api/community-leaders/${editingSlot.recordId}`;
       const method = editingSlot.isNew ? 'POST' : 'PUT';
 
-      const res = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await res.json();
       if (result.success) {
         alert('บันทึกข้อมูลเรียบร้อยแล้ว!');
         setIsModalOpen(false);
-        fetchLeaders(selectedDate);
-      } else {
-        alert('บันทึกไม่สำเร็จ: ' + result.message);
-      }
-    } catch (error) {
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-    }
+        fetchLeaders(selectedDate, activeTab);
+      } else alert('บันทึกไม่สำเร็จ: ' + result.message);
+    } catch (error) { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
   };
 
-  // ฟังก์ชันเพิ่มคณะทำงานใหม่ (Tabs)
-  const handleSaveCommittee = (e) => {
+  // 🌟 บันทึกคณะทำงานใหม่ (Tab ใหม่)
+  const handleSaveCommittee = async (e) => {
     e.preventDefault();
     if (!committeeForm.name) return;
-    
-    const newCommittee = {
-      id: Date.now(), // ชั่วคราว ใช้ Timestamp เป็น ID
-      name: committeeForm.name,
-      description: committeeForm.description
-    };
-    
-    setCommittees([...committees, newCommittee]);
-    setActiveTab(newCommittee.id);
-    setIsCommitteeModalOpen(false);
-    setCommitteeForm({ name: '', description: '' });
-    // Note: ตรงนี้ในอนาคตควรยิง API ไปบันทึกลง Database ด้วยครับ
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ village_id: villageId, committee_name: committeeForm.name, description: committeeForm.description })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert('เพิ่มคณะทำงานใหม่สำเร็จ');
+        fetchCommittees(); // รีโหลด Tabs ใหม่
+        setIsCommitteeModalOpen(false);
+        setCommitteeForm({ name: '', description: '' });
+      } else alert('เกิดข้อผิดพลาด: ' + result.message);
+    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
   };
 
-  const activeCommitteeInfo = committees.find(c => c.id === activeTab);
+  const activeCommitteeInfo = committees.find(c => c.committee_id === activeTab);
 
   return (
     <div className="bg-slate-50 min-h-screen pb-24">
@@ -341,15 +339,15 @@ const CommunityLeaders = () => {
         <div className="flex overflow-x-auto gap-2 mb-6 pb-2 hide-scrollbar items-center">
           {committees.map(c => (
             <button
-              key={c.id}
-              onClick={() => setActiveTab(c.id)}
+              key={c.committee_id}
+              onClick={() => setActiveTab(c.committee_id)}
               className={`px-5 py-2.5 rounded-full whitespace-nowrap text-sm font-bold transition-all shadow-sm ${
-                activeTab === c.id 
+                activeTab === c.committee_id 
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md' 
                 : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-blue-600'
               }`}
             >
-              {c.name}
+              {c.committee_name}
             </button>
           ))}
           
@@ -361,33 +359,21 @@ const CommunityLeaders = () => {
           </button>
         </div>
 
-        {/* 🌟 2. Header ของคณะทำงานที่ถูกเลือก (แสดงชื่อและหน้าที่) */}
+        {/* 🌟 2. Header ของคณะทำงานที่ถูกเลือก */}
         {activeCommitteeInfo && (
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
-            <h2 className="text-xl md:text-2xl font-bold text-slate-800 mt-2">{activeCommitteeInfo.name}</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-slate-800 mt-2">{activeCommitteeInfo.committee_name}</h2>
             <p className="text-sm md:text-base text-slate-500 mt-2 max-w-2xl mx-auto leading-relaxed">
               {activeCommitteeInfo.description || 'ยังไม่มีคำอธิบายหน้าที่ของคณะทำงานนี้'}
             </p>
-            
-            <button 
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-lg hover:bg-blue-100 transition-colors"
-              title="แก้ไขข้อมูลคณะทำงาน"
-            >
-              <Edit size={18}/>
-            </button>
           </div>
         )}
 
         {/* วาดผังองค์กรแบบ MIND MAP */}
         <div className="relative py-10 overflow-x-auto flex justify-center min-w-max md:min-w-full bg-slate-50/50 rounded-3xl">
           {orgTree && orgTree.role_name ? (
-            <OrgNode 
-              node={orgTree} 
-              onAddNode={handleAddNode} 
-              onEditNode={handleEditNode} 
-              onDeleteNode={handleDeleteNode}
-            />
+            <OrgNode node={orgTree} onAddNode={handleAddNode} onEditNode={handleEditNode} onDeleteNode={handleDeleteNode} />
           ) : (
              <div className="text-slate-400 py-10 flex flex-col items-center gap-3">
                <div className="animate-pulse bg-slate-200 w-16 h-16 rounded-full"></div>
@@ -397,7 +383,7 @@ const CommunityLeaders = () => {
         </div>
       </div>
 
-      {/* 🌟 Modal สำหรับเพิ่มคณะทำงานใหม่ (Tab ใหม่) */}
+      {/* Modal เพิ่มคณะทำงาน (Tab ใหม่) */}
       {isCommitteeModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
@@ -405,13 +391,11 @@ const CommunityLeaders = () => {
               <h2 className="text-lg font-bold flex items-center gap-2"><FolderPlus size={20} /> เพิ่มคณะทำงาน / ผังใหม่</h2>
               <button onClick={() => setIsCommitteeModalOpen(false)} className="hover:text-emerald-200"><X size={24} /></button>
             </div>
-            
             <form onSubmit={handleSaveCommittee} className="p-6">
               <div className="mb-4">
                 <label className="block text-sm font-bold text-slate-700 mb-2">ชื่อคณะทำงาน / กลุ่ม *</label>
                 <input 
-                  type="text" required
-                  value={committeeForm.name} 
+                  type="text" required value={committeeForm.name} 
                   onChange={e => setCommitteeForm({...committeeForm, name: e.target.value})}
                   placeholder="เช่น คณะกรรมการร้านค้าชุมชน" 
                   className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500"
@@ -420,14 +404,12 @@ const CommunityLeaders = () => {
               <div className="mb-6">
                 <label className="block text-sm font-bold text-slate-700 mb-2">หน้าที่รับผิดชอบ (ย่อ)</label>
                 <textarea 
-                  rows="3"
-                  value={committeeForm.description} 
+                  rows="3" value={committeeForm.description} 
                   onChange={e => setCommitteeForm({...committeeForm, description: e.target.value})}
                   placeholder="อธิบายหน้าที่หลักของคณะทำงานนี้..." 
                   className="w-full p-3 border border-slate-300 rounded-lg outline-none resize-none focus:ring-2 focus:ring-emerald-500"
                 ></textarea>
               </div>
-              
               <div className="flex gap-3">
                 <button type="button" onClick={() => setIsCommitteeModalOpen(false)} className="flex-1 py-3 rounded-lg border-2 border-slate-200 font-bold text-slate-600 hover:bg-slate-100">ยกเลิก</button>
                 <button type="submit" className="flex-1 py-3 rounded-lg font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-md">สร้างผังใหม่</button>
@@ -437,11 +419,10 @@ const CommunityLeaders = () => {
         </div>
       )}
 
-      {/* Modal เพิ่ม/แก้ไข บุคลากรในผัง (เหมือนเดิม) */}
+      {/* Modal เพิ่ม/แก้ไข บุคลากรในผัง */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
-            
             <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 text-white flex justify-between items-center shrink-0">
               <h2 className="text-lg font-bold flex items-center gap-2">
                 {editingSlot?.isNew ? <UserPlus size={20} /> : <Edit size={20} />} 
@@ -454,8 +435,7 @@ const CommunityLeaders = () => {
               <div className="mb-6 text-center">
                  <label className="text-sm font-bold text-slate-700 block mb-1">ชื่อตำแหน่งย่อยในผัง *</label>
                  <input 
-                   type="text" required
-                   value={formData.role_name} 
+                   type="text" required value={formData.role_name} 
                    onChange={e => setFormData({...formData, role_name: e.target.value})}
                    placeholder="เช่น รองประธาน, เหรัญญิก..." 
                    className="w-full text-center p-2.5 border-b-2 border-blue-500 bg-blue-50 text-blue-800 font-bold outline-none rounded-t-lg focus:bg-blue-100"
