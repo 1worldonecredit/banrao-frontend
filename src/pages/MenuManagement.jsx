@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Shield, LayoutList } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, LayoutList, Folder } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
@@ -8,29 +8,26 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 const MenuManagement = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   
-  // State หลักสำหรับเก็บข้อมูล
-  const [menus, setMenus] = useState([]); // รายการเมนูทั้งหมดที่ดึงมาจากฐานข้อมูล
-  const [roles, setRoles] = useState([]); // รายชื่อตำแหน่งจากตาราง sys_positions
+  const [menus, setMenus] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [menuGroups, setMenuGroups] = useState([]); // 🌟 State ใหม่สำหรับเก็บข้อมูลกลุ่มเมนู
   
-  // State สำหรับจัดการ Modal (หน้าต่างป๊อปอัป)
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingMenu, setEditingMenu] = useState(null); // เช็คว่าเป็นการเพิ่มใหม่ (null) หรือแก้ไข (มีข้อมูล)
+  const [editingMenu, setEditingMenu] = useState(null);
   const [formData, setFormData] = useState({
     menu_name: '',
     icon_name: 'FileText',
     route_path: '',
+    group_id: '', // 🌟 เพิ่ม group_id ในฟอร์ม
     selected_roles: [] 
   });
 
-  // 🌟 useEffect: ทำงานครั้งเดียวเมื่อเปิดหน้าเพจนี้ (ดึงข้อมูลเมนูและตำแหน่ง)
   useEffect(() => {
-    // 1. ฟังก์ชันดึงรายชื่อตำแหน่ง (เพื่อทำ Checkbox)
     const fetchPositions = async () => {
       try {
         const res = await fetch(`${API_URL}/api/positions`);
         const result = await res.json();
         if (result.success) {
-          // แปลงข้อมูลให้อยู่ในรูปแบบที่ UI นำไปใช้ง่ายขึ้น
           const loadedRoles = result.data.map(pos => ({
             id: pos.position_id,
             role_name: pos.position_name
@@ -42,7 +39,6 @@ const MenuManagement = () => {
       }
     };
 
-    // 2. ฟังก์ชันดึงรายการเมนู (เพื่อมาแสดงตารางตรงกลางจอ)
     const fetchMenus = async () => {
       try {
         const res = await fetch(`${API_URL}/api/menus`);
@@ -55,58 +51,70 @@ const MenuManagement = () => {
       }
     };
 
-    // เรียกใช้ฟังก์ชันดึงข้อมูลทั้งสองตัว
+    // 🌟 ฟังก์ชันใหม่: ดึงข้อมูลกลุ่มเมนู
+    const fetchMenuGroups = async () => {
+        try {
+            const res = await fetch(`${API_URL}/api/menu-groups`); // ต้องสร้าง API เส้นนี้ด้วย
+            const result = await res.json();
+            if (result.success) {
+                setMenuGroups(result.data);
+            }
+        } catch (error) {
+            console.error("Error fetching menu groups:", error);
+        }
+    };
+
     fetchPositions();
     fetchMenus();
+    fetchMenuGroups(); // เรียกใช้ฟังก์ชันดึงกลุ่มเมนู
   }, []);
 
-  // 🌟 ฟังก์ชัน: เปิด Modal (ทั้งกรณีเพิ่มใหม่ และ แก้ไข)
   const handleOpenModal = (menu = null) => {
     if (menu) {
-      // 🛠 กรณี: กดปุ่ม "แก้ไข"
       setEditingMenu(menu);
       setFormData({
         menu_name: menu.menu_name || '',
         icon_name: menu.icon_name || 'Activity',
         route_path: menu.route_path || '',
-        // ดึง role ที่เคยเลือกไว้ (ที่ส่งมาจาก Backend เป็น array ของ ID) มาตั้งเป็นค่าเริ่มต้น
+        group_id: menu.group_id || '', // 🌟 ดึง group_id เดิมมาใส่
         selected_roles: menu.selected_roles || [] 
       });
     } else {
-      // 🆕 กรณี: กดปุ่ม "สร้างเมนูใหม่"
       setEditingMenu(null);
-      setFormData({ menu_name: '', icon_name: 'Activity', route_path: '', selected_roles: [] });
+      // ตั้งค่าเริ่มต้น group_id ให้เป็นค่าแรกของ menuGroups (ถ้ามี)
+      const defaultGroupId = menuGroups.length > 0 ? menuGroups[0].group_id : '';
+      setFormData({ menu_name: '', icon_name: 'Activity', route_path: '', group_id: defaultGroupId, selected_roles: [] });
     }
     setIsModalOpen(true);
   };
 
-  // 🌟 ฟังก์ชัน: จัดการเมื่อมีการติ๊กเลือก Checkbox กำหนดสิทธิ์
   const handleRoleToggle = (roleId) => {
     setFormData(prev => {
       const isSelected = prev.selected_roles.includes(roleId);
       return {
         ...prev,
         selected_roles: isSelected 
-          // ถ้าติ๊กแล้ว (มีใน array) ให้เอาออก
           ? prev.selected_roles.filter(id => id !== roleId) 
-          // ถ้ายังไม่ติ๊ก ให้เพิ่มเข้าไปใน array
           : [...prev.selected_roles, roleId]
       };
     });
   };
 
-  // 🌟 ฟังก์ชัน: กดปุ่ม "บันทึกข้อมูล" ลงฐานข้อมูลผ่าน API
   const handleSave = async (e) => {
     e.preventDefault();
     
-    // บังคับให้ต้องเลือกสิทธิ์อย่างน้อย 1 กลุ่มเสมอ
     if(formData.selected_roles.length === 0) {
         alert("กรุณาเลือกสิทธิ์อย่างน้อย 1 กลุ่ม");
         return;
     }
 
+    // 🌟 ตรวจสอบว่าเลือกกลุ่มเมนูหรือยัง
+    if (!formData.group_id) {
+        alert("กรุณาเลือกกลุ่มเมนู");
+        return;
+    }
+
     try {
-        // ส่งข้อมูลแบบ POST ไปที่เส้น API ที่สร้างไว้รับข้อมูล
         const response = await fetch(`${API_URL}/api/manage-menu`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -118,7 +126,7 @@ const MenuManagement = () => {
         if (result.success) {
             alert('บันทึกข้อมูลเมนูและกำหนดสิทธิ์เรียบร้อยแล้ว!');
             setIsModalOpen(false);
-            window.location.reload(); // รีเฟรชหน้าเพื่อแสดงเมนูใหม่ที่เพิ่งบันทึก
+            window.location.reload();
         } else {
             alert('เกิดข้อผิดพลาด: ' + result.message);
         }
@@ -128,12 +136,17 @@ const MenuManagement = () => {
     }
   };
 
+  // Helper ฟังก์ชันสำหรับหากลุ่มเมนูจาก id
+  const getGroupName = (groupId) => {
+      const group = menuGroups.find(g => g.group_id === groupId);
+      return group ? group.group_name : 'ไม่ระบุกลุ่ม';
+  };
+
   return (
     <div className="bg-slate-50 min-h-screen pb-24">
       <TopNavbar userData={userData} />
       
       <div className="max-w-4xl mx-auto p-4 pt-20">
-        {/* ส่วนหัวของหน้า (Header) */}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -142,14 +155,13 @@ const MenuManagement = () => {
             <p className="text-sm text-slate-500">กำหนดเมนูการใช้งานสำหรับกลุ่มต่างๆ ในชุมชน</p>
           </div>
           <button 
-            onClick={() => handleOpenModal()} // กดปุ่มนี้จะเปิดแบบ "สร้างใหม่"
+            onClick={() => handleOpenModal()} 
             className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
           >
             <Plus size={18} /> สร้างเมนูใหม่
           </button>
         </div>
 
-        {/* 🌟 ตารางแสดงรายการเมนูตรงกลางจอ */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -163,15 +175,22 @@ const MenuManagement = () => {
             <tbody>
               {menus.length > 0 ? menus.map(menu => (
                 <tr key={menu.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="p-4 font-medium text-slate-800 flex items-center gap-2">
-                    <div className="w-8 h-8 rounded bg-blue-100 flex items-center justify-center text-blue-600">
-                      <LayoutList size={16} />
+                  <td className="p-4">
+                    <div className="flex flex-col">
+                        <span className="font-medium text-slate-800 flex items-center gap-2">
+                            <div className="w-8 h-8 rounded bg-blue-100 flex items-center justify-center text-blue-600">
+                            <LayoutList size={16} />
+                            </div>
+                            {menu.menu_name}
+                        </span>
+                        {/* 🌟 แสดงชื่อกลุ่มเมนูใต้ชื่อเมนู */}
+                        <span className="text-xs text-slate-500 ml-10 mt-1 flex items-center gap-1">
+                            <Folder size={12}/> {getGroupName(menu.group_id)}
+                        </span>
                     </div>
-                    {menu.menu_name}
                   </td>
                   <td className="p-4 text-slate-500 text-sm">{menu.route_path}</td>
                   
-                  {/* แสดงรายชื่อกลุ่มที่มีสิทธิ์ */}
                   <td className="p-4">
                     <div className="flex flex-wrap gap-1">
                       {menu.selected_roles && menu.selected_roles.length > 0 ? (
@@ -191,10 +210,9 @@ const MenuManagement = () => {
                     </div>
                   </td>
 
-                  {/* ปุ่มแก้ไข / ลบ */}
                   <td className="p-4 text-center">
                     <button 
-                      onClick={() => handleOpenModal(menu)} // ส่งข้อมูลเมนูเข้าไป เพื่อเปิดแบบ "แก้ไข"
+                      onClick={() => handleOpenModal(menu)} 
                       className="text-blue-600 hover:text-blue-800 p-2 transition-colors"
                     >
                       <Edit size={18} />
@@ -215,19 +233,35 @@ const MenuManagement = () => {
 
       </div>
 
-      {/* 🌟 Modal ฟอร์มสร้าง/แก้ไขเมนู (จะแสดงเมื่อ isModalOpen เป็น true) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-xl">
             <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
-              {/* เปลี่ยนหัวข้ออัตโนมัติตามสถานะการกด */}
               <h2 className="text-lg font-bold">{editingMenu ? 'แก้ไขเมนู' : 'สร้างเมนูใหม่'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-white hover:text-blue-200 text-xl font-bold">&times;</button>
             </div>
             
             <form onSubmit={handleSave} className="p-6">
               <div className="space-y-4">
-                {/* ช่องกรอกชื่อเมนู */}
+                
+                {/* 🌟 ช่องเลือกกลุ่มเมนู (เพิ่มใหม่) */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">กลุ่มเมนู (Menu Group) *</label>
+                  <select 
+                    required
+                    value={formData.group_id}
+                    onChange={e => setFormData({...formData, group_id: e.target.value})}
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  >
+                    <option value="" disabled>-- เลือกกลุ่มเมนู --</option>
+                    {menuGroups.map(group => (
+                        <option key={group.group_id} value={group.group_id}>
+                            {group.group_name}
+                        </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">ชื่อเมนู *</label>
                   <input 
@@ -240,7 +274,6 @@ const MenuManagement = () => {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                  {/* ช่องกรอกเส้นทาง Route */}
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">เส้นทาง (Route Path) *</label>
                     <input 
@@ -251,7 +284,6 @@ const MenuManagement = () => {
                       className="w-full p-3 border border-slate-300 rounded-lg outline-none"
                     />
                   </div>
-                  {/* ช่องกรอกไอคอน */}
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">ชื่อไอคอน (Lucide)</label>
                     <input 
@@ -263,7 +295,6 @@ const MenuManagement = () => {
                   </div>
                 </div>
 
-                {/* 🌟 ส่วนตัวเลือกสิทธิ์ (ดึงมาจากตาราง sys_positions อัตโนมัติ) */}
                 <div className="mt-6 border-t pt-4">
                   <label className="flex items-center gap-2 text-sm font-bold text-slate-800 mb-3">
                     <Shield size={18} className="text-orange-500" /> 
@@ -276,7 +307,7 @@ const MenuManagement = () => {
                           type="checkbox"
                           className="w-4 h-4 text-blue-600 rounded mr-3"
                           checked={formData.selected_roles.includes(role.id)}
-                          onChange={() => handleRoleToggle(role.id)} // กดแล้วเรียกฟังก์ชันติ๊ก
+                          onChange={() => handleRoleToggle(role.id)} 
                         />
                         <span className={`text-sm font-medium ${formData.selected_roles.includes(role.id) ? 'text-blue-800' : 'text-slate-700'}`}>
                           {role.role_name}
