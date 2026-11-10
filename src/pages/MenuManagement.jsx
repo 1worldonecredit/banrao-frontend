@@ -126,6 +126,33 @@ const MenuManagement = () => {
     }
   };
 
+
+  // 🌟 ฟังก์ชันสำหรับลบเมนู
+  const handleDelete = async (menuId) => {
+    if (!window.confirm("คุณแน่ใจหรือไม่ที่จะลบเมนูนี้? (หากลบแล้วจะไม่สามารถกู้คืนได้)")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/menus/${menuId}`, {
+        method: 'DELETE',
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // หากลบสำเร็จ ให้ดึงข้อมูลมาแสดงใหม่เพื่ออัปเดตตาราง
+        alert('ลบเมนูเรียบร้อยแล้ว');
+        window.location.reload(); 
+      } else {
+        alert('เกิดข้อผิดพลาด: ' + result.message);
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
+    }
+  };
+
   const getGroupName = (groupId) => {
       const group = menuGroups.find(g => g.group_id === groupId);
       return group ? group.group_name : 'ไม่ระบุกลุ่ม';
