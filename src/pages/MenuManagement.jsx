@@ -67,21 +67,24 @@ const MenuManagement = () => {
     fetchMenus();
     fetchMenuGroups();
   }, []);
-
+// 🌟 ค้นหาฟังก์ชัน handleOpenModal แล้วแก้ตามนี้ครับ
   const handleOpenModal = (menu = null) => {
     if (menu) {
       setEditingMenu(menu);
       setFormData({
+        menu_id: menu.menu_id, // 🛠 เพิ่มบรรทัดนี้ เพื่อส่ง ID ไปให้อัปเดต
         menu_name: menu.menu_name || '',
         icon_name: menu.icon_name || 'Activity',
         route_path: menu.route_path || '',
         group_id: menu.group_id || '',
-        selected_roles: menu.selected_roles || [] 
+        // เช็คว่า selected_roles เป็น array หรือ JSON string แล้วแปลงให้ถูกต้อง
+        selected_roles: Array.isArray(menu.selected_roles) ? menu.selected_roles : (JSON.parse(menu.selected_roles || '[]')) 
       });
     } else {
       setEditingMenu(null);
       const defaultGroupId = menuGroups.length > 0 ? menuGroups[0].group_id : '';
-      setFormData({ menu_name: '', icon_name: 'Activity', route_path: '', group_id: defaultGroupId, selected_roles: [] });
+      // เคลียร์ค่าเวลากดสร้างใหม่
+      setFormData({ menu_id: null, menu_name: '', icon_name: 'Activity', route_path: '', group_id: defaultGroupId, selected_roles: [] });
     }
     setIsModalOpen(true);
   };
