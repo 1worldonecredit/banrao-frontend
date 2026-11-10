@@ -6,7 +6,7 @@ import BottomNavbar from '../components/BottomNavbar';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 // ==========================================
-// 🌟 1. Component ก้อน Node (สำหรับวาดกล่องแบบ Mind Map พร้อมปุ่มจัดการ)
+// 🌟 1. Component ก้อน Node (ปรับดีไซน์ สี่เหลี่ยมมุมโค้งเล็กน้อย & Responsive)
 // ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   const hasUser = !!node.account_id;
@@ -14,36 +14,39 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   return (
     <div className="flex flex-col items-center">
       {/* ตัวกล่องข้อมูล (Card) */}
-      <div className="relative group m-2 mt-4">
-        <div className="bg-white border border-slate-200 shadow-sm hover:shadow-lg transition-all rounded-2xl p-4 w-56 md:w-64 flex flex-col items-center z-10 relative overflow-hidden">
+      <div className="relative group m-1 md:m-2 mt-4">
+        {/* 🌟 ปรับขนาดกล่อง (Responsive Width) และ มุมโค้ง (rounded-xl) */}
+        <div className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all rounded-xl p-3 md:p-4 w-36 sm:w-48 md:w-56 flex flex-col items-center z-10 relative overflow-hidden">
           
           {/* แถบสีด้านบนกล่อง */}
-          <div className={`absolute top-0 left-0 w-full h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
+          <div className={`absolute top-0 left-0 w-full h-1 md:h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
           
+          {/* 🌟 ปรับขนาดรูปภาพ (Responsive Image) */}
           <img 
             src={node.user_image || '/profile-img.jpg'} 
             alt="Profile" 
-            className="w-14 h-14 md:w-16 md:h-16 rounded-full object-cover border-2 border-slate-100 shadow-sm mt-2 mb-3"
+            className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover border-2 border-slate-100 shadow-sm mt-1 md:mt-2 mb-2 md:mb-3"
           />
           
-          <span className="text-[10px] md:text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full mb-1 text-center w-full truncate">
+          {/* 🌟 ปรับขนาดตัวหนังสือ (Responsive Text) */}
+          <span className="text-[9px] md:text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 md:px-3 md:py-1 rounded-full mb-1 text-center w-full truncate">
             {node.role_name || 'ตำแหน่งใหม่'}
           </span>
-          <h3 className="font-bold text-slate-800 text-xs md:text-sm truncate w-full text-center">
-            {hasUser ? `${node.first_name} ${node.last_name}` : 'คลิกเพื่อระบุบุคลากร'}
+          <h3 className="font-bold text-slate-800 text-[11px] md:text-sm truncate w-full text-center">
+            {hasUser ? `${node.first_name} ${node.last_name}` : 'คลิกระบุบุคลากร'}
           </h3>
-          <p className="text-[10px] text-slate-500 mt-1 truncate w-full text-center line-clamp-2">
-            {node.responsibilities || 'ยังไม่ระบุหน้าที่รับผิดชอบ'}
+          <p className="text-[9px] md:text-xs text-slate-500 mt-0.5 md:mt-1 truncate w-full text-center">
+            {node.responsibilities || 'ยังไม่ระบุหน้าที่'}
           </p>
 
-          {/* ชุดปุ่มจัดการมุมขวาบน (โชว์ตอนเอาเมาส์ชี้) */}
-          <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
-             <button onClick={() => onEditNode(node)} className="p-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors" title="แก้ไขข้อมูล">
-               <Edit size={14} />
+          {/* ชุดปุ่มจัดการมุมขวาบน */}
+          <div className="absolute top-0 right-0 p-1.5 md:p-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+             <button onClick={() => onEditNode(node)} className="p-1 md:p-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors" title="แก้ไขข้อมูล">
+               <Edit size={12} className="md:w-3.5 md:h-3.5" />
              </button>
              {(!node.isRoot && hasUser) && (
-               <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors mt-1" title="ลบบุคลากรออกจากตำแหน่ง">
-                 <Trash2 size={14} />
+               <button onClick={() => onDeleteNode(node)} className="p-1 md:p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors mt-1" title="ลบบุคลากรออกจากตำแหน่ง">
+                 <Trash2 size={12} className="md:w-3.5 md:h-3.5" />
                </button>
              )}
           </div>
@@ -51,23 +54,23 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 
         {/* ปุ่มเพิ่ม/แก้ไข (ด้านล่าง/กลางกล่อง) */}
         {hasUser ? (
-           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-md opacity-0 group-hover:opacity-100 hover:bg-emerald-600 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา / ทีมย่อย">
-             <Plus size={14} />
+           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-2.5 md:-bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1 md:p-1.5 shadow-md opacity-0 group-hover:opacity-100 hover:bg-emerald-600 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา / ทีมย่อย">
+             <Plus size={12} className="md:w-3.5 md:h-3.5" />
            </button>
         ) : (
-           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
-             <Edit size={20} />
+           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-2.5 md:p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
+             <Edit size={16} className="md:w-5 md:h-5" />
            </button>
         )}
         
         {/* ปุ่มเพิ่มซ้าย/ขวา */}
         {!node.isRoot && (
            <>
-             <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-slate-400 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
-               <Plus size={12} />
+             <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-2 md:-left-3 transform -translate-y-1/2 bg-slate-400 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
+               <Plus size={10} className="md:w-3 md:h-3" />
              </button>
-             <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-slate-400 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
-               <Plus size={12} />
+             <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-2 md:-right-3 transform -translate-y-1/2 bg-slate-400 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
+               <Plus size={10} className="md:w-3 md:h-3" />
              </button>
            </>
         )}
@@ -76,8 +79,9 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
       {/* วาดเส้นและลูกหลาน */}
       {Array.isArray(node.children) && node.children.length > 0 && (
         <div className="flex flex-col items-center w-full">
-          <div className="w-px h-6 bg-slate-300"></div>
-          <div className="flex justify-center relative pt-4 border-t-2 border-slate-300 gap-4 md:gap-8 px-4">
+          <div className="w-px h-4 md:h-6 bg-slate-300"></div>
+          {/* 🌟 ปรับระยะห่างระหว่างกล่อง (Responsive Gap) */}
+          <div className="flex justify-center relative pt-4 border-t-2 border-slate-300 gap-2 sm:gap-4 md:gap-8 px-2 md:px-4">
             {node.children.map((child, index) => {
               if (!child) return null;
               return (
