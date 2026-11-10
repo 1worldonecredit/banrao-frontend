@@ -6,7 +6,7 @@ import BottomNavbar from '../components/BottomNavbar';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 // ==========================================
-// 🌟 1. Component ก้อน Node (สำหรับวาดผัง)
+// 🌟 1. Component ก้อน Node
 // ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   const hasUser = !!node.account_id;
@@ -14,7 +14,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   return (
     <div className="flex flex-col items-center">
       <div className="relative group m-1 md:m-2 mt-4">
-        {/* ดีไซน์ Card ให้โปร่งใสสวยงาม */}
         <div className="bg-white/60 backdrop-blur-md border border-slate-200/60 shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-4 w-36 sm:w-48 md:w-56 flex flex-col items-center z-10 relative overflow-hidden">
           
           <div className={`absolute top-0 left-0 w-full h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-gradient-to-r from-emerald-400 to-teal-400'}`}></div>
@@ -50,15 +49,26 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
           </div>
         </div>
 
-        {/* 🌟 ปุ่มเพิ่มลูกน้อง (ด่านล่าง) โชว์เสมอถ้ามีคนอยู่แล้ว เพื่อให้สร้างผังต่อได้ */}
         {hasUser ? (
-           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา / ทีมย่อย">
+           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา (ลูกน้อง)">
              <Plus size={14} />
            </button>
         ) : (
            <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
              <Edit size={18} />
            </button>
+        )}
+        
+        {/* 🌟 ปรับปุ่มซ้าย/ขวา ให้คลิกง่ายขึ้นและเด่นขึ้นเล็กน้อย */}
+        {!node.isRoot && (
+           <>
+             <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 md:-left-4 transform -translate-y-1/2 bg-white border border-slate-200 text-blue-600 rounded-full p-1.5 shadow-md opacity-40 group-hover:opacity-100 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all z-20" title="เพิ่มตำแหน่งระดับเดียวกัน">
+               <Plus size={12} />
+             </button>
+             <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-3 md:-right-4 transform -translate-y-1/2 bg-white border border-slate-200 text-blue-600 rounded-full p-1.5 shadow-md opacity-40 group-hover:opacity-100 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all z-20" title="เพิ่มตำแหน่งระดับเดียวกัน">
+               <Plus size={12} />
+             </button>
+           </>
         )}
       </div>
 
@@ -93,13 +103,11 @@ const CommunityLeaders = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
   
-  // State สำหรับระบบ Tabs 
   const [committees, setCommittees] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
   const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
   const [committeeForm, setCommitteeForm] = useState({ name: '', description: '' });
 
-  // State สำหรับ Modal บุคลากร
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null); 
   const [searchCitizenId, setSearchCitizenId] = useState('');
@@ -116,11 +124,6 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
-  // ==========================================
-  // ฟังก์ชันช่วยเหลือต่างๆ
-  // ==========================================
-  
-  // 🌟 ฟังก์ชันแปลงข้อมูลแบนๆ (Flat) ให้เป็นต้นไม้ (Tree)
   const buildTree = (data) => {
     let tree = [];
     let lookup = {};
@@ -139,7 +142,6 @@ const CommunityLeaders = () => {
       if (item.parent_id && lookup[item.parent_id]) {
         lookup[item.parent_id].children.push(lookup[item.position_record_id]);
       } else {
-        // ใครไม่มี parent_id ถือว่าเป็น Root ของผังนั้น
         lookup[item.position_record_id].isRoot = true;
         tree.push(lookup[item.position_record_id]);
       }
@@ -168,7 +170,6 @@ const CommunityLeaders = () => {
       const result = await res.json();
       
       if (result.success && result.data.length > 0) {
-        // 🌟 ใช้ฟังก์ชันสร้าง Tree ที่เราเพิ่งเขียน
         const treeData = buildTree(result.data);
         setOrgTree(treeData);
       } else {
@@ -220,9 +221,20 @@ const CommunityLeaders = () => {
     } catch (error) { alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); } finally { setIsLoading(false); }
   };
 
-  const handleAddNode = (parentNode, direction) => {
-    // 🌟 จำไว้ว่ากล่องที่กำลังจะเพิ่ม เป็นลูกของกล่องไหน
-    setEditingSlot({ isNew: true, parentId: parentNode.position_record_id || parentNode.id }); 
+  // 🌟 ฟังก์ชันจัดการเพิ่มคน (แก้ไขลอจิก ซ้าย/ขวา/ล่าง)
+  const handleAddNode = (node, direction) => {
+    let targetParentId = null;
+    
+    if (direction === 'child') {
+      // เพิ่มลูกน้อง (ลงล่าง) -> ให้กล่องที่ถูกคลิกเป็นหัวหน้า
+      targetParentId = node.position_record_id || node.id;
+    } else {
+      // เพิ่มเพื่อนร่วมงาน (ซ้าย/ขวา) -> ให้หัวหน้าของกล่องที่ถูกคลิก เป็นหัวหน้าของคนใหม่ด้วย
+      targetParentId = node.parent_id || null;
+    }
+
+    setEditingSlot({ isNew: true, parentId: targetParentId, direction }); 
+    
     const today = new Date().toISOString().split('T')[0];
     setFormData({ role_name: '', account_id: '', start_date: today, end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null });
     setFoundUser(null);
@@ -286,7 +298,7 @@ const CommunityLeaders = () => {
         start_date: formData.start_date,
         end_date: formData.end_date || null,
         responsibilities: formData.responsibilities,
-        parent_id: editingSlot.parentId || null // 🌟 ส่ง parent_id ไปให้ Backend ด้วย
+        parent_id: editingSlot.parentId || null // ส่ง parent_id ไปให้ Backend ด้วยเสมอ
       };
 
       const url = editingSlot.isNew ? `${API_URL}/api/community-leaders` : `${API_URL}/api/community-leaders/${editingSlot.recordId}`;
