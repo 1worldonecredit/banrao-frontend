@@ -6,27 +6,24 @@ import BottomNavbar from '../components/BottomNavbar';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 // ==========================================
-// 🌟 1. Component ก้อน Node (ปรับดีไซน์ สี่เหลี่ยมมุมโค้งเล็กน้อย & Responsive)
-// ==========================================
-cons// ==========================================
-// 🌟 1. Component ก้อน Node (ปรับรูปโปรไฟล์เป็นสี่เหลี่ยมมุมโค้ง)
+// 🌟 1. Component ก้อน Node (สำหรับวาดผัง)
 // ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   const hasUser = !!node.account_id;
 
   return (
     <div className="flex flex-col items-center">
-      {/* ตัวกล่องข้อมูล (Card) */}
       <div className="relative group m-1 md:m-2 mt-4">
+        {/* กล่องแบบโค้ง (rounded-xl) และย่อขนาดตามหน้าจอ */}
         <div className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all rounded-xl p-3 md:p-4 w-36 sm:w-48 md:w-56 flex flex-col items-center z-10 relative overflow-hidden">
           
           <div className={`absolute top-0 left-0 w-full h-1 md:h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
           
-          {/* 🌟 แก้ไขตรงนี้: เปลี่ยนรูปโปรไฟล์ให้เป็นสี่เหลี่ยมมุมโค้ง (rounded-xl) */}
+          {/* รูปโปรไฟล์สี่เหลี่ยมมุมโค้ง (rounded-xl) */}
           <img 
             src={node.user_image || '/profile-img.jpg'} 
             alt="Profile" 
-            className="w-14 h-14 md:w-16 md:h-16 rounded-xl object-cover border-2 border-slate-100 shadow-sm mt-1 md:mt-2 mb-2 md:mb-3"
+            className="w-12 h-12 md:w-16 md:h-16 rounded-xl object-cover border-2 border-slate-100 shadow-sm mt-1 md:mt-2 mb-2 md:mb-3"
           />
           
           <span className="text-[9px] md:text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 md:px-3 md:py-1 rounded-full mb-1 text-center w-full truncate">
@@ -39,7 +36,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
             {node.responsibilities || 'ยังไม่ระบุหน้าที่'}
           </p>
 
-          {/* ชุดปุ่มจัดการมุมขวาบน */}
           <div className="absolute top-0 right-0 p-1.5 md:p-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
              <button onClick={() => onEditNode(node)} className="p-1 md:p-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors" title="แก้ไขข้อมูล">
                <Edit size={12} className="md:w-3.5 md:h-3.5" />
@@ -52,7 +48,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
           </div>
         </div>
 
-        {/* ปุ่มเพิ่ม/แก้ไข (ด้านล่าง/กลางกล่อง) */}
         {hasUser ? (
            <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-2.5 md:-bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1 md:p-1.5 shadow-md opacity-0 group-hover:opacity-100 hover:bg-emerald-600 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา / ทีมย่อย">
              <Plus size={12} className="md:w-3.5 md:h-3.5" />
@@ -63,7 +58,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
            </button>
         )}
         
-        {/* ปุ่มเพิ่มซ้าย/ขวา */}
         {!node.isRoot && (
            <>
              <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-2 md:-left-3 transform -translate-y-1/2 bg-slate-400 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
@@ -76,7 +70,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
         )}
       </div>
 
-      {/* วาดเส้นและลูกหลาน */}
       {Array.isArray(node.children) && node.children.length > 0 && (
         <div className="flex flex-col items-center w-full">
           <div className="w-px h-4 md:h-6 bg-slate-300"></div>
@@ -97,9 +90,8 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   );
 };
 
-
 // ==========================================
-// 🌟 2. Main Component (หน้าหลัก)
+// 🌟 2. Main Component
 // ==========================================
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
@@ -108,7 +100,6 @@ const CommunityLeaders = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
   
-  // State สำหรับ Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null); 
   const [searchCitizenId, setSearchCitizenId] = useState('');
@@ -125,7 +116,6 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
-  // ฟังก์ชันจัดรูปแบบเลขบัตรประชาชน (เติมขีดอัตโนมัติ)
   const formatCitizenId = (value) => {
     const numbers = value.replace(/\D/g, '');
     let formatted = '';
@@ -138,11 +128,9 @@ const CommunityLeaders = () => {
   };
 
   const handleCitizenIdChange = (e) => {
-    const formatted = formatCitizenId(e.target.value);
-    setSearchCitizenId(formatted);
+    setSearchCitizenId(formatCitizenId(e.target.value));
   };
 
-  // ดึงข้อมูลผังผู้นำ
   const fetchLeaders = async (dateQuery = '') => {
     try {
       const url = `${API_URL}/api/community-leaders/${villageId}${dateQuery ? `?term_date=${dateQuery}` : ''}`;
@@ -182,13 +170,6 @@ const CommunityLeaders = () => {
     fetchLeaders(selectedDate);
   }, []);
 
-  const handleDateSearch = (e) => {
-    const date = e.target.value;
-    setSelectedDate(date);
-    fetchLeaders(date);
-  };
-
-  // ค้นหาลูกบ้าน
   const handleSearchUser = async () => {
     const rawCitizenId = searchCitizenId.replace(/-/g, ''); 
     if (rawCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
@@ -244,7 +225,6 @@ const CommunityLeaders = () => {
     setIsModalOpen(true);
   };
 
-  // ฟังก์ชันลบข้อมูล
   const handleDeleteNode = async (node) => {
     if (node.isRoot) {
         alert("ไม่สามารถลบตำแหน่งผู้ใหญ่บ้านได้");
@@ -275,7 +255,6 @@ const CommunityLeaders = () => {
     if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
   };
 
-  // บันทึกข้อมูล
   const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.account_id) return alert("กรุณาระบุบุคลากร");
@@ -318,7 +297,6 @@ const CommunityLeaders = () => {
       <TopNavbar userData={userData} />
       
       <div className="max-w-7xl mx-auto p-4 pt-20">
-        {/* Header สวยงาม พร้อมแสดงข้อมูลวาระ พ.ศ. */}
         <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm mb-8 border border-slate-200">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-blue-100 rounded-lg text-blue-600"><Users size={24} /></div>
@@ -342,7 +320,6 @@ const CommunityLeaders = () => {
           </div>
         </div>
 
-        {/* วาดผังองค์กรแบบ MIND MAP */}
         <div className="relative py-10 overflow-x-auto flex justify-center min-w-max md:min-w-full">
           {orgTree && orgTree.role_name ? (
             <OrgNode 
@@ -357,7 +334,6 @@ const CommunityLeaders = () => {
         </div>
       </div>
 
-      {/* Modal เพิ่ม/แก้ไข */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
@@ -373,7 +349,6 @@ const CommunityLeaders = () => {
             </div>
             
             <div className="p-6 overflow-y-auto flex-1">
-              
               <div className="mb-6 text-center">
                  <label className="text-sm font-bold text-slate-700 block mb-1">ชื่อตำแหน่ง / ชื่อคณะทำงาน *</label>
                  <input 
