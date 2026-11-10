@@ -228,14 +228,23 @@ const MenuManagement = () => {
                       </div>
                     </td>
 
-                    <td className="p-4 text-center whitespace-nowrap">
-                      <button onClick={() => handleOpenModal(menu)} className="text-blue-600 hover:text-blue-800 p-2 transition-colors">
-                        <Edit size={18} />
-                      </button>
-                      <button className="text-red-500 hover:text-red-700 p-2 transition-colors">
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
+                   {/* ปุ่มแก้ไข / ลบ */}
+  <td className="p-4 text-center whitespace-nowrap">
+    <button 
+      onClick={() => handleOpenModal(menu)} 
+      className="text-blue-600 hover:text-blue-800 p-2 transition-colors"
+    >
+      <Edit size={18} />
+    </button>
+    
+    {/* 🛠 ผูกฟังก์ชันลบเข้ากับปุ่มถังขยะ โดยส่ง menu_id ไปให้ */}
+    <button 
+      onClick={() => handleDelete(menu.menu_id)} 
+      className="text-red-500 hover:text-red-700 p-2 transition-colors"
+    >
+      <Trash2 size={18} />
+    </button>
+  </td>
                   </tr>
                 )) : (
                   <tr>
