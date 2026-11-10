@@ -312,44 +312,63 @@ const CommunityLeaders = () => {
     }
   };
 
+  // 🌟 ฟังก์ชันลบข้อมูล
+  const handleDeleteNode = async (node) => {
+    // ป้องกันการลบผู้ใหญ่บ้าน
+    if (node.isRoot) {
+        alert("ไม่สามารถลบตำแหน่งผู้ใหญ่บ้านได้โดยตรง หากหมดวาระกรุณาใช้ฟังก์ชันแก้ไขเพื่อกำหนดวันหมดวาระแทน");
+        return;
+    }
+
+    if (window.confirm(`คุณต้องการลบ "${node.first_name} ${node.last_name}" ออกจากตำแหน่ง "${node.role_name}" ใช่หรือไม่?`)) {
+        try {
+            const response = await fetch(`${API_URL}/api/community-leaders/${node.position_record_id}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(result.message);
+                fetchLeaders(selectedDate); // ดึงข้อมูลมาแสดงผลใหม่
+            } else {
+                alert('ลบข้อมูลไม่สำเร็จ: ' + result.message);
+            }
+        } catch (error) {
+            console.error("Delete Error:", error);
+            alert('เกิดข้อผิดพลาดในการลบข้อมูล');
+        }
+    }
+  };
+
   return (
     <div className="bg-slate-50 min-h-screen pb-24">
       <TopNavbar userData={userData} />
       
       <div className="max-w-7xl mx-auto p-4 pt-20">
-        <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm mb-8 border border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-100 rounded-lg text-blue-600"><Users size={24} /></div>
-            <div>
-              <h1 className="text-lg md:text-xl font-bold text-slate-800">ทำเนียบผู้นำและคณะทำงาน</h1>
-              <p className="text-sm text-slate-500">หมู่บ้านของคุณ</p>
-            </div>
-          </div>
-          
-          <div className="mt-4 md:mt-0 flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
-            <Calendar size={18} className="text-slate-500" />
-            <span className="text-sm font-medium text-slate-700">ดูวาระ ณ วันที่:</span>
-           <input 
-    type="text" 
-    maxLength="17" // 🛠 เปลี่ยนจาก 13 เป็น 17 เพื่อเผื่อที่ให้ขีด (13 ตัวเลข + 4 ขีด)
-    value={searchCitizenId} 
-    onChange={handleCitizenIdChange} // 🌟 เรียกใช้ฟังก์ชันที่สร้างใหม่
-    placeholder="X-XXXX-XXXXX-XX-X" // 🌟 แนะนำรูปแบบให้ผู้ใช้เห็น
-    className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-wider" // 🌟 เพิ่ม font-mono tracking-wider ให้ตัวเลขดูชัดเจนขึ้น
-  />
-          </div>
-        </div>
-
-        {/* 🌟 วาดผังองค์กรแบบ MIND MAP (กล่องเดียวแตกสาขา) */}
-        <div className="relative py-10 overflow-x-auto flex justify-center min-w-max md:min-w-full">
-          {orgTree && (
-            <OrgNode 
-              node={orgTree} 
-              onAddNode={handleAddNode} 
-              onEditNode={handleEditNode} 
-            />
-          )}
-        </div>
+        {/* แทนที่ <div className="flex flex-col md:flex-row justify-between items-center bg-white..."> เดิมด้วยโค้ดนี้ */}
+<div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm mb-8 border border-slate-200">
+  <div className="flex items-center gap-3">
+    <div className="p-3 bg-blue-100 rounded-lg text-blue-600"><Users size={24} /></div>
+    <div>
+      <h1 className="text-lg md:text-xl font-bold text-slate-800">ทำเนียบผู้นำและคณะทำงาน</h1>
+      <p className="text-sm text-slate-500">หมู่บ้าน: {userData?.villageName || 'ของคุณ'}</p>
+    </div>
+  </div>
+  
+  {/* 🌟 ปรับปรุงส่วนแสดงข้อมูลวาระ */}
+  <div className="mt-4 md:mt-0 flex flex-col items-end bg-blue-50 p-3 rounded-lg border border-blue-100">
+    <div className="text-sm font-bold text-blue-800">
+      บริหารงานโดย: {orgTree?.userName || 'ยังไม่ระบุ'}
+    </div>
+    {orgTree?.start_date && (
+      <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+        <Calendar size={14} />
+        วาระ พ.ศ. {new Date(orgTree.start_date).getFullYear() + 543} 
+        {orgTree.end_date ? ` - ${new Date(orgTree.end_date).getFullYear() + 543}` : ' - ปัจจุบัน'}
+      </div>
+    )}
+  </div>
+</div>
       </div>
 
       {/* 🌟 Modal เพิ่ม/แก้ไข 🌟 */}
