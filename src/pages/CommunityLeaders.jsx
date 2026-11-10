@@ -174,13 +174,19 @@ const CommunityLeaders = () => {
 
   // 🌟 ฟังก์ชันค้นหาลูกบ้าน
   const handleSearchUser = async () => {
-    const rawCitizenId = searchCitizenId.replace(/-/g, '');
-    if (searchCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
+    // 1. นำขีดออกก่อนเพื่อตรวจสอบความยาวที่แท้จริงของตัวเลข
+    const rawCitizenId = searchCitizenId.replace(/-/g, ''); 
+
+    // 2. ตรวจสอบความยาวโดยใช้ rawCitizenId ที่ไม่มีขีดแล้ว
+    if (rawCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
+    
     setIsLoading(true);
     try {
+        // 3. ส่ง rawCitizenId (ตัวเลขล้วน) ไปยัง API
         const res = await fetch(`${API_URL}/api/search-citizen/${rawCitizenId}`);
-
         const result = await res.json();
+        
+        // ... (ส่วนที่เหลือของฟังก์ชันคงเดิม) ...
         if (result.success) {
             setFoundUser(result.data);
             setFormData(prev => ({
