@@ -257,6 +257,11 @@ const CommunityLeaders = () => {
     }
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.account_id) return alert("กรุณาระบุบุคลากร");
