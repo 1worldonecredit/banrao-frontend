@@ -343,12 +343,19 @@ const CommunityLeaders = () => {
                  />
               </div>
 
-              {/* โหมดเพิ่มใหม่: ช่องค้นหาด้วยเลขบัตร */}
+             {/* โหมดเพิ่มใหม่: ช่องค้นหาด้วยเลขบัตร */}
               {editingSlot?.isNew && !foundUser && (
                 <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
                   <label className="block text-sm font-bold text-slate-700 mb-2">ค้นหาจากเลขบัตรประชาชน 13 หลัก</label>
                   <div className="flex gap-2">
-                    <input type="text" maxLength="13" value={searchCitizenId} onChange={e => setSearchCitizenId(e.target.value)} placeholder="ระบุเลขบัตร..." className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input 
+                      type="text" 
+                      maxLength="17" // 🛠 สำคัญ 1: ต้องเปลี่ยน maxLength เป็น 17 เพื่อเผื่อที่ให้ขีด (-)
+                      value={searchCitizenId} 
+                      onChange={handleCitizenIdChange} // 🛠 สำคัญ 2: ต้องเปลี่ยน onChange มาเรียกใช้ handleCitizenIdChange
+                      placeholder="X-XXXX-XXXXX-XX-X" 
+                      className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-wider" 
+                    />
                     <button type="button" onClick={handleSearchUser} disabled={isLoading} className="bg-slate-800 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-slate-700 flex items-center gap-2 shrink-0 disabled:bg-slate-400">
                       <Search size={16} /> {isLoading ? 'ค้นหา...' : 'ค้นหา'}
                     </button>
