@@ -8,6 +8,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 // ==========================================
 // 🌟 1. Component ก้อน Node (ปรับดีไซน์ สี่เหลี่ยมมุมโค้งเล็กน้อย & Responsive)
 // ==========================================
+cons// ==========================================
+// 🌟 1. Component ก้อน Node (ปรับรูปโปรไฟล์เป็นสี่เหลี่ยมมุมโค้ง)
+// ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   const hasUser = !!node.account_id;
 
@@ -15,20 +18,17 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
     <div className="flex flex-col items-center">
       {/* ตัวกล่องข้อมูล (Card) */}
       <div className="relative group m-1 md:m-2 mt-4">
-        {/* 🌟 ปรับขนาดกล่อง (Responsive Width) และ มุมโค้ง (rounded-xl) */}
         <div className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all rounded-xl p-3 md:p-4 w-36 sm:w-48 md:w-56 flex flex-col items-center z-10 relative overflow-hidden">
           
-          {/* แถบสีด้านบนกล่อง */}
           <div className={`absolute top-0 left-0 w-full h-1 md:h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
           
-          {/* 🌟 ปรับขนาดรูปภาพ (Responsive Image) */}
+          {/* 🌟 แก้ไขตรงนี้: เปลี่ยนรูปโปรไฟล์ให้เป็นสี่เหลี่ยมมุมโค้ง (rounded-xl) */}
           <img 
             src={node.user_image || '/profile-img.jpg'} 
             alt="Profile" 
-            className="w-12 h-12 md:w-16 md:h-16 rounded-full object-cover border-2 border-slate-100 shadow-sm mt-1 md:mt-2 mb-2 md:mb-3"
+            className="w-14 h-14 md:w-16 md:h-16 rounded-xl object-cover border-2 border-slate-100 shadow-sm mt-1 md:mt-2 mb-2 md:mb-3"
           />
           
-          {/* 🌟 ปรับขนาดตัวหนังสือ (Responsive Text) */}
           <span className="text-[9px] md:text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 md:px-3 md:py-1 rounded-full mb-1 text-center w-full truncate">
             {node.role_name || 'ตำแหน่งใหม่'}
           </span>
@@ -80,7 +80,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
       {Array.isArray(node.children) && node.children.length > 0 && (
         <div className="flex flex-col items-center w-full">
           <div className="w-px h-4 md:h-6 bg-slate-300"></div>
-          {/* 🌟 ปรับระยะห่างระหว่างกล่อง (Responsive Gap) */}
           <div className="flex justify-center relative pt-4 border-t-2 border-slate-300 gap-2 sm:gap-4 md:gap-8 px-2 md:px-4">
             {node.children.map((child, index) => {
               if (!child) return null;
