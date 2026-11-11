@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ShieldCheck, MapPin, Save, User, Map, Building } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar'; // ระวังเรื่อง path ของ Navbar ว่าเข้ากับสีเข้มได้ไหมด้วยนะครับ
+import BottomNavbar from '../components/BottomNavbar'; // 🌟 เพิ่มบรรทัดนี้
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
@@ -201,6 +202,9 @@ const AssignPosition = () => {
 
         </div>
       </div>
+
+      {/* 🌟 เพิ่ม BottomNavbar กลับเข้ามาตรงนี้ครับ */}
+      <BottomNavbar />
     </div>
   );
 };
