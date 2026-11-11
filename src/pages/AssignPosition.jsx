@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ShieldCheck, MapPin, Save, User, Map, Building, FileText, KeyRound, X, Download } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar'; 
+import BottomNavbar from '../components/BottomNavbar'; // 🌟 Import BottomNavbar
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
@@ -20,24 +21,15 @@ const AssignPosition = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
-// 🌟 ดึงรายการหมู่บ้านจาก API ทันทีที่โหลดหน้านี้
+  // 🌟 ดึงรายการหมู่บ้านจาก Database ผ่าน API
   useEffect(() => {
     const fetchVillages = async () => {
       try {
         const res = await fetch(`${API_URL}/api/villages-list`);
         const result = await res.json();
-        
-        if (result.success) {
-          // นำข้อมูลหมู่บ้านจริงๆ จาก Database มาใส่ใน State
-          setVillagesList(result.data);
-        } else {
-          console.error("ดึงข้อมูลหมู่บ้านล้มเหลว");
-        }
-      } catch (error) {
-        console.error("เกิดข้อผิดพลาดในการดึงหมู่บ้าน:", error);
-      }
+        if (result.success) setVillagesList(result.data);
+      } catch (error) { console.error("เกิดข้อผิดพลาดในการดึงหมู่บ้าน:", error); }
     };
-
     fetchVillages();
   }, []);
 
@@ -59,19 +51,12 @@ const AssignPosition = () => {
     setAssignmentSuccess(false);
     
     try {
-        const res = await fetch(`${API_URL}/api/search-citizen/${rawCitizenId}`);
+        // 🌟 เรียก API ค้นหาข้อมูลแบบเต็ม (ดึงอายุ, ที่อยู่, ตำแหน่งเดิม จาก Database)
+        const res = await fetch(`${API_URL}/api/search-citizen-full/${rawCitizenId}`);
         const result = await res.json();
+        
         if (result.success) {
-            // จำลองข้อมูลเพิ่มเติมที่ได้จาก API
-            const mockFullData = {
-              ...result.data,
-              gender: 'ชาย',
-              birth_date: '15 ตุลาคม 2520',
-              age: 49,
-              address: '12/3 หมู่ 1 ต.บ้านเป็ด อ.เมือง จ.ขอนแก่น',
-              prev_position: 'ผู้ช่วยผู้ใหญ่บ้าน (ฝ่ายรักษาความสงบ)'
-            };
-            setFoundUser(mockFullData);
+            setFoundUser(result.data);
         } else {
             alert(result.message || 'ไม่พบข้อมูลประชาชน');
             setFoundUser(null);
@@ -170,10 +155,10 @@ const AssignPosition = () => {
                       <div className="font-black text-2xl mb-4">{foundUser.first_name} {foundUser.last_name}</div>
                       
                       <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm text-purple-100 bg-white/5 p-4 rounded-xl border border-white/10">
-                        <div><span className="text-purple-300">เพศ:</span> {foundUser.gender}</div>
-                        <div><span className="text-purple-300">อายุ:</span> {foundUser.age} ปี</div>
+                        <div><span className="text-purple-300">เพศ:</span> {foundUser.gender || 'ไม่ระบุ'}</div>
+                        <div><span className="text-purple-300">อายุ:</span> {foundUser.age || '-'} ปี</div>
                         <div><span className="text-purple-300">เกิด:</span> {foundUser.birth_date}</div>
-                        <div><span className="text-purple-300">ตำแหน่งเดิม:</span> {foundUser.prev_position || '-'}</div>
+                        <div><span className="text-purple-300">ตำแหน่งเดิม:</span> {foundUser.prev_position}</div>
                         <div className="col-span-2"><span className="text-purple-300">ที่อยู่:</span> {foundUser.address}</div>
                       </div>
                     </div>
@@ -206,7 +191,7 @@ const AssignPosition = () => {
             <div className="flex justify-between items-center mb-8 border-b pb-4 print:hidden">
               <div className="text-emerald-600 font-bold flex items-center gap-2"><ShieldCheck size={24}/> อนุมัติและบันทึกข้อมูลสำเร็จ</div>
               <div className="flex gap-2">
-                <button onClick={() => setAssignmentSuccess(false)} className="px-4 py-2 bg-slate-100 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition">กลับหน้าแรก</button>
+                <button onClick={() => setAssignmentSuccess(false)} className="px-4 py-2 bg-slate-100 rounded-lg font-bold text-slate-600 hover:bg-slate-200 transition">แต่งตั้งคนอื่นต่อ</button>
                 <button onClick={handlePrintPDF} className="px-4 py-2 bg-blue-600 rounded-lg font-bold text-white hover:bg-blue-700 flex items-center gap-2 shadow-lg"><Download size={18}/> บันทึก/พิมพ์ PDF</button>
               </div>
             </div>
@@ -232,10 +217,10 @@ const AssignPosition = () => {
                  <div>
                    <div className="text-2xl font-bold text-slate-900 mb-2">{foundUser.first_name} {foundUser.last_name}</div>
                    <div className="text-sm text-slate-600 grid grid-cols-2 gap-2">
-                     <div><strong className="text-slate-800">อายุ:</strong> {foundUser.age} ปี</div>
-                     <div><strong className="text-slate-800">เพศ:</strong> {foundUser.gender}</div>
+                     <div><strong className="text-slate-800">อายุ:</strong> {foundUser.age || '-'} ปี</div>
+                     <div><strong className="text-slate-800">เพศ:</strong> {foundUser.gender || 'ไม่ระบุ'}</div>
                      <div className="col-span-2"><strong className="text-slate-800">ที่อยู่:</strong> {foundUser.address}</div>
-                     <div className="col-span-2"><strong className="text-slate-800">ตำแหน่งเดิม:</strong> {foundUser.prev_position || '-'}</div>
+                     <div className="col-span-2"><strong className="text-slate-800">ตำแหน่งเดิม:</strong> {foundUser.prev_position}</div>
                    </div>
                  </div>
               </div>
@@ -288,6 +273,12 @@ const AssignPosition = () => {
         )}
 
       </div>
+
+      {/* 🌟 เพิ่ม BottomNavbar กลับเข้ามาที่ด้านล่างสุด (และซ่อนตอนพิมพ์ PDF) */}
+      <div className="print:hidden">
+        <BottomNavbar />
+      </div>
+
     </div>
   );
 };
