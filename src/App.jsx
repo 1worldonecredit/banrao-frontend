@@ -39,6 +39,7 @@ import Jobs from './pages/Jobs';
 import MenuManagement from './pages/MenuManagement';
 import PositionManagement from './pages/PositionManagement';
 import CommunityLeaders from './pages/CommunityLeaders'; // <-- นำเข้า Component ผังผู้นำชุมชน
+import AssignPosition from './pages/AssignPosition';
 
 function App() {
   return (
@@ -88,6 +89,7 @@ function App() {
             
             {/* เส้นทางนี้คือตัวที่ทำให้ React รู้จัก /community-leaders และแสดงผลหน้าผังผู้นำชุมชนได้ */}
             <Route path="/community-leaders" element={<CommunityLeaders />} /> 
+             <Route path="/assign-position" element={<AssignPosition />} /> 
           </Routes>
           
         </div>
