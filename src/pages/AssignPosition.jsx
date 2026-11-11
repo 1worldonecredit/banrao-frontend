@@ -20,11 +20,25 @@ const AssignPosition = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
+// 🌟 ดึงรายการหมู่บ้านจาก API ทันทีที่โหลดหน้านี้
   useEffect(() => {
-    setVillagesList([
-      { village_id: '8802be0c-ff9b-4c6c-996...', name: 'หมู่ 1 บ้านโคกสว่าง' },
-      { village_id: '4c85d7ed-793d-465a-a3e...', name: 'หมู่ 15 บ้านหัวนา' }
-    ]);
+    const fetchVillages = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/villages-list`);
+        const result = await res.json();
+        
+        if (result.success) {
+          // นำข้อมูลหมู่บ้านจริงๆ จาก Database มาใส่ใน State
+          setVillagesList(result.data);
+        } else {
+          console.error("ดึงข้อมูลหมู่บ้านล้มเหลว");
+        }
+      } catch (error) {
+        console.error("เกิดข้อผิดพลาดในการดึงหมู่บ้าน:", error);
+      }
+    };
+
+    fetchVillages();
   }, []);
 
   const formatCitizenId = (value) => {
