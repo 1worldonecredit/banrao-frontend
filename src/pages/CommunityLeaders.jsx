@@ -108,6 +108,10 @@ const CommunityLeaders = () => {
   const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
   const [committeeForm, setCommitteeForm] = useState({ name: '', description: '' });
 
+  // 🌟 เพิ่ม State 2 ตัวนี้ สำหรับแก้ไขแท็บ
+  const [editingCommitteeId, setEditingCommitteeId] = useState(null); 
+  const [isEditCommitteeModalOpen, setIsEditCommitteeModalOpen] = useState(false);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null); 
   const [searchCitizenId, setSearchCitizenId] = useState('');
@@ -333,6 +337,48 @@ const CommunityLeaders = () => {
     } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
   };
 
+// ==========================================
+  // 🌟 ฟังก์ชันจัดการแท็บ (ลบ / แก้ไข)
+  // ==========================================
+  const openEditCommitteeModal = (committee) => {
+    setCommitteeForm({ name: committee.committee_name, description: committee.description || '' });
+    setEditingCommitteeId(committee.committee_id);
+    setIsEditCommitteeModalOpen(true);
+  };
+
+  const handleUpdateCommittee = async (e) => {
+    e.preventDefault();
+    if (!committeeForm.name || !editingCommitteeId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees/${editingCommitteeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ committee_name: committeeForm.name, description: committeeForm.description })
+      });
+      const result = await res.json();
+      if (result.success || res.ok) {
+        alert('แก้ไขข้อมูลคณะทำงานสำเร็จ');
+        fetchCommittees();
+        setIsEditCommitteeModalOpen(false);
+        setEditingCommitteeId(null);
+        setCommitteeForm({ name: '', description: '' });
+      } else alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถแก้ไขได้'));
+    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
+  };
+
+  const handleDeleteCommittee = async (id, name) => {
+    if (!window.confirm(`คุณต้องการลบ "${name}" ใช่หรือไม่?\n\n⚠️ คำเตือน: บุคลากรที่อยู่ในผังนี้จะถูกลบไปด้วยทั้งหมด!`)) return;
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees/${id}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (result.success || res.ok) {
+        alert('ลบคณะทำงานเรียบร้อยแล้ว');
+        if (activeTab === id) setActiveTab(null);
+        fetchCommittees(); 
+      } else alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถลบได้'));
+    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
+  };
+
   const activeCommitteeInfo = committees.find(c => c.committee_id === activeTab);
 
   return (
@@ -353,22 +399,44 @@ const CommunityLeaders = () => {
 
         <div className="flex overflow-x-auto gap-3 mb-6 pb-2 hide-scrollbar items-center px-1">
           {committees.map(c => (
-            <button
-              key={c.committee_id}
-              onClick={() => setActiveTab(c.committee_id)}
-              className={`px-6 py-3 rounded-xl whitespace-nowrap text-sm font-bold transition-all duration-300 ${
-                activeTab === c.committee_id 
-                ? 'bg-slate-800 text-white shadow-md -translate-y-0.5' 
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300'
-              }`}
-            >
-              {c.committee_name}
-            </button>
+            <div key={c.committee_id} className="relative group shrink-0">
+              <button
+                onClick={() => setActiveTab(c.committee_id)}
+                className={`px-6 py-3 rounded-xl whitespace-nowrap text-sm font-bold transition-all duration-300 ${
+                  activeTab === c.committee_id 
+                  ? 'bg-slate-800 text-white shadow-md -translate-y-0.5' 
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300'
+                }`}
+              >
+                {c.committee_name}
+              </button>
+              
+              {/* ปุ่มแก้ไข/ลบ จะโผล่มาเฉพาะแท็บที่ถูกเลือกและเอาเมาส์ไปชี้ */}
+              {activeTab === c.committee_id && (
+                <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <button 
+                    onClick={() => openEditCommitteeModal(c)}
+                    className="p-1.5 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white shadow-sm transition-colors" title="แก้ไข"
+                  >
+                    <Edit size={12} />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteCommittee(c.committee_id, c.committee_name)}
+                    className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white shadow-sm transition-colors" title="ลบ"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
           
           <button 
-            onClick={() => setIsCommitteeModalOpen(true)} 
-            className="px-5 py-3 rounded-xl whitespace-nowrap text-sm font-bold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 flex items-center gap-2 transition-colors ml-2"
+            onClick={() => {
+              setCommitteeForm({ name: '', description: '' });
+              setIsCommitteeModalOpen(true);
+            }} 
+            className="px-5 py-3 rounded-xl whitespace-nowrap text-sm font-bold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 flex items-center gap-2 transition-colors ml-2 shrink-0"
           >
             <FolderPlus size={18} /> เพิ่มผังคณะทำงาน
           </button>
