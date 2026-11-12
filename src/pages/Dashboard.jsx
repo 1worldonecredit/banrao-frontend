@@ -7,7 +7,7 @@ import {
   Building2, Home,
   Gift, Clock, 
   Ticket, Percent, Utensils, MapPin, ClipboardList, CalendarCheck, HardHat, Wrench, CarTaxiFront,
-  Droplets, Activity, ShieldCheck, Pencil, Shield
+  Droplets, Activity, ShieldCheck, Pencil, Shield, CalendarClock // 🌟 เพิ่ม CalendarClock ตรงนี้
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
@@ -24,26 +24,25 @@ const Dashboard = () => {
   const currencySymbol = userData.currency_code === 'USD' ? '$' : '฿';
 
   // 🌟 1. สร้าง State สำหรับเก็บข้อมูลสถานที่
-    const [communityPlaces, setCommunityPlaces] = useState([]);
+  const [communityPlaces, setCommunityPlaces] = useState([]);
 
-    // 🌟 2. ดึงข้อมูลจาก API เมื่อเปิดหน้าเว็บ
-    useEffect(() => {
-        const fetchPlaces = async () => {
-            try {
-                // เปลี่ยนโดเมนให้ตรงกับ Backend ของคุณ (เช่น api.banrao.life)
-                const response = await axios.get('https://api.banrao.life/api/community-places');
-                if (response.data.success) {
-                    setCommunityPlaces(response.data.places);
-                }
-            } catch (error) {
-                console.error("Error fetching places", error);
+  // 🌟 2. ดึงข้อมูลจาก API เมื่อเปิดหน้าเว็บ
+  useEffect(() => {
+    const fetchPlaces = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/api/community-places`);
+            if (response.data.success) {
+                setCommunityPlaces(response.data.places);
             }
-        };
-        fetchPlaces();
-    }, []);
+        } catch (error) {
+            console.error("Error fetching places", error);
+        }
+    };
+    fetchPlaces();
+  }, []);
 
   const mainCategories = [
-    { title: 'โรงเรียในหมู่บ้าน', icon: <Building2 size={40} color="#e11d48" />, bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', action: 'hotels' },
+    { title: 'โรงเรียนในหมู่บ้าน', icon: <Building2 size={40} color="#e11d48" />, bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', action: 'hotels' },
     { title: 'วัดในหมู่บ้าน', icon: <Utensils size={40} color="#7c3aed" />, bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', action: 'restaurants' },
     { title: 'ห้องเช่า', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
     { title: 'บ้านเช่า', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
@@ -51,14 +50,14 @@ const Dashboard = () => {
     { title: 'โรงแรม', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
     { title: 'ร้านค้า', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
     { title: 'ร้านอาหาร', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
-    { title: 'ห้าสรรพสินค้า', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
-    { title: 'สถานที่ท่องเทั่ยว', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
+    { title: 'ห้างสรรพสินค้า', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
+    { title: 'สถานที่ท่องเที่ยว', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
     { title: 'โรงงานอุตสาหกรรม', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
     { title: 'โอทอป', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
     { title: 'วิสาหกิจชุมชน', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
     { title: 'สถานีอนามัย ', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
     { title: 'โรงพยาบาล', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-    { title: 'คลีนิค', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
+    { title: 'คลีนิก', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
   ];
 
   const allSubServices = [
@@ -160,7 +159,6 @@ const Dashboard = () => {
       alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     }
   };
-
   
 return (
     // 🌟 เปลี่ยนพื้นหลังเป็นธีมแบบ AssignPosition (สมมติใช้รูป bg-hex-pattern)
