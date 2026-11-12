@@ -1,5 +1,5 @@
-import React, { useState } from 'react'; // 🌟 ลบ useEffect ออก
-import { Search, ShieldCheck, MapPin, Save, User, Map, Building, FileText, KeyRound, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, ShieldCheck, MapPin, Save, User, Map, Building, FileText, KeyRound, X, Calendar, CalendarClock } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar'; 
 import BottomNavbar from '../components/BottomNavbar'; 
 
@@ -12,16 +12,19 @@ const AssignPosition = () => {
   const [foundUser, setFoundUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  // 🌟 ลบ State selectedVillageId และ villagesList ออกไปเลย
-  // const [selectedVillageId, setSelectedVillageId] = useState('');
-  // const [villagesList, setVillagesList] = useState([]);
-  
+  // State สำหรับรหัสผ่านชุดที่ 2
   const [showPinModal, setShowPinModal] = useState(false);
   const [approvalPin, setApprovalPin] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
-  // 🌟 ลบ useEffect fetchVillages() ทิ้งไปเลย
+  // 🌟 State สำหรับการจัดการวาระการดำรงตำแหน่ง
+  const [termType, setTermType] = useState('60_YEARS'); // '60_YEARS' หรือ 'CUSTOM_YEARS'
+  const [customYears, setCustomYears] = useState(4); // ค่าเริ่มต้น 4 ปี
+  const [startDate, setStartDate] = useState(() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
 
   const formatCitizenId = (value) => {
     const numbers = value.replace(/\D/g, '');
@@ -56,7 +59,6 @@ const AssignPosition = () => {
 
   const openPinModal = (e) => {
     e.preventDefault();
-    // 🌟 เปลี่ยนเงื่อนไขการเช็ค ให้เช็คว่ามีหมู่บ้านผูกกับโปรไฟล์ไหม
     if (!foundUser || !foundUser.village_id) return alert('ไม่สามารถแต่งตั้งได้ เนื่องจากประชาชนท่านนี้ยังไม่ได้ระบุหมู่บ้านในระบบ');
     setShowPinModal(true);
   };
@@ -73,10 +75,12 @@ const AssignPosition = () => {
                 target_account_id: foundUser.account_id,
                 position_id: 6, 
                 scope_type: 'VILLAGE',
-                // 🌟 ดึงหมู่บ้านจากข้อมูลคนที่ค้นหาเจอโดยตรง ไม่ต้องให้เลือก
                 scope_id: foundUser.village_id, 
                 assigner_account_id: userData.id || userData.account_id,
-                approval_pin: approvalPin
+                approval_pin: approvalPin,
+                // 🌟 ส่งข้อมูลวันที่ไปให้ Backend ด้วย เผื่อนำไปบันทึกลง Database
+                start_date: startDate,
+                end_date: calculateEndDate().toISOString().split('T')[0]
             })
         });
 
@@ -95,6 +99,44 @@ const AssignPosition = () => {
     }
   };
 
+  // 🌟 ฟังก์ชันแกะข้อความวันเกิดภาษาไทย แปลงกลับเป็น Object Date
+  const parseThaiDateString = (thDateStr) => {
+      if(!thDateStr || thDateStr === 'ไม่ระบุ') return null;
+      const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+      const parts = thDateStr.split(' ');
+      if(parts.length >= 3) {
+          const day = parseInt(parts[0]);
+          const month = months.findIndex(m => m === parts[1]);
+          const year = parseInt(parts[2]) - 543; // ลบ 543 เพื่อแปลงปี พ.ศ. กลับเป็น ค.ศ.
+          return new Date(year, month, day);
+      }
+      return null;
+  };
+
+  // 🌟 ฟังก์ชันคำนวณวันสิ้นสุดวาระ
+  const calculateEndDate = () => {
+      const start = new Date(startDate);
+      if (termType === '60_YEARS' && foundUser) {
+          const dob = parseThaiDateString(foundUser.birth_date);
+          if (dob) {
+              const end = new Date(dob);
+              end.setFullYear(end.getFullYear() + 60); // บวกอายุไป 60 ปีเป๊ะๆ
+              return end;
+          }
+          return start; 
+      } else {
+          const end = new Date(start);
+          end.setFullYear(end.getFullYear() + parseInt(customYears)); // บวกจำนวนปีวาระ
+          return end;
+      }
+  };
+
+  // 🌟 ฟังก์ชันแสดงวันที่แบบไทยสวยๆ
+  const formatDateThai = (date) => {
+      if (!date) return '-';
+      return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
   return (
     <div className="min-h-screen pb-24 font-sans relative overflow-hidden bg-hex-pattern">
       
@@ -102,6 +144,9 @@ const AssignPosition = () => {
       
       <div className="max-w-3xl mx-auto p-4 pt-24 relative z-10">
         
+        {/* ==================================================== */}
+        {/* หน้าจอหลัก UI แบบ Glassmorphism (สีขาว 70%) */}
+        {/* ==================================================== */}
         {!assignmentSuccess && (
           <div className="bg-white bg-opacity-70 backdrop-blur-xl p-8 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] border border-white/40">
             <div className="flex items-center gap-5 mb-8 border-b border-slate-200 pb-6">
@@ -127,6 +172,7 @@ const AssignPosition = () => {
             {foundUser && (
               <form onSubmit={openPinModal} className="animate-fade-in-up">
                 
+                {/* ข้อมูลบุคคล */}
                 <div className="bg-white/60 border border-white/80 rounded-2xl p-6 mb-6 shadow-sm">
                   <div className="flex items-start gap-6">
                     <img src={foundUser.user_image || '/profile-img.jpg'} alt="Profile" className="w-24 h-24 rounded-2xl object-cover border-2 border-white shadow-[0_0_15px_rgba(0,0,0,0.1)]" />
@@ -145,15 +191,63 @@ const AssignPosition = () => {
                   </div>
                 </div>
 
-                <div className="bg-white/50 p-6 rounded-2xl border border-white/60 mb-8 shadow-sm">
+                {/* เลือกพื้นที่ */}
+                <div className="bg-white/50 p-6 rounded-2xl border border-white/60 mb-6 shadow-sm">
                   <label className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2"><MapPin size={16} className="text-emerald-500"/> พื้นที่ปกครอง (ภูมิลำเนาของผู้รับตำแหน่ง)</label>
-                  
-                  {/* 🌟 เปลี่ยนจาก <select> เป็น <div> แสดงข้อความแบบล็อก (Read-only) */}
                   <div className="w-full p-4 bg-slate-100 border border-slate-300 rounded-xl text-slate-600 font-bold shadow-inner flex items-center justify-between">
                       {foundUser.village_name ? `หมู่บ้าน: ${foundUser.village_name}` : <span className="text-red-500">ยังไม่ระบุหมู่บ้าน (ไม่สามารถแต่งตั้งได้)</span>}
                       <ShieldCheck size={20} className="text-slate-400" />
                   </div>
-                  <p className="text-xs text-slate-500 mt-2 ml-1">* ตามกฎหมาย ผู้ถูกแต่งตั้งต้องมีภูมิลำเนาอยู่ในหมู่บ้านที่จะปกครองเท่านั้น (ระบบไม่อนุญาตให้เปลี่ยนพื้นที่)</p>
+                  <p className="text-xs text-slate-500 mt-2 ml-1">* ผู้ถูกแต่งตั้งต้องมีภูมิลำเนาอยู่ในหมู่บ้านที่จะปกครองเท่านั้น</p>
+                </div>
+
+                {/* 🌟 ส่วนจัดการวาระการดำรงตำแหน่ง (ใหม่) */}
+                <div className="bg-white/50 p-6 rounded-2xl border border-white/60 mb-8 shadow-sm">
+                  <label className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><Calendar size={18} className="text-blue-500"/> กำหนดวาระการดำรงตำแหน่ง</label>
+                  
+                  {/* ตัวเลือกรูปแบบวาระ */}
+                  <div className="flex flex-col sm:flex-row gap-6 mb-5 ml-1">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                          <input type="radio" value="60_YEARS" checked={termType === '60_YEARS'} onChange={(e) => setTermType(e.target.value)} className="w-5 h-5 text-blue-600 focus:ring-blue-500 cursor-pointer"/>
+                          <span className="text-slate-700 font-bold">จนถึงอายุ 60 ปีบริบูรณ์</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                          <input type="radio" value="CUSTOM_YEARS" checked={termType === 'CUSTOM_YEARS'} onChange={(e) => setTermType(e.target.value)} className="w-5 h-5 text-blue-600 focus:ring-blue-500 cursor-pointer"/>
+                          <span className="text-slate-700 font-bold">ดำรงตำแหน่งเป็นวาระ (ปี)</span>
+                      </label>
+                  </div>
+
+                  {/* กล่องเลือกวันที่ และผลการคำนวณ */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-inner">
+                      <div>
+                          <label className="text-xs font-bold text-slate-500 mb-2 block">วันที่เริ่มรับตำแหน่ง</label>
+                          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg outline-none text-slate-700 font-bold focus:border-blue-400 focus:bg-white transition-all cursor-pointer" />
+                      </div>
+
+                      {termType === 'CUSTOM_YEARS' && (
+                          <div>
+                              <label className="text-xs font-bold text-slate-500 mb-2 block">ระยะเวลา (ปี)</label>
+                              <select value={customYears} onChange={(e) => setCustomYears(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg outline-none text-slate-700 font-bold focus:border-blue-400 focus:bg-white transition-all cursor-pointer">
+                                  <option value={2}>วาระ 2 ปี</option>
+                                  <option value={4}>วาระ 4 ปี</option>
+                                  <option value={5}>วาระ 5 ปี</option>
+                              </select>
+                          </div>
+                      )}
+
+                      <div className={`md:col-span-${termType === 'CUSTOM_YEARS' ? '2' : '1'} bg-blue-50 border border-blue-200 p-4 rounded-lg flex items-center justify-between`}>
+                          <div>
+                              <span className="text-xs text-blue-600 font-bold block mb-1 flex items-center gap-1">วันที่สิ้นสุดวาระ (คำนวณอัตโนมัติ)</span>
+                              <span className="text-slate-800 font-black text-lg">{formatDateThai(calculateEndDate())}</span>
+                          </div>
+                          <CalendarClock size={28} className="text-blue-400" />
+                      </div>
+                  </div>
+
+                  {/* สรุปข้อความ */}
+                  <div className="mt-4 text-center text-sm font-bold text-slate-600 bg-slate-100 py-3 rounded-lg border border-slate-200 border-dashed">
+                      สรุปวาระ: ระหว่างวันที่ <span className="text-emerald-600">{formatDateThai(new Date(startDate))}</span> ถึงวันที่ <span className="text-red-500">{formatDateThai(calculateEndDate())}</span>
+                  </div>
                 </div>
 
                 <button type="submit" className="w-full py-4 rounded-xl font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)] flex justify-center items-center gap-2 transition-all active:scale-[0.98] text-lg">
@@ -183,6 +277,11 @@ const AssignPosition = () => {
 
                 <div className="text-sm text-slate-500 mb-1">ตำแหน่งที่ได้รับมอบหมาย</div>
                 <div className="text-lg font-bold text-emerald-600 mb-4">ผู้ใหญ่บ้าน {foundUser.village_name}</div>
+
+                <div className="text-sm text-slate-500 mb-1">วาระการดำรงตำแหน่ง</div>
+                <div className="font-bold text-slate-700 mb-4">
+                    {formatDateThai(new Date(startDate))} - {formatDateThai(calculateEndDate())}
+                </div>
                 
                 <div className="text-sm text-slate-500 mb-1">อนุมัติโดย (E-Signature)</div>
                 <div className="font-bold text-slate-800">{userData.firstName} {userData.lastName}</div>
