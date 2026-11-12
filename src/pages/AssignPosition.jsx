@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ShieldCheck, MapPin, Save, User, Map, Building, FileText, KeyRound, X, Calendar, CalendarClock } from 'lucide-react';
+import { Search, ShieldCheck, MapPin, Save, User, Map, Building, FileText, KeyRound, X, Calendar, CalendarClock, Code } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar'; 
 import BottomNavbar from '../components/BottomNavbar'; 
 
@@ -12,18 +12,24 @@ const AssignPosition = () => {
   const [foundUser, setFoundUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  // State สำหรับรหัสผ่านชุดที่ 2
   const [showPinModal, setShowPinModal] = useState(false);
   const [approvalPin, setApprovalPin] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
-  // 🌟 State สำหรับการจัดการวาระการดำรงตำแหน่ง
-  const [termType, setTermType] = useState('60_YEARS'); // '60_YEARS' หรือ 'CUSTOM_YEARS'
-  const [customYears, setCustomYears] = useState(4); // ค่าเริ่มต้น 4 ปี
+  // State สำหรับการจัดการวาระการดำรงตำแหน่ง
+  const [termType, setTermType] = useState('60_YEARS');
+  const [customYears, setCustomYears] = useState(4);
   const [startDate, setStartDate] = useState(() => {
       const d = new Date();
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+
+  // 🌟 State สำหรับเก็บข้อมูล Debug
+  const [debugLog, setDebugLog] = useState({
+      fetchedUser: null,
+      payloadSent: null,
+      serverResponse: null
   });
 
   const formatCitizenId = (value) => {
@@ -43,17 +49,26 @@ const AssignPosition = () => {
     setIsLoading(true);
     setAssignmentSuccess(false);
     
+    // รีเซ็ต Debug Log
+    setDebugLog({ fetchedUser: null, payloadSent: null, serverResponse: null });
+    
     try {
         const res = await fetch(`${API_URL}/api/search-citizen-full/${rawCitizenId}`);
         const result = await res.json();
         
         if (result.success) {
             setFoundUser(result.data);
+            // 🌟 บันทึกข้อมูลที่ค้นหาเจอลง Debug
+            setDebugLog(prev => ({ ...prev, fetchedUser: result.data }));
         } else {
             alert(result.message || 'ไม่พบข้อมูลประชาชน');
             setFoundUser(null);
+            setDebugLog(prev => ({ ...prev, fetchedUser: result }));
         }
-    } catch (error) { alert('ระบบขัดข้อง'); } 
+    } catch (error) { 
+        alert('ระบบขัดข้อง'); 
+        setDebugLog(prev => ({ ...prev, fetchedUser: { error: error.message } }));
+    } 
     finally { setIsLoading(false); }
   };
 
@@ -67,24 +82,34 @@ const AssignPosition = () => {
     if (!approvalPin) return alert('กรุณาระบุรหัสผ่านอนุมัติ');
     setIsProcessing(true);
 
+    // 🌟 จัดเตรียมข้อมูลที่จะส่ง (Payload)
+    const payload = {
+        // ใช้ real_account_id ถ้ามี ถ้าไม่มีใช้ account_id
+        target_account_id: foundUser.real_account_id || foundUser.account_id, 
+        position_id: 6, 
+        scope_type: 'VILLAGE',
+        scope_id: foundUser.village_id, 
+        assigner_account_id: userData.id || userData.account_id,
+        approval_pin: approvalPin,
+        start_date: startDate,
+        end_date: calculateEndDate().toISOString().split('T')[0]
+    };
+    
+    // 🌟 บันทึกข้อมูล Payload ลง Debug
+    setDebugLog(prev => ({ ...prev, payloadSent: payload }));
+
     try {
         const res = await fetch(`${API_URL}/api/assign-role`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                target_account_id: foundUser.account_id,
-                position_id: 6, 
-                scope_type: 'VILLAGE',
-                scope_id: foundUser.village_id, 
-                assigner_account_id: userData.id || userData.account_id,
-                approval_pin: approvalPin,
-                // 🌟 ส่งข้อมูลวันที่ไปให้ Backend ด้วย เผื่อนำไปบันทึกลง Database
-                start_date: startDate,
-                end_date: calculateEndDate().toISOString().split('T')[0]
-            })
+            body: JSON.stringify(payload)
         });
 
         const result = await res.json();
+        
+        // 🌟 บันทึกผลลัพธ์จาก Server ลง Debug
+        setDebugLog(prev => ({ ...prev, serverResponse: result }));
+
         if (result.success) {
             setAssignmentSuccess(true);
             setShowPinModal(false);
@@ -94,12 +119,12 @@ const AssignPosition = () => {
         }
     } catch (error) {
         alert('เชื่อมต่อระบบล้มเหลว');
+        setDebugLog(prev => ({ ...prev, serverResponse: { error: error.message } }));
     } finally {
         setIsProcessing(false);
     }
   };
 
-  // 🌟 ฟังก์ชันแกะข้อความวันเกิดภาษาไทย แปลงกลับเป็น Object Date
   const parseThaiDateString = (thDateStr) => {
       if(!thDateStr || thDateStr === 'ไม่ระบุ') return null;
       const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
@@ -107,46 +132,41 @@ const AssignPosition = () => {
       if(parts.length >= 3) {
           const day = parseInt(parts[0]);
           const month = months.findIndex(m => m === parts[1]);
-          const year = parseInt(parts[2]) - 543; // ลบ 543 เพื่อแปลงปี พ.ศ. กลับเป็น ค.ศ.
+          const year = parseInt(parts[2]) - 543;
           return new Date(year, month, day);
       }
       return null;
   };
 
-  // 🌟 ฟังก์ชันคำนวณวันสิ้นสุดวาระ
   const calculateEndDate = () => {
       const start = new Date(startDate);
       if (termType === '60_YEARS' && foundUser) {
           const dob = parseThaiDateString(foundUser.birth_date);
           if (dob) {
               const end = new Date(dob);
-              end.setFullYear(end.getFullYear() + 60); // บวกอายุไป 60 ปีเป๊ะๆ
+              end.setFullYear(end.getFullYear() + 60);
               return end;
           }
           return start; 
       } else {
           const end = new Date(start);
-          end.setFullYear(end.getFullYear() + parseInt(customYears)); // บวกจำนวนปีวาระ
+          end.setFullYear(end.getFullYear() + parseInt(customYears));
           return end;
       }
   };
 
-  // 🌟 ฟังก์ชันแสดงวันที่แบบไทยสวยๆ
   const formatDateThai = (date) => {
       if (!date) return '-';
       return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   return (
-    <div className="min-h-screen pb-24 font-sans relative overflow-hidden bg-hex-pattern">
+    <div className="min-h-screen pb-24 font-sans relative overflow-hidden" style={{ backgroundImage: "url('/hex-background.jpg')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
       
       <div><TopNavbar userData={userData} /></div>
       
       <div className="max-w-3xl mx-auto p-4 pt-24 relative z-10">
         
-        {/* ==================================================== */}
-        {/* หน้าจอหลัก UI แบบ Glassmorphism (สีขาว 70%) */}
-        {/* ==================================================== */}
         {!assignmentSuccess && (
           <div className="bg-white bg-opacity-70 backdrop-blur-xl p-8 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] border border-white/40">
             <div className="flex items-center gap-5 mb-8 border-b border-slate-200 pb-6">
@@ -198,14 +218,11 @@ const AssignPosition = () => {
                       {foundUser.village_name ? `หมู่บ้าน: ${foundUser.village_name}` : <span className="text-red-500">ยังไม่ระบุหมู่บ้าน (ไม่สามารถแต่งตั้งได้)</span>}
                       <ShieldCheck size={20} className="text-slate-400" />
                   </div>
-                  <p className="text-xs text-slate-500 mt-2 ml-1">* ผู้ถูกแต่งตั้งต้องมีภูมิลำเนาอยู่ในหมู่บ้านที่จะปกครองเท่านั้น</p>
                 </div>
 
-                {/* 🌟 ส่วนจัดการวาระการดำรงตำแหน่ง (ใหม่) */}
+                {/* กำหนดวาระ */}
                 <div className="bg-white/50 p-6 rounded-2xl border border-white/60 mb-8 shadow-sm">
                   <label className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><Calendar size={18} className="text-blue-500"/> กำหนดวาระการดำรงตำแหน่ง</label>
-                  
-                  {/* ตัวเลือกรูปแบบวาระ */}
                   <div className="flex flex-col sm:flex-row gap-6 mb-5 ml-1">
                       <label className="flex items-center gap-3 cursor-pointer">
                           <input type="radio" value="60_YEARS" checked={termType === '60_YEARS'} onChange={(e) => setTermType(e.target.value)} className="w-5 h-5 text-blue-600 focus:ring-blue-500 cursor-pointer"/>
@@ -216,14 +233,11 @@ const AssignPosition = () => {
                           <span className="text-slate-700 font-bold">ดำรงตำแหน่งเป็นวาระ (ปี)</span>
                       </label>
                   </div>
-
-                  {/* กล่องเลือกวันที่ และผลการคำนวณ */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-inner">
                       <div>
                           <label className="text-xs font-bold text-slate-500 mb-2 block">วันที่เริ่มรับตำแหน่ง</label>
                           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg outline-none text-slate-700 font-bold focus:border-blue-400 focus:bg-white transition-all cursor-pointer" />
                       </div>
-
                       {termType === 'CUSTOM_YEARS' && (
                           <div>
                               <label className="text-xs font-bold text-slate-500 mb-2 block">ระยะเวลา (ปี)</label>
@@ -234,19 +248,13 @@ const AssignPosition = () => {
                               </select>
                           </div>
                       )}
-
                       <div className={`md:col-span-${termType === 'CUSTOM_YEARS' ? '2' : '1'} bg-blue-50 border border-blue-200 p-4 rounded-lg flex items-center justify-between`}>
                           <div>
-                              <span className="text-xs text-blue-600 font-bold block mb-1 flex items-center gap-1">วันที่สิ้นสุดวาระ (คำนวณอัตโนมัติ)</span>
+                              <span className="text-xs text-blue-600 font-bold block mb-1 flex items-center gap-1">วันที่สิ้นสุดวาระ</span>
                               <span className="text-slate-800 font-black text-lg">{formatDateThai(calculateEndDate())}</span>
                           </div>
                           <CalendarClock size={28} className="text-blue-400" />
                       </div>
-                  </div>
-
-                  {/* สรุปข้อความ */}
-                  <div className="mt-4 text-center text-sm font-bold text-slate-600 bg-slate-100 py-3 rounded-lg border border-slate-200 border-dashed">
-                      สรุปวาระ: ระหว่างวันที่ <span className="text-emerald-600">{formatDateThai(new Date(startDate))}</span> ถึงวันที่ <span className="text-red-500">{formatDateThai(calculateEndDate())}</span>
                   </div>
                 </div>
 
@@ -258,40 +266,18 @@ const AssignPosition = () => {
           </div>
         )}
 
-        {/* ==================================================== */}
-        {/* หน้าจอความสำเร็จ */}
-        {/* ==================================================== */}
         {assignmentSuccess && (
           <div className="bg-white bg-opacity-80 backdrop-blur-xl p-10 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.15)] border border-white text-center animate-fade-in-up">
-            
             <div className="w-24 h-24 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
               <ShieldCheck size={48} />
             </div>
-            
             <h2 className="text-3xl font-black text-slate-800 mb-2">แต่งตั้งสำเร็จ!</h2>
-            <p className="text-slate-600 mb-8">ระบบได้บันทึกข้อมูลและปรับปรุงสถานะเรียบร้อยแล้ว</p>
-            
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 inline-block text-left mb-10 w-full max-w-md shadow-inner">
-                <div className="text-sm text-slate-500 mb-1">ผู้ได้รับการแต่งตั้ง</div>
-                <div className="text-xl font-bold text-slate-800 mb-4">{foundUser.first_name} {foundUser.last_name}</div>
-
-                <div className="text-sm text-slate-500 mb-1">ตำแหน่งที่ได้รับมอบหมาย</div>
-                <div className="text-lg font-bold text-emerald-600 mb-4">ผู้ใหญ่บ้าน {foundUser.village_name}</div>
-
-                <div className="text-sm text-slate-500 mb-1">วาระการดำรงตำแหน่ง</div>
-                <div className="font-bold text-slate-700 mb-4">
-                    {formatDateThai(new Date(startDate))} - {formatDateThai(calculateEndDate())}
-                </div>
-                
-                <div className="text-sm text-slate-500 mb-1">อนุมัติโดย (E-Signature)</div>
-                <div className="font-bold text-slate-800">{userData.firstName} {userData.lastName}</div>
-            </div>
-
-            <div className="flex justify-center">
+            <div className="flex justify-center mt-8">
                 <button onClick={() => {
                   setAssignmentSuccess(false);
                   setFoundUser(null);
                   setSearchCitizenId('');
+                  setDebugLog({ fetchedUser: null, payloadSent: null, serverResponse: null });
                 }} className="px-8 py-4 bg-slate-200 border border-slate-300 rounded-xl font-bold text-slate-700 hover:bg-slate-300 transition-all shadow-sm">
                   ทำรายการแต่งตั้งบุคคลอื่นต่อ
                 </button>
@@ -299,39 +285,71 @@ const AssignPosition = () => {
           </div>
         )}
 
-        {/* ==================================================== */}
-        {/* Modal ยืนยันรหัสผ่านชุดที่ 2 (E-Signature) */}
-        {/* ==================================================== */}
         {showPinModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in">
             <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden transform transition-all border-t-4 border-blue-500 p-8 text-center relative">
               <button onClick={() => setShowPinModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X size={20}/></button>
-              
               <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                 <KeyRound size={32} />
               </div>
               <h2 className="text-xl font-black text-slate-800 mb-2">ยืนยันรหัสผ่านอนุมัติ</h2>
-              <p className="text-xs text-slate-500 mb-6 leading-relaxed">กรุณากรอกรหัสผ่านชุดที่ 2 เพื่อยืนยันการทำรายการด้วยลายมือชื่ออิเล็กทรอนิกส์ (E-Signature)</p>
-              
               <input 
                 type="password" maxLength="6" placeholder="******" 
                 value={approvalPin} onChange={(e) => setApprovalPin(e.target.value)}
                 className="w-full text-center p-4 text-2xl tracking-[1em] font-black bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all mb-6 shadow-inner"
               />
-              
               <button onClick={confirmAssignment} disabled={isProcessing} className="w-full py-4 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex justify-center items-center gap-2">
-                {isProcessing ? 'กำลังตรวจสอบและประทับตรา...' : 'ประทับตราและอนุมัติ'}
+                {isProcessing ? 'กำลังตรวจสอบ...' : 'ประทับตราและอนุมัติ'}
               </button>
             </div>
           </div>
         )}
 
-      </div>
+        {/* ==================================================== */}
+        {/* 🌟 หน้าต่าง Debug Console (สำหรับตรวจสอบข้อมูล) 🌟 */}
+        {/* ==================================================== */}
+        <div className="mt-12 bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-700 text-left">
+            <div className="flex items-center gap-2 mb-4 border-b border-slate-700 pb-3">
+                <Code size={20} className="text-emerald-400" />
+                <h3 className="text-white font-bold text-lg tracking-wide">Developer Debug Console</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 1. ข้อมูลที่ได้รับตอนค้นหา */}
+                <div className="bg-black/50 p-4 rounded-xl border border-slate-800 overflow-hidden">
+                    <p className="text-blue-400 font-bold mb-2 text-sm">1. ข้อมูลที่ได้รับจาก API ค้นหา (Fetched Data)</p>
+                    <div className="overflow-x-auto">
+                        <pre className="text-xs text-blue-200 font-mono whitespace-pre-wrap">
+                            {debugLog.fetchedUser ? JSON.stringify(debugLog.fetchedUser, null, 2) : 'ยังไม่มีการค้นหาข้อมูล'}
+                        </pre>
+                    </div>
+                </div>
 
-      <div>
-        <BottomNavbar />
-      </div>
+                {/* 2. ข้อมูลที่กำลังจะส่งไปบันทึก */}
+                <div className="bg-black/50 p-4 rounded-xl border border-slate-800 overflow-hidden">
+                    <p className="text-yellow-400 font-bold mb-2 text-sm">2. ข้อมูล Payload ที่ส่งไปบันทึก (Sent to DB)</p>
+                    <div className="overflow-x-auto">
+                        <pre className="text-xs text-yellow-200 font-mono whitespace-pre-wrap">
+                            {debugLog.payloadSent ? JSON.stringify(debugLog.payloadSent, null, 2) : 'ยังไม่ได้กดยืนยันการแต่งตั้ง'}
+                        </pre>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2 italic">* ตรวจสอบว่า target_account_id ตรงกับ account_id จริงๆ หรือไม่</p>
+                </div>
+            </div>
 
+            {/* 3. ข้อมูลที่เซิร์ฟเวอร์ตอบกลับ */}
+            <div className="mt-6 bg-black/50 p-4 rounded-xl border border-slate-800 overflow-hidden">
+                <p className="text-purple-400 font-bold mb-2 text-sm">3. ผลลัพธ์จาก Server (Server Response)</p>
+                <div className="overflow-x-auto">
+                    <pre className="text-xs text-purple-200 font-mono whitespace-pre-wrap">
+                        {debugLog.serverResponse ? JSON.stringify(debugLog.serverResponse, null, 2) : 'รอการตอบกลับจาก Server...'}
+                    </pre>
+                </div>
+            </div>
+        </div>
+
+      </div>
+      <div><BottomNavbar /></div>
     </div>
   );
 };
