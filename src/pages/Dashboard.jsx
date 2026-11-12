@@ -159,10 +159,10 @@ const Dashboard = () => {
       alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     }
   };
-  
+
 return (
     // 🌟 เปลี่ยนพื้นหลังเป็นธีมแบบ AssignPosition (สมมติใช้รูป bg-hex-pattern)
-    <div className="app-container bg-hex-pattern" style={{ minHeight: '100vh', backgroundAttachment: 'fixed', backgroundSize: 'cover' }}>
+  <div className="app-container" style={{ backgroundImage: "url('/hex-background.jpg')", minHeight: '100vh', backgroundAttachment: 'fixed', backgroundSize: 'cover', backgroundPosition: 'center' }}>
       <TopNavbar />
       
       <div className="main-content" style={{ padding: '15px 20px 90px 20px', maxWidth: '1000px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
