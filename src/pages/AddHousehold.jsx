@@ -27,12 +27,12 @@ const AddHousehold = () => {
 
   // 🌟 Household State
   const [searchHouseNo, setSearchHouseNo] = useState('');
-  const [currentHouse, setCurrentHouse] = useState(null); // เก็บข้อมูลบ้านที่เลือก/สร้างสำเร็จ
+  const [currentHouse, setCurrentHouse] = useState(null); 
   const [houseData, setHouseData] = useState({ occupancy_status: 'OWNER_OCCUPIED' });
   const [isSavingHouse, setIsSavingHouse] = useState(false);
 
   // 🌟 Members State
-  const [existingMembers, setExistingMembers] = useState([]); // คนที่มีอยู่แล้วในบ้าน
+  const [existingMembers, setExistingMembers] = useState([]); 
   const [isSavingMember, setIsSavingMember] = useState(false);
   const initialMemberState = { 
       citizen_id: '', first_name: '', last_name: '', nickname: '', 
@@ -88,12 +88,10 @@ const AddHousehold = () => {
           const res = await fetch(`${API_URL}/api/households/search?village_id=${userData.village_id}&house_no=${searchHouseNo}`);
           const data = await res.json();
           if(data.success && data.data) {
-              // 🌟 พบบ้านแล้ว
               setCurrentHouse(data.data);
               fetchMembers(data.data.household_id);
               alert("พบบ้านเลขที่นี้แล้ว! คุณสามารถเพิ่มรายชื่อประชากรต่อได้เลย");
           } else {
-              // 🌟 ยังไม่มีบ้านนี้ในระบบ
               setCurrentHouse(null);
               setExistingMembers([]);
               alert("ยังไม่มีบ้านเลขที่นี้ในระบบ โปรดปักหมุดแล้วกด 'บันทึกข้อมูลบ้าน'");
@@ -118,8 +116,8 @@ const AddHousehold = () => {
           });
           const data = await res.json();
           if(data.success) {
-              setCurrentHouse(data.data); // ล็อกว่ามีบ้านแล้ว
-              fetchProgress(); // อัปเดตสถิติหลังคาเรือน
+              setCurrentHouse(data.data); 
+              fetchProgress(); 
               alert("บันทึกที่ตั้งบ้านสำเร็จ! กรุณาเพิ่มรายชื่อประชากรด้านล่าง");
           } else { alert("ล้มเหลว: " + data.message); }
       } catch(e) { alert("เกิดข้อผิดพลาด"); }
@@ -176,9 +174,9 @@ const AddHousehold = () => {
           });
           const data = await res.json();
           if(data.success) {
-              setNewMember(initialMemberState); // เคลียร์ฟอร์มเตรียมคนต่อไป
-              fetchMembers(currentHouse.household_id); // อัปเดตรายชื่อด้านล่าง
-              fetchProgress(); // อัปเดตสถิติประชากร
+              setNewMember(initialMemberState); 
+              fetchMembers(currentHouse.household_id); 
+              fetchProgress(); 
               alert("บันทึกบุคคลสำเร็จ! สามารถพิมพ์เพิ่มคนต่อไปได้ทันที");
           } else { alert("ล้มเหลว: " + data.message); }
       } catch(e) { alert("เกิดข้อผิดพลาด"); }
@@ -284,7 +282,6 @@ const AddHousehold = () => {
                         <Users size={20} className="text-purple-600"/> 2. รายชื่อประชากรในบ้านเลขที่ {currentHouse.house_no}
                     </h3>
                     
-                    {/* 🌟 รายชื่อคนที่มีอยู่แล้วในบ้าน */}
                     {existingMembers.length > 0 && (
                         <div style={{ marginBottom: '20px' }}>
                             <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>ประชากรที่บันทึกแล้ว ({existingMembers.length} คน):</div>
@@ -302,7 +299,6 @@ const AddHousehold = () => {
                         </div>
                     )}
 
-                    {/* 🌟 ฟอร์มเพิ่มคนใหม่ (กดบันทึกรัวๆ ได้) */}
                     <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '15px' }}>
                         <h4 style={{ margin: '0 0 15px 0', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>เพิ่มประชากรใหม่เข้าบ้านนี้</h4>
                         <form onSubmit={saveMember}>
