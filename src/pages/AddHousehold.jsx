@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useJsApiLoader, GoogleMap, Marker } from '@react-google-maps/api';
-import { ArrowLeft, Home, Users, MapPin, Save, Map, Search, CheckCircle, RefreshCcw, BarChart2 } from 'lucide-react';
+import { ArrowLeft, Home, Users, MapPin, Save, Map, Search, CheckCircle, RefreshCcw, BarChart2, Trash2 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
