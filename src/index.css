@@ -28,7 +28,14 @@ html, body {
   --nav-height: 65px;
   --bottom-nav-height: 75px;
 }
-
+/* คลาสสำหรับพื้นหลังภาพ Hex */
+.bg-hex-pattern {
+  background-image: url('/hex-background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed; /* (ตัวเลือกเสริม) ใส่เพื่อให้พื้นหลังอยู่กับที่เวลาเลื่อนหน้าจอ */
+}
 /* =========================================
    2. Top Navbar (ตัด position: sticky ที่ทำให้หลุดกรอบออก)
 ========================================= */

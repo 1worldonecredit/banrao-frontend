@@ -106,7 +106,7 @@ const AssignPosition = () => {
 
   return (
     // 🌟 ดึงภาพพื้นหลัง (เปลี่ยนนามสกุลไฟล์ให้ตรงกับรูปของคุณหากจำเป็น)
-    <div className="min-h-screen pb-24 font-sans relative overflow-hidden" style={{ backgroundImage: "url('/bg1.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
+   <div className="min-h-screen pb-24 font-sans relative overflow-hidden bg-hex-pattern">
       
       <div><TopNavbar userData={userData} /></div>
       
