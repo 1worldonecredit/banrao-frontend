@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useJsApiLoader, GoogleMap, Marker } from '@react-google-maps/api';
-import { ArrowLeft, Home, Users, UserPlus, MapPin, Save, Trash2, Map, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, Home, Users, MapPin, Save, Map, Search, CheckCircle, RefreshCcw, BarChart2 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
@@ -14,165 +14,175 @@ const AddHousehold = () => {
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // 🌟 Progress State
+  const [progress, setProgress] = useState({ target_houses: 0, actual_houses: 0, target_population: 0, actual_population: 0 });
+
+  // 🌟 Map State
   const [mapInstance, setMapInstance] = useState(null);
   const [markerPos, setMarkerPos] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(true);
   const [mapStatus, setMapStatus] = useState("กำลังดึงตำแหน่ง...");
-
-  const [houseData, setHouseData] = useState({
-    house_no: '',
-    occupancy_status: 'OWNER_OCCUPIED'
-  });
-
-  // 🌟 เพิ่มฟิลด์ใหม่: nickname, date_of_birth, gender, is_foreigner
-  const [members, setMembers] = useState([
-    { 
-        citizen_id: '', first_name: '', last_name: '', nickname: '', 
-        date_of_birth: '', gender: '', is_head_of_household: true, 
-        resident_type: 'REGISTERED', living_status: 'LIVING_HERE', 
-        nationality: 'THAI', origin_location: '', is_foreigner: false 
-    }
-  ]);
-
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY });
 
+  // 🌟 Household State
+  const [searchHouseNo, setSearchHouseNo] = useState('');
+  const [currentHouse, setCurrentHouse] = useState(null); // เก็บข้อมูลบ้านที่เลือก/สร้างสำเร็จ
+  const [houseData, setHouseData] = useState({ occupancy_status: 'OWNER_OCCUPIED' });
+  const [isSavingHouse, setIsSavingHouse] = useState(false);
+
+  // 🌟 Members State
+  const [existingMembers, setExistingMembers] = useState([]); // คนที่มีอยู่แล้วในบ้าน
+  const [isSavingMember, setIsSavingMember] = useState(false);
+  const initialMemberState = { 
+      citizen_id: '', first_name: '', last_name: '', nickname: '', 
+      date_of_birth: '', gender: '', is_head_of_household: false, 
+      resident_type: 'REGISTERED', living_status: 'LIVING_HERE', 
+      nationality: 'THAI', origin_location: '', is_foreigner: false 
+  };
+  const [newMember, setNewMember] = useState(initialMemberState);
+
+  // ----------------------------------------
+  // 1. โหลดข้อมูลเริ่มต้น
+  // ----------------------------------------
+  useEffect(() => {
+     fetchProgress();
+     if(isLoaded) fetchLocation();
+  }, [isLoaded]);
+
+  const fetchProgress = async () => {
+      if(!userData.village_id) return;
+      try {
+          const res = await fetch(`${API_URL}/api/villages/${userData.village_id}/progress`);
+          const data = await res.json();
+          if(data.success) setProgress(data.data);
+      } catch(e) { console.error(e); }
+  };
+
   const fetchLocation = () => {
-      setIsLocating(true);
-      setMapStatus("กำลังค้นหาพิกัด GPS...");
+      setIsLocating(true); setMapStatus("กำลังค้นหาพิกัด GPS...");
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
               const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-              setUserLocation(loc);
-              setMarkerPos(loc); // ปักหมุดให้เลยตอนแรก
-              setIsLocating(false);
-              setMapStatus("พบตำแหน่งของคุณแล้ว");
+              setUserLocation(loc); setMarkerPos(loc); 
+              setIsLocating(false); setMapStatus("พบตำแหน่งของคุณแล้ว");
           },
-          (err) => {
-              console.error(err);
-              setUserLocation({ lat: 13.736717, lng: 100.523186 }); // Default
-              setIsLocating(false);
-              setMapStatus("ไม่สามารถดึงตำแหน่งได้ (ใช้ค่าเริ่มต้น)");
+          () => {
+              setUserLocation({ lat: 13.736717, lng: 100.523186 }); 
+              setIsLocating(false); setMapStatus("ไม่สามารถดึงตำแหน่งได้ (ใช้ค่าเริ่มต้น)");
           },
           { enableHighAccuracy: true, timeout: 5000 }
         );
+      } else { setIsLocating(false); }
+  };
+
+  // ----------------------------------------
+  // 2. การค้นหาและบันทึกบ้าน
+  // ----------------------------------------
+  const handleSearch = async (e) => {
+      e.preventDefault();
+      if(!searchHouseNo.trim()) return alert("กรุณาพิมพ์บ้านเลขที่ก่อนค้นหา");
+      
+      try {
+          const res = await fetch(`${API_URL}/api/households/search?village_id=${userData.village_id}&house_no=${searchHouseNo}`);
+          const data = await res.json();
+          if(data.success && data.data) {
+              // 🌟 พบบ้านแล้ว
+              setCurrentHouse(data.data);
+              fetchMembers(data.data.household_id);
+              alert("พบบ้านเลขที่นี้แล้ว! คุณสามารถเพิ่มรายชื่อประชากรต่อได้เลย");
+          } else {
+              // 🌟 ยังไม่มีบ้านนี้ในระบบ
+              setCurrentHouse(null);
+              setExistingMembers([]);
+              alert("ยังไม่มีบ้านเลขที่นี้ในระบบ โปรดปักหมุดแล้วกด 'บันทึกข้อมูลบ้าน'");
+          }
+      } catch(e) { alert("เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว"); }
+  };
+
+  const saveHouse = async () => {
+      if(!searchHouseNo) return alert("กรุณาระบุบ้านเลขที่");
+      if(!markerPos) return alert("กรุณาปักหมุดบนแผนที่");
+      
+      setIsSavingHouse(true);
+      try {
+          const payload = {
+              village_id: userData.village_id, house_no: searchHouseNo,
+              latitude: markerPos.lat, longitude: markerPos.lng,
+              occupancy_status: houseData.occupancy_status, created_by: userData.id
+          };
+          const res = await fetch(`${API_URL}/api/households/single`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if(data.success) {
+              setCurrentHouse(data.data); // ล็อกว่ามีบ้านแล้ว
+              fetchProgress(); // อัปเดตสถิติหลังคาเรือน
+              alert("บันทึกที่ตั้งบ้านสำเร็จ! กรุณาเพิ่มรายชื่อประชากรด้านล่าง");
+          } else { alert("ล้มเหลว: " + data.message); }
+      } catch(e) { alert("เกิดข้อผิดพลาด"); }
+      setIsSavingHouse(false);
+  };
+
+  // ----------------------------------------
+  // 3. การจัดการประชากร (Members)
+  // ----------------------------------------
+  const fetchMembers = async (householdId) => {
+      try {
+          const res = await fetch(`${API_URL}/api/households/${householdId}/members`);
+          const data = await res.json();
+          if(data.success) setExistingMembers(data.data);
+      } catch(e) {}
+  };
+
+  const formatCitizenId = (value) => {
+      const numbers = value.replace(/\D/g, '');
+      let formatted = '';
+      if (numbers.length > 0) formatted += numbers.substring(0, 1);
+      if (numbers.length > 1) formatted += '-' + numbers.substring(1, 5);
+      if (numbers.length > 5) formatted += '-' + numbers.substring(5, 10);
+      if (numbers.length > 10) formatted += '-' + numbers.substring(10, 12);
+      if (numbers.length > 12) formatted += '-' + numbers.substring(12, 13);
+      return formatted;
+  };
+
+  const handleNewMemberChange = (field, value) => {
+      if (field === 'citizen_id' && !newMember.is_foreigner) {
+          setNewMember({ ...newMember, [field]: formatCitizenId(value) });
+      } else if (field === 'is_foreigner') {
+          setNewMember({ 
+              ...newMember, is_foreigner: value, citizen_id: '', 
+              nationality: value ? 'OTHER' : 'THAI' 
+          });
       } else {
-          setIsLocating(false);
-          setMapStatus("เบราว์เซอร์ไม่รองรับ GPS");
+          setNewMember({ ...newMember, [field]: value });
       }
   };
 
-  useEffect(() => {
-     if(isLoaded) fetchLocation();
-  }, [isLoaded]);
+  const saveMember = async (e) => {
+      e.preventDefault();
+      if(!currentHouse) return alert("กรุณาบันทึกบ้านก่อน");
+      if(!newMember.is_foreigner && newMember.citizen_id && newMember.citizen_id.length !== 17) {
+          return alert("เลขบัตรประชาชนต้องครบ 13 หลัก");
+      }
 
-  const handleMapClick = (e) => {
-    setMarkerPos({ lat: e.latLng.lat(), lng: e.latLng.lng() });
-  };
-
-  const onMapLoad = useCallback((map) => setMapInstance(map), []);
-  const onMapUnmount = useCallback(() => setMapInstance(null), []);
-
-  const handleHouseChange = (e) => {
-    setHouseData({ ...houseData, [e.target.name]: e.target.value });
-  };
-
-  // 🌟 ฟังก์ชัน Format เลขบัตรประชาชนให้อัตโนมัติ (มีขีด)
-  const formatCitizenId = (value) => {
-    const numbers = value.replace(/\D/g, '');
-    let formatted = '';
-    if (numbers.length > 0) formatted += numbers.substring(0, 1);
-    if (numbers.length > 1) formatted += '-' + numbers.substring(1, 5);
-    if (numbers.length > 5) formatted += '-' + numbers.substring(5, 10);
-    if (numbers.length > 10) formatted += '-' + numbers.substring(10, 12);
-    if (numbers.length > 12) formatted += '-' + numbers.substring(12, 13);
-    return formatted;
-  };
-
-  const handleMemberChange = (index, field, value) => {
-    const newMembers = [...members];
-    
-    if (field === 'is_head_of_household' && value === true) {
-        newMembers.forEach(m => m.is_head_of_household = false);
-    }
-    
-    // จัดการ Format เลขบัตร ถ้าไม่ใช่ต่างชาติ
-    if (field === 'citizen_id' && !newMembers[index].is_foreigner) {
-        newMembers[index][field] = formatCitizenId(value);
-    } 
-    // ถ้าสลับ checkbox เป็นชาวต่างชาติ ให้ล้างเลขบัตรเก่าทิ้ง
-    else if (field === 'is_foreigner') {
-        newMembers[index][field] = value;
-        newMembers[index]['citizen_id'] = '';
-        if(value) newMembers[index]['nationality'] = 'OTHER'; // เปลี่ยนสัญชาติให้ด้วย
-        else newMembers[index]['nationality'] = 'THAI';
-    } 
-    else {
-        newMembers[index][field] = value;
-    }
-
-    setMembers(newMembers);
-  };
-
-  const addMember = () => {
-    setMembers([...members, { 
-        citizen_id: '', first_name: '', last_name: '', nickname: '', 
-        date_of_birth: '', gender: '', is_head_of_household: false, 
-        resident_type: 'REGISTERED', living_status: 'LIVING_HERE', 
-        nationality: 'THAI', origin_location: '', is_foreigner: false 
-    }]);
-  };
-
-  const removeMember = (index) => {
-    setMembers(members.filter((_, i) => i !== index));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!houseData.house_no) return alert("กรุณาระบุบ้านเลขที่");
-    if (!markerPos) return alert("กรุณาปักหมุดที่ตั้งบ้านบนแผนที่");
-    if (!userData.village_id) return alert("ไม่พบข้อมูลเขตปกครองของคุณ (Village ID)");
-
-    // ตรวจสอบข้อมูลบังคับของสมาชิกแต่ละคน
-    for(let i=0; i<members.length; i++){
-        if(!members[i].first_name || !members[i].last_name) return alert(`กรุณาระบุชื่อ-นามสกุล ของคนที่ ${i+1}`);
-        if(!members[i].is_foreigner && members[i].citizen_id.length !== 17 && members[i].citizen_id !== '') {
-             return alert(`เลขบัตรประชาชนคนที่ ${i+1} ไม่ครบ 13 หลัก`);
-        }
-    }
-
-    const payload = {
-        village_id: userData.village_id,
-        house_no: houseData.house_no,
-        latitude: markerPos.lat,
-        longitude: markerPos.lng,
-        occupancy_status: houseData.occupancy_status,
-        created_by: userData.id || userData.account_id,
-        members: members
-    };
-
-    setIsSubmitting(true);
-    try {
-        const res = await fetch(`${API_URL}/api/households`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            alert('บันทึกข้อมูลบ้านและรายชื่อประชากรเรียบร้อยแล้ว!');
-            navigate('/dashboard'); 
-        } else {
-            alert('ล้มเหลว: ' + data.message);
-        }
-    } catch (error) {
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
-    } finally {
-        setIsSubmitting(false);
-    }
+      setIsSavingMember(true);
+      try {
+          const res = await fetch(`${API_URL}/api/households/${currentHouse.household_id}/members`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(newMember)
+          });
+          const data = await res.json();
+          if(data.success) {
+              setNewMember(initialMemberState); // เคลียร์ฟอร์มเตรียมคนต่อไป
+              fetchMembers(currentHouse.household_id); // อัปเดตรายชื่อด้านล่าง
+              fetchProgress(); // อัปเดตสถิติประชากร
+              alert("บันทึกบุคคลสำเร็จ! สามารถพิมพ์เพิ่มคนต่อไปได้ทันที");
+          } else { alert("ล้มเหลว: " + data.message); }
+      } catch(e) { alert("เกิดข้อผิดพลาด"); }
+      setIsSavingMember(false);
   };
 
   if (!isLoaded) return <div className="text-center p-10">กำลังโหลดแผนที่...</div>;
@@ -182,194 +192,166 @@ const AddHousehold = () => {
       <TopNavbar userData={userData} />
       
       <div style={{ padding: '80px 20px 100px 20px', maxWidth: '900px', margin: '0 auto' }}>
-        <div style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)', borderRadius: '16px', padding: '20px', color: 'white', display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
-          <button onClick={() => navigate(-1)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center' }}>
-            <ArrowLeft size={20} color="white" />
-          </button>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>เพิ่มข้อมูลบ้านและประชากร</h2>
-            <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.9 }}>บันทึกพิกัดหลังคาบ้านและลูกบ้านในพื้นที่</p>
-          </div>
+        
+        {/* 🌟 0. แถบความคืบหน้า (Progress Banner) */}
+        <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '50%', color: '#3b82f6' }}>
+                    <BarChart2 size={24} />
+                </div>
+                <div>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1e293b' }}>ความคืบหน้าของพื้นที่</h3>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>เปรียบเทียบข้อมูลจากภาครัฐและข้อมูลจริงที่ลงพื้นที่</p>
+                </div>
+            </div>
+            <div style={{ display: 'flex', gap: '20px', textAlign: 'right' }}>
+                <div>
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>บ้าน/หลังคาเรือน</div>
+                    <div style={{ fontSize: '18px', fontWeight: '900', color: progress.actual_houses >= progress.target_houses ? '#10b981' : '#f59e0b' }}>
+                        {progress.actual_houses} <span style={{fontSize:'12px', color:'#94a3b8'}}>/ {progress.target_houses || 0}</span>
+                    </div>
+                </div>
+                <div>
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>ประชากรทั้งหมด</div>
+                    <div style={{ fontSize: '18px', fontWeight: '900', color: progress.actual_population >= progress.target_population ? '#10b981' : '#3b82f6' }}>
+                        {progress.actual_population} <span style={{fontSize:'12px', color:'#94a3b8'}}>/ {progress.target_population || 0}</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          
-          {/* 🌟 1. ส่วนข้อมูลบ้าน */}
-          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
-             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px', marginTop: 0, color: '#0f172a' }}>
-                 <Home size={20} className="text-blue-600"/> 1. ข้อมูลสถานที่ตั้ง (บ้าน)
-             </h3>
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-                <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#475569', marginBottom: '6px' }}>บ้านเลขที่ *</label>
-                    <input required type="text" name="house_no" value={houseData.house_no} onChange={handleHouseChange} placeholder="เช่น 12/3 หรือ 45" style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
-                </div>
-                <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#475569', marginBottom: '6px' }}>สถานะการใช้สอย *</label>
-                    <select name="occupancy_status" value={houseData.occupancy_status} onChange={handleHouseChange} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', backgroundColor: 'white' }}>
-                        <option value="OWNER_OCCUPIED">อยู่อาศัยส่วนตัว (เจ้าของ)</option>
-                        <option value="RENTED">บ้านเช่า / ห้องเช่า</option>
-                        <option value="COMMERCIAL">ร้านค้า / เชิงพาณิชย์</option>
-                        <option value="EMPTY">บ้านว่าง / ร้าง</option>
-                    </select>
-                </div>
-             </div>
-
-             <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6', fontWeight: 'bold', fontSize: '14px' }}>
-                     ซูมและคลิกปักหมุดที่ "หลังคาบ้าน"
-                </div>
-                <button type="button" onClick={fetchLocation} disabled={isLocating} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 'bold', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', backgroundColor: '#eff6ff' }}>
-                    <RefreshCcw size={14} className={isLocating ? "animate-spin" : ""} /> {isLocating ? mapStatus : 'ดึงตำแหน่งปัจจุบัน'}
-                </button>
-             </div>
-
-             <div style={{ border: '2px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
-                {userLocation ? (
-                    <GoogleMap
-                        mapContainerStyle={mapContainerStyle}
-                        center={userLocation}
-                        zoom={18}
-                        onLoad={onMapLoad}
-                        onUnmount={onMapUnmount}
-                        onClick={handleMapClick}
-                        options={{ mapTypeId: 'hybrid', mapTypeControl: true, streetViewControl: false }}
-                    >
-                        {markerPos && <Marker position={markerPos} animation={window.google.maps.Animation.DROP} draggable={true} onDragEnd={handleMapClick} />}
-                    </GoogleMap>
-                ) : (
-                    <div style={{height: '350px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>{mapStatus}</div>
-                )}
-                
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(255,255,255,0.9)', padding: '10px 15px', borderTop: '1px solid #e2e8f0' }}>
-                    <MapPin size={16} color={markerPos ? "#10b981" : "#ef4444"} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }}/>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', color: markerPos ? '#10b981' : '#ef4444' }}>
-                        {markerPos ? `ปักหมุดแล้ว: ${markerPos.lat.toFixed(5)}, ${markerPos.lng.toFixed(5)}` : 'กรุณาคลิกบนแผนที่เพื่อปักหมุดบ้าน'}
-                    </span>
-                </div>
-             </div>
-          </div>
-
-          {/* 🌟 2. ส่วนข้อมูลประชากร */}
-          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px', marginBottom: '20px' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, color: '#0f172a' }}>
-                    <Users size={20} className="text-purple-600"/> 2. รายชื่อผู้อยู่อาศัย ({members.length} คน)
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+            
+            {/* 🌟 1. ค้นหาและบันทึกบ้าน (Household) */}
+            <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: currentHouse ? '2px solid #10b981' : '1px solid #e2e8f0' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px', marginTop: 0, color: '#0f172a' }}>
+                    <Home size={20} className={currentHouse ? "text-emerald-500" : "text-blue-600"}/> 1. ระบุบ้านเลขที่และสถานที่ตั้ง
+                    {currentHouse && <span style={{ backgroundColor: '#d1fae5', color: '#047857', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', marginLeft: 'auto' }}><CheckCircle size={14} style={{display:'inline', marginBottom:'2px'}}/> บันทึกบ้านแล้ว</span>}
                 </h3>
-                <button type="button" onClick={addMember} style={{ display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    <UserPlus size={16} /> เพิ่มคน
-                </button>
-             </div>
+                
+                <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                    <input type="text" value={searchHouseNo} onChange={(e) => setSearchHouseNo(e.target.value)} placeholder="พิมพ์บ้านเลขที่ เช่น 12/3 เพื่อค้นหาหรือเพิ่มใหม่" style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontWeight: 'bold' }} disabled={currentHouse !== null} />
+                    {!currentHouse ? (
+                        <button type="submit" style={{ padding: '12px 20px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Search size={18}/> ค้นหา
+                        </button>
+                    ) : (
+                        <button type="button" onClick={() => { setCurrentHouse(null); setSearchHouseNo(''); setExistingMembers([]); }} style={{ padding: '12px 20px', backgroundColor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>เปลี่ยนบ้าน</button>
+                    )}
+                </form>
 
-             {members.map((member, index) => (
-                <div key={index} style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', marginBottom: '15px', position: 'relative' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <span style={{ backgroundColor: member.is_head_of_household ? '#dbeafe' : '#f1f5f9', color: member.is_head_of_household ? '#1e40af' : '#64748b', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>
-                            {member.is_head_of_household ? '⭐ เจ้าบ้าน' : `คนที่ ${index + 1}`}
-                        </span>
-                        {members.length > 1 && (
-                            <button type="button" onClick={() => removeMember(index)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={18} /></button>
-                        )}
+                {/* 🌟 ถ้าค้นหาแล้วไม่เจอ ให้แสดงฟอร์มปักหมุดเพื่อบันทึกบ้าน */}
+                {!currentHouse && searchHouseNo && (
+                    <div className="animate-fade-in">
+                        <div style={{ marginBottom: '15px' }}>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#475569', marginBottom: '6px' }}>สถานะการใช้สอย *</label>
+                            <select value={houseData.occupancy_status} onChange={(e) => setHouseData({ occupancy_status: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
+                                <option value="OWNER_OCCUPIED">อยู่อาศัยส่วนตัว (เจ้าของ)</option>
+                                <option value="RENTED">บ้านเช่า / ห้องเช่า</option>
+                                <option value="COMMERCIAL">ร้านค้า / เชิงพาณิชย์</option>
+                                <option value="EMPTY">บ้านว่าง / ร้าง</option>
+                            </select>
+                        </div>
+
+                        <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6', fontWeight: 'bold', fontSize: '14px' }}>
+                                 ซูมและคลิกปักหมุดที่ "หลังคาบ้าน"
+                            </div>
+                            <button type="button" onClick={fetchLocation} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 'bold', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                <RefreshCcw size={14} className={isLocating ? "animate-spin" : ""} /> {isLocating ? 'กำลังดึง...' : 'ดึงพิกัด GPS'}
+                            </button>
+                        </div>
+
+                        <div style={{ border: '2px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', position: 'relative', marginBottom: '20px' }}>
+                            {userLocation && (
+                                <GoogleMap mapContainerStyle={mapContainerStyle} center={userLocation} zoom={18} onLoad={onMapLoad} onUnmount={onMapUnmount} onClick={(e) => setMarkerPos({lat: e.latLng.lat(), lng: e.latLng.lng()})} options={{ mapTypeId: 'hybrid', mapTypeControl: true, streetViewControl: false }}>
+                                    {markerPos && <Marker position={markerPos} animation={window.google.maps.Animation.DROP} draggable={true} onDragEnd={(e) => setMarkerPos({lat: e.latLng.lat(), lng: e.latLng.lng()})} />}
+                                </GoogleMap>
+                            )}
+                        </div>
+
+                        <button type="button" onClick={saveHouse} disabled={isSavingHouse} style={{ width: '100%', padding: '14px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                            <Save size={20}/> {isSavingHouse ? 'กำลังบันทึก...' : 'บันทึกข้อมูลบ้านหลังนี้'}
+                        </button>
                     </div>
+                )}
+            </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        
-                        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                           <input type="checkbox" id={`foreigner-${index}`} checked={member.is_foreigner} onChange={(e) => handleMemberChange(index, 'is_foreigner', e.target.checked)} style={{ cursor: 'pointer' }} />
-                           <label htmlFor={`foreigner-${index}`} style={{ fontSize: '13px', fontWeight: 'bold', color: '#e11d48', cursor: 'pointer' }}>ชาวต่างชาติ (ไม่ต้องใช้บัตรประชาชน 13 หลัก)</label>
-                        </div>
-
-                        <div style={{ gridColumn: '1 / -1' }}>
-                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>
-                                {member.is_foreigner ? 'เลขพาสปอร์ต / บัตรต่างด้าว (ตัวเลือก)' : 'เลขประจำตัวประชาชน 13 หลัก (ตัวเลือก)'}
-                            </label>
-                            <input 
-                                type="text" 
-                                value={member.citizen_id} 
-                                onChange={(e) => handleMemberChange(index, 'citizen_id', e.target.value)} 
-                                maxLength={member.is_foreigner ? 50 : 17} // ถ้าไทยจำกัด 17 ตัว (รวมขีด)
-                                placeholder={member.is_foreigner ? "ระบุเลขพาสปอร์ต" : "x-xxxx-xxxxx-xx-x (พิมพ์ตัวเลขได้เลย)"} 
-                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} 
-                            />
-                        </div>
-
-                        <div>
-                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ชื่อจริง *</label>
-                            <input required type="text" value={member.first_name} onChange={(e) => handleMemberChange(index, 'first_name', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>นามสกุล *</label>
-                            <input required type="text" value={member.last_name} onChange={(e) => handleMemberChange(index, 'last_name', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
-                        </div>
-
-                        {/* 🌟 ฟิลด์ใหม่ที่เพิ่มมา */}
-                        <div>
-                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ชื่อเล่น (ตัวเลือก)</label>
-                            <input type="text" value={member.nickname} onChange={(e) => handleMemberChange(index, 'nickname', e.target.value)} placeholder="เช่น ยายสม" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>เพศ (ตัวเลือก)</label>
-                            <select value={member.gender} onChange={(e) => handleMemberChange(index, 'gender', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
-                                <option value="">- เลือกเพศ -</option>
-                                <option value="MALE">ชาย</option>
-                                <option value="FEMALE">หญิง</option>
-                                <option value="OTHER">อื่นๆ</option>
-                            </select>
-                        </div>
-                        <div style={{ gridColumn: '1 / -1' }}>
-                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>วัน/เดือน/ปีเกิด (ตัวเลือก)</label>
-                            <input type="date" value={member.date_of_birth} onChange={(e) => handleMemberChange(index, 'date_of_birth', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
-                        </div>
-                        
-                        <div>
-                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ประเภทการอยู่อาศัย *</label>
-                            <select value={member.resident_type} onChange={(e) => handleMemberChange(index, 'resident_type', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
-                                <option value="REGISTERED">มีชื่อในทะเบียนบ้าน</option>
-                                <option value="UNREGISTERED">ประชากรแฝง / เช่าอยู่</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>สถานะปัจจุบัน *</label>
-                            <select value={member.living_status} onChange={(e) => handleMemberChange(index, 'living_status', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
-                                <option value="LIVING_HERE">อาศัยอยู่จริง</option>
-                                <option value="MOVED_AWAY">ย้ายออก / ไปทำงานที่อื่น</option>
-                                <option value="DECEASED">เสียชีวิต</option>
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>สัญชาติ *</label>
-                            <select value={member.nationality} onChange={(e) => handleMemberChange(index, 'nationality', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
-                                <option value="THAI">ไทย</option>
-                                <option value="MYANMAR">เมียนมา</option>
-                                <option value="LAO">ลาว</option>
-                                <option value="CAMBODIAN">กัมพูชา</option>
-                                <option value="OTHER">อื่นๆ</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ตั้งเป็นเจ้าบ้าน</label>
-                            <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center' }}>
-                                <input type="checkbox" checked={member.is_head_of_household} onChange={(e) => handleMemberChange(index, 'is_head_of_household', e.target.checked)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-                                <span style={{ fontSize: '13px', marginLeft: '8px' }}>ใช่ (เจ้าบ้าน)</span>
+            {/* 🌟 2. เพิ่มประชากร (เฉพาะตอนที่บ้านถูกบันทึก/เลือกแล้ว) */}
+            {currentHouse && (
+                <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }} className="animate-fade-in-up">
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px', marginTop: 0, color: '#0f172a' }}>
+                        <Users size={20} className="text-purple-600"/> 2. รายชื่อประชากรในบ้านเลขที่ {currentHouse.house_no}
+                    </h3>
+                    
+                    {/* 🌟 รายชื่อคนที่มีอยู่แล้วในบ้าน */}
+                    {existingMembers.length > 0 && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>ประชากรที่บันทึกแล้ว ({existingMembers.length} คน):</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {existingMembers.map((m, idx) => (
+                                    <div key={idx} style={{ backgroundColor: '#f8fafc', padding: '10px 15px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{m.first_name} {m.last_name} {m.nickname && `(${m.nickname})`}</span>
+                                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>บัตร: {m.citizen_id || '-'} | สถานะ: {m.resident_type === 'REGISTERED' ? 'คนในพื้นที่' : 'คนนอก/แฝง'}</div>
+                                        </div>
+                                        {m.is_head_of_household && <span style={{ backgroundColor: '#dbeafe', color: '#1e40af', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>⭐ เจ้าบ้าน</span>}
+                                    </div>
+                                ))}
                             </div>
                         </div>
+                    )}
 
-                        {member.resident_type === 'UNREGISTERED' && (
-                            <div style={{ gridColumn: '1 / -1' }}>
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ภูมิลำเนาเดิม / มาจากที่ใด (ตัวเลือก)</label>
-                                <input type="text" value={member.origin_location} onChange={(e) => handleMemberChange(index, 'origin_location', e.target.value)} placeholder="เช่น จ.ขอนแก่น หรือ แขวงสะหวันนะเขต" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                    {/* 🌟 ฟอร์มเพิ่มคนใหม่ (กดบันทึกรัวๆ ได้) */}
+                    <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '15px' }}>
+                        <h4 style={{ margin: '0 0 15px 0', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>เพิ่มประชากรใหม่เข้าบ้านนี้</h4>
+                        <form onSubmit={saveMember}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                
+                                <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                   <input type="checkbox" id="is_foreigner" checked={newMember.is_foreigner} onChange={(e) => handleNewMemberChange('is_foreigner', e.target.checked)} style={{ cursor: 'pointer' }} />
+                                   <label htmlFor="is_foreigner" style={{ fontSize: '13px', fontWeight: 'bold', color: '#e11d48', cursor: 'pointer' }}>ชาวต่างชาติ (ไม่ต้องใช้บัตร 13 หลัก)</label>
+                                </div>
+
+                                <div style={{ gridColumn: '1 / -1' }}>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>{newMember.is_foreigner ? 'เลขพาสปอร์ต (ตัวเลือก)' : 'เลขบัตรประชาชน (ตัวเลือก)'}</label>
+                                    <input type="text" value={newMember.citizen_id} onChange={(e) => handleNewMemberChange('citizen_id', e.target.value)} maxLength={newMember.is_foreigner ? 50 : 17} placeholder={newMember.is_foreigner ? "" : "x-xxxx-xxxxx-xx-x"} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                </div>
+
+                                <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ชื่อจริง *</label><input required type="text" value={newMember.first_name} onChange={(e) => handleNewMemberChange('first_name', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} /></div>
+                                <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>นามสกุล *</label><input required type="text" value={newMember.last_name} onChange={(e) => handleNewMemberChange('last_name', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} /></div>
+                                <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ชื่อเล่น</label><input type="text" value={newMember.nickname} onChange={(e) => handleNewMemberChange('nickname', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} /></div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>เพศ</label>
+                                    <select value={newMember.gender} onChange={(e) => handleNewMemberChange('gender', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
+                                        <option value="">- เลือก -</option><option value="MALE">ชาย</option><option value="FEMALE">หญิง</option><option value="OTHER">อื่นๆ</option>
+                                    </select>
+                                </div>
+                                <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>วันเกิด</label><input type="date" value={newMember.date_of_birth} onChange={(e) => handleNewMemberChange('date_of_birth', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} /></div>
+                                
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ประเภทผู้อยู่อาศัย *</label>
+                                    <select value={newMember.resident_type} onChange={(e) => handleNewMemberChange('resident_type', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
+                                        <option value="REGISTERED">มีชื่อในทะเบียนบ้าน</option><option value="UNREGISTERED">ประชากรแฝง / เช่าอยู่</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ตั้งเป็นเจ้าบ้าน</label>
+                                    <div style={{ padding: '8px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center' }}>
+                                        <input type="checkbox" checked={newMember.is_head_of_household} onChange={(e) => handleNewMemberChange('is_head_of_household', e.target.checked)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+                                        <span style={{ fontSize: '13px', marginLeft: '8px' }}>ใช่ (เจ้าบ้าน)</span>
+                                    </div>
+                                </div>
                             </div>
-                        )}
+                            
+                            <button type="submit" disabled={isSavingMember} style={{ width: '100%', padding: '14px', marginTop: '20px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                                <Save size={20}/> {isSavingMember ? 'กำลังบันทึก...' : 'บันทึกประชากรคนนี้'}
+                            </button>
+                        </form>
                     </div>
                 </div>
-             ))}
-          </div>
-
-          <button type="submit" disabled={isSubmitting} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '16px', marginTop: '25px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 'bold', cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.7 : 1, boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.4)' }}>
-              <Save size={20} /> {isSubmitting ? 'กำลังบันทึกข้อมูล...' : 'บันทึกข้อมูลเข้าสู่ระบบ'}
-          </button>
-        </form>
+            )}
+        </div>
       </div>
       <BottomNavbar />
     </div>
