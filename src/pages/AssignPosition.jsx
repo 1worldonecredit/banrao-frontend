@@ -17,7 +17,7 @@ const AssignPosition = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
-  // State สำหรับการจัดการวาระการดำรงตำแหน่ง
+  // State สำหรับวาระ
   const [termType, setTermType] = useState('60_YEARS');
   const [customYears, setCustomYears] = useState(4);
   const [startDate, setStartDate] = useState(() => {
@@ -25,7 +25,7 @@ const AssignPosition = () => {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
 
-  // 🌟 State สำหรับเก็บข้อมูล Debug
+  // 🌟 State สำหรับกล่อง Debug
   const [debugLog, setDebugLog] = useState({
       fetchedUser: null,
       payloadSent: null,
@@ -48,8 +48,6 @@ const AssignPosition = () => {
     if (rawCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
     setIsLoading(true);
     setAssignmentSuccess(false);
-    
-    // รีเซ็ต Debug Log
     setDebugLog({ fetchedUser: null, payloadSent: null, serverResponse: null });
     
     try {
@@ -58,8 +56,7 @@ const AssignPosition = () => {
         
         if (result.success) {
             setFoundUser(result.data);
-            // 🌟 บันทึกข้อมูลที่ค้นหาเจอลง Debug
-            setDebugLog(prev => ({ ...prev, fetchedUser: result.data }));
+            setDebugLog(prev => ({ ...prev, fetchedUser: result.data })); // 🌟 เก็บ log ขามา
         } else {
             alert(result.message || 'ไม่พบข้อมูลประชาชน');
             setFoundUser(null);
@@ -82,9 +79,8 @@ const AssignPosition = () => {
     if (!approvalPin) return alert('กรุณาระบุรหัสผ่านอนุมัติ');
     setIsProcessing(true);
 
-    // 🌟 จัดเตรียมข้อมูลที่จะส่ง (Payload)
+    // 🌟 ส่ง real_account_id ไปให้ Backend บันทึก (จะแก้บัคผิดคนได้ตรงนี้)
     const payload = {
-        // ใช้ real_account_id ถ้ามี ถ้าไม่มีใช้ account_id
         target_account_id: foundUser.real_account_id || foundUser.account_id, 
         position_id: 6, 
         scope_type: 'VILLAGE',
@@ -95,8 +91,7 @@ const AssignPosition = () => {
         end_date: calculateEndDate().toISOString().split('T')[0]
     };
     
-    // 🌟 บันทึกข้อมูล Payload ลง Debug
-    setDebugLog(prev => ({ ...prev, payloadSent: payload }));
+    setDebugLog(prev => ({ ...prev, payloadSent: payload })); // 🌟 เก็บ log ขาไป
 
     try {
         const res = await fetch(`${API_URL}/api/assign-role`, {
@@ -106,9 +101,7 @@ const AssignPosition = () => {
         });
 
         const result = await res.json();
-        
-        // 🌟 บันทึกผลลัพธ์จาก Server ลง Debug
-        setDebugLog(prev => ({ ...prev, serverResponse: result }));
+        setDebugLog(prev => ({ ...prev, serverResponse: result })); // 🌟 เก็บ log ขากลับ
 
         if (result.success) {
             setAssignmentSuccess(true);
@@ -162,11 +155,9 @@ const AssignPosition = () => {
 
   return (
     <div className="min-h-screen pb-24 font-sans relative overflow-hidden" style={{ backgroundImage: "url('/hex-background.jpg')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
-      
       <div><TopNavbar userData={userData} /></div>
       
       <div className="max-w-3xl mx-auto p-4 pt-24 relative z-10">
-        
         {!assignmentSuccess && (
           <div className="bg-white bg-opacity-70 backdrop-blur-xl p-8 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] border border-white/40">
             <div className="flex items-center gap-5 mb-8 border-b border-slate-200 pb-6">
@@ -306,16 +297,15 @@ const AssignPosition = () => {
         )}
 
         {/* ==================================================== */}
-        {/* 🌟 หน้าต่าง Debug Console (สำหรับตรวจสอบข้อมูล) 🌟 */}
+        {/* 🌟 หน้าต่าง Debug Console (จะแสดงอยู่ด้านล่างสุด) 🌟 */}
         {/* ==================================================== */}
-        <div className="mt-12 bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-700 text-left">
+        <div className="mt-12 bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-700 text-left relative z-20">
             <div className="flex items-center gap-2 mb-4 border-b border-slate-700 pb-3">
                 <Code size={20} className="text-emerald-400" />
                 <h3 className="text-white font-bold text-lg tracking-wide">Developer Debug Console</h3>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 1. ข้อมูลที่ได้รับตอนค้นหา */}
                 <div className="bg-black/50 p-4 rounded-xl border border-slate-800 overflow-hidden">
                     <p className="text-blue-400 font-bold mb-2 text-sm">1. ข้อมูลที่ได้รับจาก API ค้นหา (Fetched Data)</p>
                     <div className="overflow-x-auto">
@@ -325,7 +315,6 @@ const AssignPosition = () => {
                     </div>
                 </div>
 
-                {/* 2. ข้อมูลที่กำลังจะส่งไปบันทึก */}
                 <div className="bg-black/50 p-4 rounded-xl border border-slate-800 overflow-hidden">
                     <p className="text-yellow-400 font-bold mb-2 text-sm">2. ข้อมูล Payload ที่ส่งไปบันทึก (Sent to DB)</p>
                     <div className="overflow-x-auto">
@@ -333,11 +322,10 @@ const AssignPosition = () => {
                             {debugLog.payloadSent ? JSON.stringify(debugLog.payloadSent, null, 2) : 'ยังไม่ได้กดยืนยันการแต่งตั้ง'}
                         </pre>
                     </div>
-                    <p className="text-xs text-slate-400 mt-2 italic">* ตรวจสอบว่า target_account_id ตรงกับ account_id จริงๆ หรือไม่</p>
+                    <p className="text-xs text-slate-400 mt-2 italic">* ตรวจสอบว่า target_account_id มีค่าหรือไม่</p>
                 </div>
             </div>
 
-            {/* 3. ข้อมูลที่เซิร์ฟเวอร์ตอบกลับ */}
             <div className="mt-6 bg-black/50 p-4 rounded-xl border border-slate-800 overflow-hidden">
                 <p className="text-purple-400 font-bold mb-2 text-sm">3. ผลลัพธ์จาก Server (Server Response)</p>
                 <div className="overflow-x-auto">
