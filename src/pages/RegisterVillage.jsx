@@ -244,7 +244,24 @@ const RegisterVillage = () => {
 
             {/* ส่วนแสดงแผนที่ */}
             <div style={{ border: '2px solid #e2e8f0', borderRadius: '14px', overflow: 'hidden', position: 'relative' }}>
+
               {userLocation && (
+                <GoogleMap
+                  mapContainerStyle={mapContainerStyle}
+                  center={userLocation}
+                  zoom={18} // 🌟 แนะนำให้เพิ่มระดับการซูมเป็น 18 หรือ 19 เพื่อให้เห็นหลังคาบ้านชัดๆ ตอนเริ่มต้น
+                  onLoad={onMapLoad}
+                  onUnmount={onMapUnmount}
+                  onClick={handleMapClick}
+                  options={{
+                    disableDefaultUI: false,
+                    zoomControl: true,
+                    streetViewControl: false,
+                    mapTypeControl: true, // 🌟 เปิดให้ผู้ใช้กดเปลี่ยนโหมดแผนที่เองได้ (เผื่ออยากสลับกลับไปดูแผนที่ถนน)
+                    mapTypeId: 'hybrid'  // 🌟 บังคับให้โหลดเป็นโหมด "ดาวเทียม+ชื่อถนน" เป็นค่าเริ่มต้น (สำคัญที่สุด)
+                  }}
+                >
+              {/* {userLocation && (
                 <GoogleMap
                   mapContainerStyle={mapContainerStyle}
                   center={userLocation}
@@ -258,7 +275,7 @@ const RegisterVillage = () => {
                     streetViewControl: false,
                     mapTypeControl: false,
                   }}
-                >
+                > */}
                   <Circle
                     center={userLocation}
                     radius={500}
