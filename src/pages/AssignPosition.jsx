@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react'; // 🌟 ลบ useEffect ออก
 import { Search, ShieldCheck, MapPin, Save, User, Map, Building, FileText, KeyRound, X } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar'; 
 import BottomNavbar from '../components/BottomNavbar'; 
@@ -12,26 +12,16 @@ const AssignPosition = () => {
   const [foundUser, setFoundUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [selectedVillageId, setSelectedVillageId] = useState('');
-  const [villagesList, setVillagesList] = useState([]);
+  // 🌟 ลบ State selectedVillageId และ villagesList ออกไปเลย
+  // const [selectedVillageId, setSelectedVillageId] = useState('');
+  // const [villagesList, setVillagesList] = useState([]);
   
-  // State สำหรับรหัสผ่านชุดที่ 2
   const [showPinModal, setShowPinModal] = useState(false);
   const [approvalPin, setApprovalPin] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
-  // ดึงรายการหมู่บ้านจาก Database ผ่าน API
-  useEffect(() => {
-    const fetchVillages = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/villages-list`);
-        const result = await res.json();
-        if (result.success) setVillagesList(result.data);
-      } catch (error) { console.error("เกิดข้อผิดพลาดในการดึงหมู่บ้าน:", error); }
-    };
-    fetchVillages();
-  }, []);
+  // 🌟 ลบ useEffect fetchVillages() ทิ้งไปเลย
 
   const formatCitizenId = (value) => {
     const numbers = value.replace(/\D/g, '');
@@ -51,7 +41,6 @@ const AssignPosition = () => {
     setAssignmentSuccess(false);
     
     try {
-        // เรียก API ค้นหาข้อมูลแบบเต็ม
         const res = await fetch(`${API_URL}/api/search-citizen-full/${rawCitizenId}`);
         const result = await res.json();
         
@@ -67,7 +56,8 @@ const AssignPosition = () => {
 
   const openPinModal = (e) => {
     e.preventDefault();
-    if (!foundUser || !selectedVillageId) return alert('กรุณาเลือกหมู่บ้านให้ครบถ้วน');
+    // 🌟 เปลี่ยนเงื่อนไขการเช็ค ให้เช็คว่ามีหมู่บ้านผูกกับโปรไฟล์ไหม
+    if (!foundUser || !foundUser.village_id) return alert('ไม่สามารถแต่งตั้งได้ เนื่องจากประชาชนท่านนี้ยังไม่ได้ระบุหมู่บ้านในระบบ');
     setShowPinModal(true);
   };
 
@@ -83,7 +73,8 @@ const AssignPosition = () => {
                 target_account_id: foundUser.account_id,
                 position_id: 6, 
                 scope_type: 'VILLAGE',
-                scope_id: selectedVillageId,
+                // 🌟 ดึงหมู่บ้านจากข้อมูลคนที่ค้นหาเจอโดยตรง ไม่ต้องให้เลือก
+                scope_id: foundUser.village_id, 
                 assigner_account_id: userData.id || userData.account_id,
                 approval_pin: approvalPin
             })
@@ -105,18 +96,13 @@ const AssignPosition = () => {
   };
 
   return (
-    // 🌟 ดึงภาพพื้นหลัง (เปลี่ยนนามสกุลไฟล์ให้ตรงกับรูปของคุณหากจำเป็น)
-   <div className="min-h-screen pb-24 font-sans relative overflow-hidden bg-hex-pattern">
+    <div className="min-h-screen pb-24 font-sans relative overflow-hidden bg-hex-pattern">
       
       <div><TopNavbar userData={userData} /></div>
       
       <div className="max-w-3xl mx-auto p-4 pt-24 relative z-10">
         
-        {/* ==================================================== */}
-        {/* หน้าจอหลัก UI แบบ Glassmorphism (สีขาว 70%) */}
-        {/* ==================================================== */}
         {!assignmentSuccess && (
-          // 🌟 ปรับสีการ์ดให้ขาว โปร่งแสง 70%
           <div className="bg-white bg-opacity-70 backdrop-blur-xl p-8 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] border border-white/40">
             <div className="flex items-center gap-5 mb-8 border-b border-slate-200 pb-6">
               <div className="p-4 bg-gradient-to-tr from-purple-500 to-indigo-500 text-white rounded-2xl shadow-lg shadow-purple-500/30">
@@ -160,11 +146,14 @@ const AssignPosition = () => {
                 </div>
 
                 <div className="bg-white/50 p-6 rounded-2xl border border-white/60 mb-8 shadow-sm">
-                  <label className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2"><MapPin size={16} className="text-emerald-500"/> เลือกพื้นที่มอบหมาย (หมู่บ้าน)</label>
-                  <select required value={selectedVillageId} onChange={(e) => setSelectedVillageId(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-xl outline-none text-slate-800 font-bold appearance-none transition-all cursor-pointer shadow-sm focus:border-emerald-400">
-                    <option value="" disabled className="text-slate-400">-- เลือกหมู่บ้านเป้าหมาย --</option>
-                    {villagesList.map((v, idx) => (<option key={idx} value={v.village_id} className="text-slate-800">{v.name}</option>))}
-                  </select>
+                  <label className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2"><MapPin size={16} className="text-emerald-500"/> พื้นที่ปกครอง (ภูมิลำเนาของผู้รับตำแหน่ง)</label>
+                  
+                  {/* 🌟 เปลี่ยนจาก <select> เป็น <div> แสดงข้อความแบบล็อก (Read-only) */}
+                  <div className="w-full p-4 bg-slate-100 border border-slate-300 rounded-xl text-slate-600 font-bold shadow-inner flex items-center justify-between">
+                      {foundUser.village_name ? `หมู่บ้าน: ${foundUser.village_name}` : <span className="text-red-500">ยังไม่ระบุหมู่บ้าน (ไม่สามารถแต่งตั้งได้)</span>}
+                      <ShieldCheck size={20} className="text-slate-400" />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2 ml-1">* ตามกฎหมาย ผู้ถูกแต่งตั้งต้องมีภูมิลำเนาอยู่ในหมู่บ้านที่จะปกครองเท่านั้น (ระบบไม่อนุญาตให้เปลี่ยนพื้นที่)</p>
                 </div>
 
                 <button type="submit" className="w-full py-4 rounded-xl font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)] flex justify-center items-center gap-2 transition-all active:scale-[0.98] text-lg">
@@ -193,7 +182,7 @@ const AssignPosition = () => {
                 <div className="text-xl font-bold text-slate-800 mb-4">{foundUser.first_name} {foundUser.last_name}</div>
 
                 <div className="text-sm text-slate-500 mb-1">ตำแหน่งที่ได้รับมอบหมาย</div>
-                <div className="text-lg font-bold text-emerald-600 mb-4">ผู้ใหญ่บ้าน {villagesList.find(v => v.village_id === selectedVillageId)?.name}</div>
+                <div className="text-lg font-bold text-emerald-600 mb-4">ผู้ใหญ่บ้าน {foundUser.village_name}</div>
                 
                 <div className="text-sm text-slate-500 mb-1">อนุมัติโดย (E-Signature)</div>
                 <div className="font-bold text-slate-800">{userData.firstName} {userData.lastName}</div>
@@ -204,7 +193,6 @@ const AssignPosition = () => {
                   setAssignmentSuccess(false);
                   setFoundUser(null);
                   setSearchCitizenId('');
-                  setSelectedVillageId('');
                 }} className="px-8 py-4 bg-slate-200 border border-slate-300 rounded-xl font-bold text-slate-700 hover:bg-slate-300 transition-all shadow-sm">
                   ทำรายการแต่งตั้งบุคคลอื่นต่อ
                 </button>
