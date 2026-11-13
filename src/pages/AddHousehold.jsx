@@ -7,7 +7,8 @@ import BottomNavbar from '../components/BottomNavbar';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
-
+const onMapLoad = useCallback((map) => setMapInstance(map), []);
+  const onMapUnmount = useCallback(() => setMapInstance(null), []);
 const mapContainerStyle = { width: '100%', height: '350px', borderRadius: '12px' };
 
 const AddHousehold = () => {
