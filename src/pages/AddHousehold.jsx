@@ -76,8 +76,11 @@ const AddHousehold = () => {
       } catch(e) {}
   };
 
-  const saveTargets = async () => {
-      if(!userData.village_id) return;
+const saveTargets = async () => {
+      if(!userData.village_id) {
+          return alert("ไม่สามารถบันทึกได้: ไม่พบข้อมูลหมู่บ้าน (Village ID) ในบัญชีของคุณ โปรดลองล็อกเอาท์แล้วเข้าสู่ระบบใหม่");
+      }
+      
       try {
           const res = await fetch(`${API_URL}/api/villages/${userData.village_id}/targets`, {
               method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -88,8 +91,13 @@ const AddHousehold = () => {
               setIsEditingTarget(false);
               fetchProgress(); // รีเฟรชข้อมูลแถบความคืบหน้า
               alert("บันทึกเป้าหมายสำเร็จ!");
+          } else {
+              alert("บันทึกไม่สำเร็จ: " + data.message);
           }
-      } catch(e) { alert("บันทึกเป้าหมายล้มเหลว"); }
+      } catch(e) { 
+          console.error(e);
+          alert("เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว: โปรดตรวจสอบว่า Backend (server.js) ได้รับการอัปเดตและกำลังทำงานอยู่หรือไม่"); 
+      }
   };
 
   // 🌟 2. ดึงรายการบ้านเข้า "สมุดทะเบียนบ้าน"
