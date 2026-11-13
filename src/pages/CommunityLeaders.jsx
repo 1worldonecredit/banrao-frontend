@@ -8,7 +8,10 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 // ==========================================
 // 🌟 1. Component ก้อน Node
 // ==========================================
-const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
+// ==========================================
+// 🌟 1. Component ก้อน Node (แก้ไขเช็คสิทธิ์ isAuthorized)
+// ==========================================
+const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode, isAuthorized }) => {
   const hasUser = !!node.account_id;
 
   return (
@@ -37,30 +40,36 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
             {node.responsibilities || 'ยังไม่ระบุหน้าที่'}
           </p>
 
-          <div className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
-             <button onClick={() => onEditNode(node)} className="p-1.5 bg-white/80 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-sm" title="แก้ไขข้อมูล">
-               <Edit size={14} />
-             </button>
-             {(!node.isRoot && hasUser) && (
-               <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white/80 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-sm" title="ลบบุคลากรออกจากตำแหน่ง">
-                 <Trash2 size={14} />
+          {/* 🌟 1. ซ่อนกลุ่มปุ่ม Edit/Delete มุมขวาบน */}
+          {isAuthorized && (
+            <div className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+               <button onClick={() => onEditNode(node)} className="p-1.5 bg-white/80 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-sm" title="แก้ไขข้อมูล">
+                 <Edit size={14} />
                </button>
-             )}
-          </div>
+               {(!node.isRoot && hasUser) && (
+                 <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white/80 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-sm" title="ลบบุคลากรออกจากตำแหน่ง">
+                   <Trash2 size={14} />
+                 </button>
+               )}
+            </div>
+          )}
         </div>
 
-        {hasUser ? (
-           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา (ลูกน้อง)">
-             <Plus size={14} />
-           </button>
-        ) : (
-           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
-             <Edit size={18} />
-           </button>
+        {/* 🌟 2. ซ่อนปุ่มเพิ่มลูกน้อง และปุ่มใส่ข้อมูลคนใหม่ ตรงกลางล่าง */}
+        {isAuthorized && (
+          hasUser ? (
+             <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา (ลูกน้อง)">
+               <Plus size={14} />
+             </button>
+          ) : (
+             <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
+               <Edit size={18} />
+             </button>
+          )
         )}
         
-        {/* 🌟 ปรับปุ่มซ้าย/ขวา ให้คลิกง่ายขึ้นและเด่นขึ้นเล็กน้อย */}
-        {!node.isRoot && (
+        {/* 🌟 3. ซ่อนปุ่มเพิ่มตำแหน่งระดับเดียวกัน ซ้าย/ขวา */}
+        {isAuthorized && !node.isRoot && (
            <>
              <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 md:-left-4 transform -translate-y-1/2 bg-white border border-slate-200 text-blue-600 rounded-full p-1.5 shadow-md opacity-40 group-hover:opacity-100 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all z-20" title="เพิ่มตำแหน่งระดับเดียวกัน">
                <Plus size={12} />
@@ -81,7 +90,8 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
               return (
                 <div key={child.id || index} className="relative flex flex-col items-center">
                   <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
-                  <OrgNode node={child} onAddNode={onAddNode} onEditNode={onEditNode} onDeleteNode={onDeleteNode} />
+                  {/* 🌟 4. ส่งค่า isAuthorized ต่อไปให้ลูกๆ ด้วย */}
+                  <OrgNode node={child} onAddNode={onAddNode} onEditNode={onEditNode} onDeleteNode={onDeleteNode} isAuthorized={isAuthorized} />
                 </div>
               );
             })}
@@ -99,6 +109,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   const villageId = userData.village_id || 1; 
+  const isAuthorized = userData.role === 'HEADMAN' || userData.position_level === 'VILLAGE';
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
@@ -155,13 +166,31 @@ const CommunityLeaders = () => {
   };
 
 
-  const fetchCommittees = async () => {
+ const fetchCommittees = async () => {
     try {
       const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
       const result = await res.json();
       if (result.success && result.data.length > 0) {
         setCommittees(result.data);
         if (!activeTab) setActiveTab(result.data[0].committee_id);
+      } else {
+        // 🌟 2. เพิ่มเงื่อนไขนี้: ถ้ายังไม่มีแท็บ ให้เช็คว่าเป็นผู้ใหญ่บ้านไหม ถ้าเป็นให้แสดงผังตัวเอง
+        if (isAuthorized) {
+          setOrgTree({
+            isRoot: true,
+            id: `mock-root-${userData.id || 'headman'}`,
+            role_name: userData.position_name || 'ผู้ใหญ่บ้าน',
+            account_id: userData.id,
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            user_image: userData.userImage || '/profile-img.jpg',
+            responsibilities: 'ผู้นำสูงสุดของหมู่บ้าน',
+            children: []
+          });
+        } else {
+          // ถ้าเป็นประชาชนทั่วไป ให้แสดงแค่ข้อความ
+          setOrgTree({ isRoot: true, role_name: 'ยังไม่มีข้อมูลผังองค์กร', id: 'root-0', children: [] });
+        }
       }
     } catch (error) { console.error("Error fetching committees:", error); }
   };
@@ -454,7 +483,7 @@ const CommunityLeaders = () => {
 
         <div className="relative py-12 overflow-x-auto flex justify-center min-w-max md:min-w-full bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] rounded-[2.5rem] border border-slate-200/50">
           {orgTree && orgTree.role_name ? (
-            <OrgNode node={orgTree} onAddNode={handleAddNode} onEditNode={handleEditNode} onDeleteNode={handleDeleteNode} />
+            <OrgNode node={orgTree} onAddNode={handleAddNode} onEditNode={handleEditNode} onDeleteNode={handleDeleteNode} isAuthorized={isAuthorized} />
           ) : (
              <div className="text-slate-400 py-20 flex flex-col items-center gap-4">
                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
