@@ -14,16 +14,18 @@ const RegisterVillage = () => {
     const userData = JSON.parse(localStorage.getItem('userData') || '{}');
     const [isSubmitting, setIsSubmitting] = useState(false);
     
+    // State แผนที่
     const [mapInstance, setMapInstance] = useState(null);
     const [markerPos, setMarkerPos] = useState(null);
     const [userLocation, setUserLocation] = useState(null);
     const [locationStatus, setLocationStatus] = useState('กำลังค้นหาตำแหน่งของคุณ...');
     const [isLocating, setIsLocating] = useState(true);
     
+    // State รหัสผ่าน
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    // 🌟 State สำหรับระบบผู้แนะนำ
+    // 🌟 State ระบบผู้แนะนำ
     const [referrerPhone, setReferrerPhone] = useState('');
     const [referrerInfo, setReferrerInfo] = useState(null);
     const [isCheckingReferrer, setIsCheckingReferrer] = useState(false);
@@ -36,11 +38,13 @@ const RegisterVillage = () => {
     const onMapLoad = useCallback((map) => setMapInstance(map), []);
     const onMapUnmount = useCallback(() => setMapInstance(null), []);
 
+    // ฟอร์มข้อมูลหลัก
     const [formData, setFormData] = useState({
         village_no: '', village_name: '', province: '', district: '', sub_district: '',
         citizen_id: '', first_name: '', last_name: '', nickname: '', phone_number: '', password: '', confirm_password: ''
     });
 
+    // ดึงพิกัด GPS ปัจจุบัน
     const fetchCurrentLocation = () => {
         setIsLocating(true);
         setLocationStatus('กำลังดึงตำแหน่ง GPS...');
@@ -127,17 +131,20 @@ const RegisterVillage = () => {
         setFormData({ ...formData, [name]: value });
     };
 
+    // ควบคุมเบอร์โทร (ตัวเลขเท่านั้น)
     const handlePhoneChange = (e) => {
         const value = e.target.value.replace(/\D/g, ''); 
         if (value.length <= 10) setFormData({ ...formData, phone_number: value });
     };
 
+    // ควบคุมรหัสผ่าน (ภาษาอังกฤษและตัวเลข)
     const handlePasswordChange = (e) => {
         const { name, value } = e.target;
         const alphanumericValue = value.replace(/[^a-zA-Z0-9]/g, ''); 
         setFormData({ ...formData, [name]: alphanumericValue });
     };
 
+    // ฟอร์แมตเลขบัตรประชาชน
     const formatCitizenId = (e) => {
         let val = e.target.value.replace(/\D/g, '');
         let formatted = '';
@@ -149,7 +156,7 @@ const RegisterVillage = () => {
         setFormData({ ...formData, citizen_id: formatted });
     };
 
-    // 🌟 ฟังก์ชันดึงข้อมูลผู้แนะนำเมื่อกรอกเบอร์โทรครบ 10 หลัก
+    // 🌟 ดึงข้อมูลผู้แนะนำจาก API
     const checkReferrer = async (phone) => {
         setIsCheckingReferrer(true);
         try {
@@ -166,6 +173,7 @@ const RegisterVillage = () => {
         setIsCheckingReferrer(false);
     };
 
+    // 🌟 ยืนยันการบันทึก
     const handleSubmit = async (e) => {
         e.preventDefault();
         
@@ -180,7 +188,6 @@ const RegisterVillage = () => {
 
         setIsSubmitting(true);
         try {
-            // 🌟 เพิ่ม referrer_account_id ส่งไปให้ Backend
             const payload = { 
                 ...formData, 
                 citizen_id: cleanCitizenId, 
@@ -196,13 +203,13 @@ const RegisterVillage = () => {
             const data = await res.json();
             
             if(data.success) {
-                alert('ลงทะเบียนสำเร็จ! คุณสามารถเข้าสู่ระบบด้วยเบอร์โทรศัพท์และรหัสผ่านที่ตั้งไว้ได้เลย');
+                alert('ลงทะเบียนสำเร็จ! เข้าสู่ระบบด้วยเบอร์โทรศัพท์ได้เลยครับ');
                 navigate('/login'); 
             } else {
                 alert('ลงทะเบียนล้มเหลว: ' + data.message);
             }
         } catch (error) {
-            alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ โปรดตรวจสอบ Backend ของคุณ');
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
         }
         setIsSubmitting(false);
     };
@@ -231,7 +238,17 @@ const RegisterVillage = () => {
                     </button>
                     <div>
                         <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>สร้างข้อมูลหมู่บ้าน และ ผู้ใหญ่บ้าน</h2>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.9 }}>สำหรับผู้นำชุมชน เพื่อใช้ล็อกอิน</p>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.9 }}>สำหรับผู้นำชุมชน เพื่อใช้ล็อกอินเข้าสู่ระบบ</p>
+                    </div>
+                </div>
+
+                <div style={{ backgroundColor: '#fffbeb', borderLeft: '4px solid #f59e0b', padding: '15px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <AlertTriangle size={24} color="#d97706" style={{ flexShrink: 0 }} />
+                    <div>
+                        <strong style={{ color: '#b45309', display: 'block', fontSize: '14px', marginBottom: '4px' }}>โปรดตรวจสอบตำแหน่งที่ตั้งและที่อยู่ให้ถูกต้อง!</strong>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#92400e', lineHeight: '1.5' }}>
+                            การปักหมุดที่แม่นยำจะช่วยให้ระบบระบุเขตการปกครองของคุณได้อย่างถูกต้อง
+                        </p>
                     </div>
                 </div>
 
@@ -306,7 +323,7 @@ const RegisterVillage = () => {
                             
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <label className={labelStyle}>เบอร์โทรศัพท์ (ใช้เป็น Username สำหรับเข้าระบบ) *</label>
-                                <input required type="tel" name="phone_number" value={formData.phone_number} onChange={handlePhoneChange} maxLength={10} placeholder="08xxxxxxxx (10 หลัก)" className={`${inputStyle} border-blue-400 bg-blue-50`} />
+                                <input required type="tel" name="phone_number" value={formData.phone_number} onChange={handlePhoneChange} maxLength={10} placeholder="08xxxxxxxx (กรอกเฉพาะตัวเลข 10 หลัก)" className={`${inputStyle} border-blue-400 bg-blue-50`} />
                             </div>
 
                             <div style={{ gridColumn: '1 / -1' }}>
@@ -322,7 +339,7 @@ const RegisterVillage = () => {
                                 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                                     <div className="relative">
-                                        <input required type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handlePasswordChange} placeholder="รหัสผ่าน" className={inputStyle} />
+                                        <input required type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handlePasswordChange} placeholder="รหัสผ่าน (อย่างน้อย 6 ตัว)" className={inputStyle} />
                                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
                                             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                                         </button>
@@ -346,7 +363,7 @@ const RegisterVillage = () => {
                             <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
                                 <Users size={18}/> 3. ผู้แนะนำการใช้งาน (เพื่อรับสิทธิ์แชร์รายได้ระบบ)
                             </h4>
-                            <p className="text-xs text-slate-500 mb-3">หากมีผู้ใหญ่บ้านท่านอื่นแนะนำคุณมา กรุณากรอกเบอร์โทรศัพท์ของท่าน เพื่อให้ท่านได้รับสิทธิ์ส่วนแบ่งรายได้จากระบบ</p>
+                            <p className="text-xs text-slate-500 mb-3">หากมีผู้ใหญ่บ้านท่านอื่นแนะนำคุณมา กรุณากรอกเบอร์โทรศัพท์ของท่าน เพื่อให้ท่านได้รับสิทธิ์ส่วนแบ่งรายได้</p>
                             
                             <input 
                                 type="tel" 
@@ -364,7 +381,6 @@ const RegisterVillage = () => {
                             
                             {isCheckingReferrer && <p className="text-xs text-blue-500 mt-2 font-bold flex items-center gap-1"><RefreshCcw size={12} className="animate-spin"/> กำลังค้นหาข้อมูลผู้แนะนำ...</p>}
                             
-                            {/* แสดงกล่องข้อมูลเมื่อเจอผู้แนะนำ */}
                             {referrerInfo && !referrerInfo.notFound && (
                                 <div className="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 animate-fade-in">
                                     <CheckCircle className="text-emerald-500 mt-1" size={24} />
@@ -377,7 +393,6 @@ const RegisterVillage = () => {
                                 </div>
                             )}
                             
-                            {/* แสดงข้อความเตือนเมื่อไม่เจอ */}
                             {referrerInfo && referrerInfo.notFound && (
                                 <div className="mt-2 text-xs text-red-500 font-bold flex items-center gap-1">
                                     <XCircle size={14}/> ไม่พบข้อมูลบัญชีผู้แนะนำจากเบอร์โทรศัพท์นี้
