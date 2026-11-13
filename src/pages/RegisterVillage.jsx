@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useJsApiLoader, GoogleMap, Marker, Circle } from '@react-google-maps/api';
-import { MapPin, Save, User, Map as MapIcon, Key, ChevronLeft, Navigation, Home, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { MapPin, Save, User, Key, ChevronLeft, Navigation, Home, AlertTriangle, RefreshCcw, Eye, EyeOff, Users, CheckCircle, XCircle } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
@@ -14,23 +14,28 @@ const RegisterVillage = () => {
     const userData = JSON.parse(localStorage.getItem('userData') || '{}');
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // State แผนที่
     const [mapInstance, setMapInstance] = useState(null);
     const [markerPos, setMarkerPos] = useState(null);
     const [userLocation, setUserLocation] = useState(null);
     const [locationStatus, setLocationStatus] = useState('กำลังค้นหาตำแหน่งของคุณ...');
     const [isLocating, setIsLocating] = useState(true);
+    
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    // 🌟 แก้ไข: ตั้งค่า options ให้เหมือนกับหน้า AddHousehold.jsx
+    // 🌟 State สำหรับระบบผู้แนะนำ
+    const [referrerPhone, setReferrerPhone] = useState('');
+    const [referrerInfo, setReferrerInfo] = useState(null);
+    const [isCheckingReferrer, setIsCheckingReferrer] = useState(false);
+
     const { isLoaded, loadError } = useJsApiLoader({ 
         googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-        libraries: ['places', 'geometry'] // ถ้า AddHousehold ไม่ใช้ libraries ให้เอาออกทั้งสองที่
+        libraries: ['places', 'geometry'] 
     });
 
     const onMapLoad = useCallback((map) => setMapInstance(map), []);
     const onMapUnmount = useCallback(() => setMapInstance(null), []);
 
-    // State ข้อมูลฟอร์ม
     const [formData, setFormData] = useState({
         village_no: '', village_name: '', province: '', district: '', sub_district: '',
         citizen_id: '', first_name: '', last_name: '', nickname: '', phone_number: '', password: '', confirm_password: ''
@@ -51,7 +56,6 @@ const RegisterVillage = () => {
                     if (isLoaded) reverseGeocode(pos);
                 },
                 (error) => {
-                    console.error("Geolocation Error:", error);
                     setLocationStatus('ไม่สามารถดึงตำแหน่งได้ ระบบจะใช้ตำแหน่งเริ่มต้น');
                     setIsLocating(false);
                     const defaultPos = { lat: 13.7649, lng: 100.5383 };
@@ -68,9 +72,7 @@ const RegisterVillage = () => {
     };
 
     useEffect(() => {
-        if (isLoaded) {
-            fetchCurrentLocation();
-        }
+        if (isLoaded) fetchCurrentLocation();
     }, [isLoaded]);
 
     const reverseGeocode = (pos) => {
@@ -109,8 +111,6 @@ const RegisterVillage = () => {
     const handleMapClick = (event) => {
         if (!userLocation) return;
         const clickedPos = { lat: event.latLng.lat(), lng: event.latLng.lng() };
-        
-        // ถ้าต้องการบังคับระยะ 500 เมตร
         const userLatLng = new window.google.maps.LatLng(userLocation.lat, userLocation.lng);
         const distance = window.google.maps.geometry.spherical.computeDistanceBetween(userLatLng, event.latLng);
         
@@ -127,6 +127,17 @@ const RegisterVillage = () => {
         setFormData({ ...formData, [name]: value });
     };
 
+    const handlePhoneChange = (e) => {
+        const value = e.target.value.replace(/\D/g, ''); 
+        if (value.length <= 10) setFormData({ ...formData, phone_number: value });
+    };
+
+    const handlePasswordChange = (e) => {
+        const { name, value } = e.target;
+        const alphanumericValue = value.replace(/[^a-zA-Z0-9]/g, ''); 
+        setFormData({ ...formData, [name]: alphanumericValue });
+    };
+
     const formatCitizenId = (e) => {
         let val = e.target.value.replace(/\D/g, '');
         let formatted = '';
@@ -138,18 +149,46 @@ const RegisterVillage = () => {
         setFormData({ ...formData, citizen_id: formatted });
     };
 
+    // 🌟 ฟังก์ชันดึงข้อมูลผู้แนะนำเมื่อกรอกเบอร์โทรครบ 10 หลัก
+    const checkReferrer = async (phone) => {
+        setIsCheckingReferrer(true);
+        try {
+            const res = await fetch(`${API_URL}/api/users/referrer/${phone}`);
+            const data = await res.json();
+            if(data.success) {
+                setReferrerInfo(data.data);
+            } else {
+                setReferrerInfo({ notFound: true });
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        setIsCheckingReferrer(false);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if(formData.password !== formData.confirm_password) return alert("รหัสผ่านไม่ตรงกัน!");
+        
+        if(formData.phone_number.length !== 10) return alert("กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก");
+        if(formData.password.length < 6) return alert("รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
+        if(formData.password !== formData.confirm_password) return alert("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน!");
         if(!markerPos) return alert("กรุณาปักหมุดที่ตั้งหมู่บ้านบนแผนที่");
         if (!formData.province || !formData.district || !formData.sub_district) return alert("กรุณากรอกข้อมูล ตำบล อำเภอ จังหวัด ให้ครบถ้วน");
 
         const cleanCitizenId = formData.citizen_id.replace(/-/g, '');
-        if(cleanCitizenId.length !== 13) return alert("เลขบัตรประชาชนต้องครบ 13 หลัก");
+        if(cleanCitizenId && cleanCitizenId.length !== 13) return alert("เลขบัตรประชาชนต้องครบ 13 หลัก");
 
         setIsSubmitting(true);
         try {
-            const payload = { ...formData, citizen_id: cleanCitizenId, latitude: markerPos.lat, longitude: markerPos.lng };
+            // 🌟 เพิ่ม referrer_account_id ส่งไปให้ Backend
+            const payload = { 
+                ...formData, 
+                citizen_id: cleanCitizenId, 
+                latitude: markerPos.lat, 
+                longitude: markerPos.lng,
+                referrer_account_id: (referrerInfo && !referrerInfo.notFound) ? referrerInfo.account_id : null
+            };
+            
             const res = await fetch(`${API_URL}/api/villages/register`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -157,13 +196,13 @@ const RegisterVillage = () => {
             const data = await res.json();
             
             if(data.success) {
-                alert('ลงทะเบียนสำเร็จ! คุณสามารถเข้าสู่ระบบด้วยเลขบัตรประชาชนและรหัสผ่านที่ตั้งไว้ได้เลย');
+                alert('ลงทะเบียนสำเร็จ! คุณสามารถเข้าสู่ระบบด้วยเบอร์โทรศัพท์และรหัสผ่านที่ตั้งไว้ได้เลย');
                 navigate('/login'); 
             } else {
                 alert('ลงทะเบียนล้มเหลว: ' + data.message);
             }
         } catch (error) {
-            alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ โปรดตรวจสอบ Backend ของคุณ');
         }
         setIsSubmitting(false);
     };
@@ -192,23 +231,14 @@ const RegisterVillage = () => {
                     </button>
                     <div>
                         <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>สร้างข้อมูลหมู่บ้าน และ ผู้ใหญ่บ้าน</h2>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.9 }}>สำหรับผู้ใหญ่บ้าน (ผู้นำชุมชน) เพื่อใช้ล็อกอิน</p>
-                    </div>
-                </div>
-
-                <div style={{ backgroundColor: '#fffbeb', borderLeft: '4px solid #f59e0b', padding: '15px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <AlertTriangle size={24} color="#d97706" style={{ flexShrink: 0 }} />
-                    <div>
-                        <strong style={{ color: '#b45309', display: 'block', fontSize: '14px', marginBottom: '4px' }}>โปรดตรวจสอบตำแหน่งที่ตั้งและที่อยู่ให้ถูกต้อง!</strong>
-                        <p style={{ margin: 0, fontSize: '13px', color: '#92400e', lineHeight: '1.5' }}>
-                            การปักหมุดที่แม่นยำจะช่วยให้ระบบระบุเขตการปกครองของคุณได้อย่างถูกต้อง
-                        </p>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.9 }}>สำหรับผู้นำชุมชน เพื่อใช้ล็อกอิน</p>
                     </div>
                 </div>
 
                 <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
                     <form onSubmit={handleSubmit}>
                         
+                        {/* 1. ข้อมูลที่ตั้งหมู่บ้าน */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
                             <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
@@ -221,8 +251,8 @@ const RegisterVillage = () => {
                                 <input type="text" name="village_no" value={formData.village_no} onChange={handleChange} placeholder="เช่น 1 หรือ 15" className={inputStyle} />
                             </div>
                             <div>
-                                <label className={labelStyle}>ชื่อหมู่บ้าน / ชุมชน *</label>
-                                <input required type="text" name="village_name" value={formData.village_name} onChange={handleChange} placeholder="กรุณาระบุชื่อหมู่บ้าน" className={inputStyle} />
+                                <label className={labelStyle}>ชื่อหมู่บ้าน / ชุมชน (ตัวเลือก)</label>
+                                <input type="text" name="village_name" value={formData.village_name} onChange={handleChange} placeholder="ระบุหรือไม่ระบุก็ได้" className={inputStyle} />
                             </div>
                             <div className="col-span-full md:col-span-1">
                                 <label className={labelStyle}>ตำบล/แขวง *</label>
@@ -238,16 +268,16 @@ const RegisterVillage = () => {
                             </div>
                         </div>
 
+                        {/* แผนที่ */}
                         <div style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569' }}>
                                 <Navigation size={18} color="#3b82f6" />
                                 <span style={{ fontWeight: 'bold', fontSize: '13px' }}>เลื่อนหมุดเพื่อปรับพิกัดศูนย์กลางหมู่บ้าน</span>
                             </div>
                             <button type="button" onClick={fetchCurrentLocation} disabled={isLocating} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 'bold', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', backgroundColor: '#eff6ff' }}>
-                                <RefreshCcw size={14} className={isLocating ? "animate-spin" : ""} /> {isLocating ? 'กำลังดึงพิกัด...' : 'ดึงตำแหน่งของฉันใหม่'}
+                                <RefreshCcw size={14} className={isLocating ? "animate-spin" : ""} /> {isLocating ? 'กำลังดึงพิกัด...' : 'ดึงตำแหน่งใหม่'}
                             </button>
                         </div>
-
                         <div style={{ border: '2px solid #e2e8f0', borderRadius: '14px', overflow: 'hidden', position: 'relative', marginBottom: '30px' }}>
                             {userLocation && (
                                 <GoogleMap
@@ -257,71 +287,102 @@ const RegisterVillage = () => {
                                     onLoad={onMapLoad}
                                     onUnmount={onMapUnmount}
                                     onClick={handleMapClick}
-                                    options={{
-                                        disableDefaultUI: false,
-                                        zoomControl: true,
-                                        streetViewControl: false,
-                                        mapTypeControl: true,
-                                        mapTypeId: 'hybrid'
-                                    }}
+                                    options={{ disableDefaultUI: false, zoomControl: true, mapTypeControl: true, mapTypeId: 'hybrid' }}
                                 >
-                                    <Circle
-                                        center={userLocation}
-                                        radius={500}
-                                        options={{
-                                            fillColor: "#10b981", fillOpacity: 0.15,
-                                            strokeColor: "#10b981", strokeOpacity: 0.8, strokeWeight: 2,
-                                            clickable: false
-                                        }}
-                                    />
-                                    <Marker
-                                        position={userLocation}
-                                        icon={{
-                                            path: window.google.maps.SymbolPath.CIRCLE,
-                                            scale: 8, fillColor: "#3b82f6", fillOpacity: 1,
-                                            strokeColor: "#ffffff", strokeWeight: 2,
-                                        }}
-                                        title="ตำแหน่ง GPS ปัจจุบัน"
-                                    />
-                                    {markerPos && (
-                                        <Marker position={markerPos} animation={window.google.maps.Animation.DROP} draggable={true} onDragEnd={(e) => handleMapClick({ latLng: e.latLng })} />
-                                    )}
+                                    <Circle center={userLocation} radius={500} options={{ fillColor: "#10b981", fillOpacity: 0.15, strokeColor: "#10b981", strokeOpacity: 0.8, strokeWeight: 2, clickable: false }} />
+                                    <Marker position={userLocation} icon={{ path: window.google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#3b82f6", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 2 }} title="ตำแหน่งปัจจุบัน" />
+                                    {markerPos && <Marker position={markerPos} animation={window.google.maps.Animation.DROP} draggable={true} onDragEnd={(e) => handleMapClick({ latLng: e.latLng })} />}
                                 </GoogleMap>
                             )}
-                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(255,255,255,0.9)', padding: '10px 15px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', borderTop: '1px solid #e2e8f0' }}>
-                                <MapPin size={16} color={markerPos ? "#10b981" : "#ef4444"} />
-                                {markerPos ? (
-                                    <span style={{ color: '#10b981', fontWeight: 'bold' }}>พิกัดที่ปักหมุด: {markerPos.lat.toFixed(5)}, {markerPos.lng.toFixed(5)}</span>
-                                ) : (
-                                    <span style={{ color: '#ef4444', fontWeight: 'bold' }}>กรุณาคลิกบนแผนที่เพื่อปักหมุดหมู่บ้าน</span>
-                                )}
-                            </div>
                         </div>
 
-                        {/* ข้อมูลบัญชีผู้ใหญ่บ้าน */}
+                        {/* 2. ข้อมูลบัญชีผู้ใหญ่บ้าน */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                             <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px', marginTop: '10px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
                                     <User size={18} className="text-blue-500"/> <strong style={{fontSize: '15px'}}>2. บัญชีเข้าใช้งาน (ผู้ใหญ่บ้าน)</strong>
                                 </div>
                             </div>
+                            
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <label className={labelStyle}>เบอร์โทรศัพท์ (ใช้เป็น Username สำหรับเข้าระบบ) *</label>
+                                <input required type="tel" name="phone_number" value={formData.phone_number} onChange={handlePhoneChange} maxLength={10} placeholder="08xxxxxxxx (10 หลัก)" className={`${inputStyle} border-blue-400 bg-blue-50`} />
+                            </div>
 
                             <div style={{ gridColumn: '1 / -1' }}>
-                                <label className={labelStyle}>เลขบัตรประชาชน (ใช้เป็น Username) *</label>
-                                <input required type="text" value={formData.citizen_id} onChange={formatCitizenId} maxLength={17} placeholder="x-xxxx-xxxxx-xx-x" className={inputStyle} />
+                                <label className={labelStyle}>เลขบัตรประชาชน (ตัวเลือก)</label>
+                                <input type="text" value={formData.citizen_id} onChange={formatCitizenId} maxLength={17} placeholder="x-xxxx-xxxxx-xx-x" className={inputStyle} />
                             </div>
                             <div><label className={labelStyle}>ชื่อจริง *</label><input required type="text" name="first_name" onChange={handleChange} className={inputStyle} /></div>
                             <div><label className={labelStyle}>นามสกุล *</label><input required type="text" name="last_name" onChange={handleChange} className={inputStyle} /></div>
-                            <div><label className={labelStyle}>ชื่อเรียก / ตำแหน่ง</label><input type="text" name="nickname" onChange={handleChange} placeholder="เช่น ผู้ใหญ่สมชาย" className={inputStyle} /></div>
-                            <div><label className={labelStyle}>เบอร์โทรศัพท์ *</label><input required type="tel" name="phone_number" onChange={handleChange} className={inputStyle} /></div>
+                            <div style={{ gridColumn: '1 / -1' }}><label className={labelStyle}>ชื่อเรียก / ตำแหน่ง</label><input type="text" name="nickname" onChange={handleChange} placeholder="เช่น ผู้ใหญ่สมชาย" className={inputStyle} /></div>
                             
                             <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
-                                <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}><Key size={16}/> ตั้งรหัสผ่าน</h4>
+                                <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}><Key size={16}/> ตั้งรหัสผ่าน (ภาษาอังกฤษและตัวเลขเท่านั้น)</h4>
+                                
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                    <div><input required type="password" name="password" onChange={handleChange} placeholder="รหัสผ่าน" className={inputStyle} /></div>
-                                    <div><input required type="password" name="confirm_password" onChange={handleChange} placeholder="ยืนยันรหัสผ่านอีกครั้ง" className={inputStyle} /></div>
+                                    <div className="relative">
+                                        <input required type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handlePasswordChange} placeholder="รหัสผ่าน" className={inputStyle} />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="relative">
+                                        <input required type={showConfirmPassword ? "text" : "password"} name="confirm_password" value={formData.confirm_password} onChange={handlePasswordChange} placeholder="ยืนยันรหัสผ่านอีกครั้ง" className={`${inputStyle} ${formData.confirm_password && formData.password !== formData.confirm_password ? 'border-red-500 bg-red-50' : ''}`} />
+                                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                                            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        </button>
+                                    </div>
                                 </div>
+                                {formData.confirm_password && formData.password !== formData.confirm_password && (
+                                    <p className="text-red-500 text-xs mt-1 font-bold">รหัสผ่านไม่ตรงกัน</p>
+                                )}
                             </div>
+                        </div>
+
+                        {/* 🌟 3. ระบบผู้แนะนำ (Affiliate) */}
+                        <div style={{ marginTop: '30px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                            <h4 style={{ fontSize: '14px', fontWeight: 'bold', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                                <Users size={18}/> 3. ผู้แนะนำการใช้งาน (เพื่อรับสิทธิ์แชร์รายได้ระบบ)
+                            </h4>
+                            <p className="text-xs text-slate-500 mb-3">หากมีผู้ใหญ่บ้านท่านอื่นแนะนำคุณมา กรุณากรอกเบอร์โทรศัพท์ของท่าน เพื่อให้ท่านได้รับสิทธิ์ส่วนแบ่งรายได้จากระบบ</p>
+                            
+                            <input 
+                                type="tel" 
+                                maxLength={10} 
+                                placeholder="เบอร์โทรศัพท์ผู้แนะนำ 10 หลัก (ถ้ามี)" 
+                                className={inputStyle}
+                                value={referrerPhone}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '');
+                                    setReferrerPhone(val);
+                                    if(val.length === 10) checkReferrer(val);
+                                    else setReferrerInfo(null);
+                                }}
+                            />
+                            
+                            {isCheckingReferrer && <p className="text-xs text-blue-500 mt-2 font-bold flex items-center gap-1"><RefreshCcw size={12} className="animate-spin"/> กำลังค้นหาข้อมูลผู้แนะนำ...</p>}
+                            
+                            {/* แสดงกล่องข้อมูลเมื่อเจอผู้แนะนำ */}
+                            {referrerInfo && !referrerInfo.notFound && (
+                                <div className="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 animate-fade-in">
+                                    <CheckCircle className="text-emerald-500 mt-1" size={24} />
+                                    <div>
+                                        <div className="text-sm font-bold text-emerald-800">ผู้แนะนำ: {referrerInfo.nickname || `${referrerInfo.first_name} ${referrerInfo.last_name}`}</div>
+                                        <div className="text-xs text-emerald-600 mt-1">
+                                            หมู่บ้าน: {referrerInfo.village_name || 'ไม่ระบุชื่อหมู่บ้าน'} {referrerInfo.village_no && `(หมู่ ${referrerInfo.village_no})`}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* แสดงข้อความเตือนเมื่อไม่เจอ */}
+                            {referrerInfo && referrerInfo.notFound && (
+                                <div className="mt-2 text-xs text-red-500 font-bold flex items-center gap-1">
+                                    <XCircle size={14}/> ไม่พบข้อมูลบัญชีผู้แนะนำจากเบอร์โทรศัพท์นี้
+                                </div>
+                            )}
                         </div>
 
                         <button type="submit" disabled={isSubmitting} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '16px', marginTop: '30px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.4)' }}>
