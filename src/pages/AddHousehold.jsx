@@ -14,7 +14,6 @@ const AddHousehold = () => {
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   
-  // 🌟 State ต่างๆ ต้องอยู่ภายในฟังก์ชันนี้เท่านั้น
   const [progress, setProgress] = useState({ target_houses: 0, actual_houses: 0, target_population: 0, actual_population: 0 });
 
   const [mapInstance, setMapInstance] = useState(null);
@@ -25,7 +24,6 @@ const AddHousehold = () => {
   
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY });
 
-  // 🌟 ฟังก์ชันโหลดแผนที่ (แก้ปัญหา onMapLoad is not defined)
   const onMapLoad = useCallback((map) => setMapInstance(map), []);
   const onMapUnmount = useCallback(() => setMapInstance(null), []);
 
@@ -44,6 +42,17 @@ const AddHousehold = () => {
       nationality: 'THAI', origin_location: '', is_foreigner: false 
   };
   const [newMember, setNewMember] = useState(initialMemberState);
+
+  // 🌟 ข้อมูลสำหรับ Dropdown วันเกิดภาษาไทย
+  const currentYearBE = new Date().getFullYear() + 543;
+  const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+  
+  // แกะค่าวันเดือนปีเดิมออกมาเพื่อแสดงผล
+  const dobParts = (newMember.date_of_birth || '').split('-');
+  const dobY = dobParts[0] || '';
+  const dobM = dobParts[1] || '';
+  const dobD = dobParts[2] || '';
+  const displayYearBE = dobY ? parseInt(dobY) + 543 : '';
 
   useEffect(() => {
      fetchProgress();
@@ -153,18 +162,40 @@ const AddHousehold = () => {
       }
   };
 
+  // 🌟 ฟังก์ชันจัดการวันที่ไทย
+  const handleThaiDateChange = (type, value) => {
+      let d = dobD, m = dobM, y = dobY;
+      
+      if (type === 'day') d = value ? value.padStart(2, '0') : '';
+      if (type === 'month') m = value ? value.padStart(2, '0') : '';
+      if (type === 'year') y = value ? (parseInt(value) - 543).toString() : '';
+
+      handleNewMemberChange('date_of_birth', `${y}-${m}-${d}`);
+  };
+
   const saveMember = async (e) => {
       e.preventDefault();
       if(!currentHouse) return alert("กรุณาบันทึกบ้านก่อน");
-      if(!newMember.is_foreigner && newMember.citizen_id && newMember.citizen_id.length !== 17) {
-          return alert("เลขบัตรประชาชนต้องครบ 13 หลัก");
+      if(!newMember.is_foreigner && newMember.citizen_id && newMember.citizen_id.length !== 17 && newMember.citizen_id !== '') {
+          return alert("เลขบัตรประชาชนต้องครบ 13 หลัก (หรือเว้นว่างไว้ถ้าไม่มี)");
+      }
+
+      // 🌟 ตรวจสอบว่ากรอกวันเกิดครบไหม
+      let finalDob = null;
+      if (newMember.date_of_birth && newMember.date_of_birth !== '--') {
+          if (dobY && dobM && dobD) {
+              finalDob = newMember.date_of_birth;
+          } else if (dobY || dobM || dobD) {
+              return alert("กรุณาเลือก วัน/เดือน/ปีเกิด ให้ครบถ้วน (หรือปล่อยว่างไว้ทั้ง 3 ช่อง)");
+          }
       }
 
       setIsSavingMember(true);
       try {
+          const payload = { ...newMember, date_of_birth: finalDob };
           const res = await fetch(`${API_URL}/api/households/${currentHouse.household_id}/members`, {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(newMember)
+              body: JSON.stringify(payload)
           });
           const data = await res.json();
           if(data.success) {
@@ -185,7 +216,6 @@ const AddHousehold = () => {
       
       <div style={{ padding: '80px 20px 100px 20px', maxWidth: '900px', margin: '0 auto' }}>
         
-        {/* 🌟 0. แถบความคืบหน้า */}
         <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                 <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '50%', color: '#3b82f6' }}>
@@ -214,7 +244,6 @@ const AddHousehold = () => {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
             
-            {/* 🌟 1. ค้นหาและบันทึกบ้าน */}
             <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: currentHouse ? '2px solid #10b981' : '1px solid #e2e8f0' }}>
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px', marginTop: 0, color: '#0f172a' }}>
                     <Home size={20} className={currentHouse ? "text-emerald-500" : "text-blue-600"}/> 1. ระบุบ้านเลขที่และสถานที่ตั้ง
@@ -268,7 +297,6 @@ const AddHousehold = () => {
                 )}
             </div>
 
-            {/* 🌟 2. เพิ่มประชากร */}
             {currentHouse && (
                 <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }} className="animate-fade-in-up">
                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px', marginTop: 0, color: '#0f172a' }}>
@@ -309,14 +337,35 @@ const AddHousehold = () => {
 
                                 <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ชื่อจริง *</label><input required type="text" value={newMember.first_name} onChange={(e) => handleNewMemberChange('first_name', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} /></div>
                                 <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>นามสกุล *</label><input required type="text" value={newMember.last_name} onChange={(e) => handleNewMemberChange('last_name', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} /></div>
-                                <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ชื่อเล่น</label><input type="text" value={newMember.nickname} onChange={(e) => handleNewMemberChange('nickname', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} /></div>
+                                <div><label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ชื่อเล่น (ตัวเลือก)</label><input type="text" value={newMember.nickname} onChange={(e) => handleNewMemberChange('nickname', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} /></div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>เพศ</label>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>เพศ (ตัวเลือก)</label>
                                     <select value={newMember.gender} onChange={(e) => handleNewMemberChange('gender', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
                                         <option value="">- เลือก -</option><option value="MALE">ชาย</option><option value="FEMALE">หญิง</option><option value="OTHER">อื่นๆ</option>
                                     </select>
                                 </div>
-                                <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>วันเกิด</label><input type="date" value={newMember.date_of_birth} onChange={(e) => handleNewMemberChange('date_of_birth', e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} /></div>
+                                
+                                {/* 🌟 กล่องเลือกวันเกิดภาษาไทย 3 ช่อง */}
+                                <div style={{ gridColumn: '1 / -1' }}>
+                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>วัน/เดือน/ปีเกิด (ตัวเลือก)</label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <select value={dobD} onChange={(e) => handleThaiDateChange('day', e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
+                                            <option value="">- วัน -</option>
+                                            {[...Array(31)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                                        </select>
+                                        <select value={dobM} onChange={(e) => handleThaiDateChange('month', e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
+                                            <option value="">- เดือน -</option>
+                                            {thaiMonths.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                                        </select>
+                                        <select value={displayYearBE} onChange={(e) => handleThaiDateChange('year', e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: 'white' }}>
+                                            <option value="">- ปี พ.ศ. -</option>
+                                            {[...Array(120)].map((_, i) => {
+                                                const year = currentYearBE - i;
+                                                return <option key={year} value={year}>{year}</option>
+                                            })}
+                                        </select>
+                                    </div>
+                                </div>
                                 
                                 <div>
                                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>ประเภทผู้อยู่อาศัย *</label>
