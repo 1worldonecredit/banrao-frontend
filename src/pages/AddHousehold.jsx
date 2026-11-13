@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useJsApiLoader, GoogleMap, Marker } from '@react-google-maps/api';
-import { ArrowLeft, Home, Users, UserPlus, Save, Map, Search, CheckCircle, RefreshCcw, BarChart2, ChevronDown, ChevronUp, UserMinus, FileText } from 'lucide-react';
+import { ArrowLeft, Home, Users, UserPlus, Save, Map, Search, CheckCircle, RefreshCcw, BarChart2, ChevronDown, ChevronUp, UserMinus, FileText, Edit2 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
@@ -13,10 +13,14 @@ const AddHousehold = () => {
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   
+  // 🌟 State ข้อมูลเป้าหมาย (Targets)
   const [progress, setProgress] = useState({ target_houses: 0, actual_houses: 0, target_population: 0, actual_population: 0 });
-  const [householdsList, setHouseholdsList] = useState([]); // รายการทะเบียนบ้าน
-  const [expandedHouseId, setExpandedHouseId] = useState(null); // ควบคุมการเปิด/ปิด Card บ้าน
-  const [houseMembersList, setHouseMembersList] = useState({}); // เก็บลูกบ้านของแต่ละ Card
+  const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const [targetInputs, setTargetInputs] = useState({ target_houses: '', target_population: '' });
+
+  const [householdsList, setHouseholdsList] = useState([]);
+  const [expandedHouseId, setExpandedHouseId] = useState(null);
+  const [houseMembersList, setHouseMembersList] = useState({});
 
   const [mapInstance, setMapInstance] = useState(null);
   const [markerPos, setMarkerPos] = useState(null);
@@ -59,15 +63,36 @@ const AddHousehold = () => {
      if(isLoaded) fetchLocation();
   }, [isLoaded]);
 
+  // 🌟 1. ฟังก์ชันดึงและบันทึกเป้าหมาย (Targets)
   const fetchProgress = async () => {
       if(!userData.village_id) return;
       try {
           const res = await fetch(`${API_URL}/api/villages/${userData.village_id}/progress`);
           const data = await res.json();
-          if(data.success) setProgress(data.data);
+          if(data.success) {
+              setProgress(data.data);
+              setTargetInputs({ target_houses: data.data.target_houses || 0, target_population: data.data.target_population || 0 });
+          }
       } catch(e) {}
   };
 
+  const saveTargets = async () => {
+      if(!userData.village_id) return;
+      try {
+          const res = await fetch(`${API_URL}/api/villages/${userData.village_id}/targets`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(targetInputs)
+          });
+          const data = await res.json();
+          if(data.success) {
+              setIsEditingTarget(false);
+              fetchProgress(); // รีเฟรชข้อมูลแถบความคืบหน้า
+              alert("บันทึกเป้าหมายสำเร็จ!");
+          }
+      } catch(e) { alert("บันทึกเป้าหมายล้มเหลว"); }
+  };
+
+  // 🌟 2. ดึงรายการบ้านเข้า "สมุดทะเบียนบ้าน"
   const fetchHouseholdsList = async () => {
       if(!userData.village_id) return;
       try {
@@ -111,7 +136,12 @@ const AddHousehold = () => {
           const payload = { village_id: userData.village_id, house_no: searchHouseNo, latitude: markerPos.lat, longitude: markerPos.lng, occupancy_status: houseData.occupancy_status, created_by: userData.id };
           const res = await fetch(`${API_URL}/api/households/single`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
           const data = await res.json();
-          if(data.success) { setCurrentHouse(data.data); fetchProgress(); fetchHouseholdsList(); alert("บันทึกที่ตั้งบ้านสำเร็จ!"); }
+          if(data.success) { 
+              setCurrentHouse(data.data); 
+              fetchProgress(); 
+              fetchHouseholdsList(); // โหลดเข้าสมุดทะเบียนบ้านทันที
+              alert("บันทึกที่ตั้งบ้านสำเร็จ! (คุณสามารถเพิ่มประชากร หรือปล่อยเป็นบ้านว่างไว้ก่อนได้)"); 
+          }
       } catch(e) {}
       setIsSavingHouse(false);
   };
@@ -127,7 +157,7 @@ const AddHousehold = () => {
       } catch(e) {}
   };
 
-  // 🌟 ฟังก์ชันแจ้งเปลี่ยนสถานะ (ย้ายออก / เสียชีวิต)
+  // 🌟 3. ฟังก์ชันแจ้งเปลี่ยนสถานะ (เกิด / ย้ายออก / เสียชีวิต)
   const updateMemberStatus = async (memberId, statusName, householdId) => {
       if(!confirm(`ยืนยันการแจ้ง ${statusName === 'MOVED_AWAY' ? 'ย้ายออก' : 'เสียชีวิต'} ?`)) return;
       try {
@@ -137,8 +167,8 @@ const AddHousehold = () => {
           });
           const data = await res.json();
           if(data.success) {
-              fetchMembers(householdId, true); // รีเฟรชข้อมูลลูกบ้านใน Card
-              fetchProgress(); // อัปเดตสถิติ
+              fetchMembers(householdId, true); // รีเฟรชข้อมูลลูกบ้านใน Card สมุด
+              fetchProgress(); // อัปเดตสถิติยอดรวม
           }
       } catch(e) {}
   };
@@ -161,7 +191,6 @@ const AddHousehold = () => {
       else setNewMember({ ...newMember, [field]: value });
   };
 
-  // 🌟 แก้ไขบัคเดือน เลือกไม่ได้แล้วครับ (เติม .padStart(2, '0') ให้ตรงกับ value)
   const handleThaiDateChange = (type, value) => {
       let d = dobD, m = dobM, y = dobY;
       if (type === 'day') d = value ? value.padStart(2, '0') : '';
@@ -194,15 +223,12 @@ const AddHousehold = () => {
   };
 
   // ==========================================
-  // 🎨 ตั้งค่า CSS Classes ล่วงหน้า เพื่อให้แก้ไขสีง่าย
+  // 🎨 Themes & Classes
   // ==========================================
   const theme = {
-      // สีพื้นหลังโปร่งแสงแบบกระจก (Glassmorphism)
       glassCard: "bg-white/90 backdrop-blur-md border border-white/50 shadow-lg rounded-2xl",
-      // สีปุ่มหลัก
       btnPrimary: "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/30 transition-all rounded-xl",
       btnSuccess: "bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/30 transition-all rounded-xl",
-      // หัวข้อต่างๆ
       headingText: "text-slate-800 font-bold",
       subText: "text-slate-500 text-xs",
       inputField: "w-full p-3 rounded-xl border border-slate-200 bg-white/70 focus:bg-white focus:ring-2 focus:ring-blue-400 outline-none transition-all"
@@ -216,36 +242,55 @@ const AddHousehold = () => {
       
       <div className="pt-24 px-4 max-w-4xl mx-auto space-y-6">
         
-        {/* 🌟 0. แถบความคืบหน้า (Progress) */}
-        <div className={`${theme.glassCard} p-5 flex justify-between items-center`}>
+        {/* 🌟 1. แถบตั้งค่าเป้าหมายและสถิติ (Target & Progress) */}
+        <div className={`${theme.glassCard} p-6 flex flex-col md:flex-row justify-between md:items-center gap-4 border-l-4 border-l-blue-500`}>
             <div className="flex items-center gap-4">
                 <div className="bg-blue-100 p-3 rounded-full text-blue-600"><BarChart2 size={24} /></div>
                 <div>
-                    <h3 className={theme.headingText}>ความคืบหน้าของพื้นที่</h3>
-                    <p className={theme.subText}>ข้อมูลจากภาครัฐเทียบกับลงพื้นที่จริง</p>
+                    <h3 className={theme.headingText}>เป้าหมายการลงพื้นที่</h3>
+                    <p className={theme.subText}>กำหนดเป้าหมายจากข้อมูลอำเภอ (บันทึกครั้งเดียว)</p>
                 </div>
             </div>
-            <div className="flex gap-6 text-right">
-                <div>
-                    <div className={theme.subText}>บ้าน/หลังคาเรือน</div>
-                    <div className={`text-xl font-black ${progress.actual_houses >= progress.target_houses ? 'text-emerald-500' : 'text-amber-500'}`}>
-                        {progress.actual_houses} <span className="text-sm text-slate-400">/ {progress.target_houses || 0}</span>
+            
+            {isEditingTarget ? (
+                <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div>
+                        <label className={theme.subText}>เป้าหมาย: บ้าน (หลัง)</label>
+                        <input type="number" value={targetInputs.target_houses} onChange={(e) => setTargetInputs({...targetInputs, target_houses: e.target.value})} className="w-full p-2 border rounded-lg" />
+                    </div>
+                    <div>
+                        <label className={theme.subText}>เป้าหมาย: ประชากร (คน)</label>
+                        <input type="number" value={targetInputs.target_population} onChange={(e) => setTargetInputs({...targetInputs, target_population: e.target.value})} className="w-full p-2 border rounded-lg" />
+                    </div>
+                    <div className="flex gap-2 items-end">
+                        <button onClick={saveTargets} className="p-2 bg-emerald-500 text-white rounded-lg font-bold w-full"><Save size={18}/></button>
+                        <button onClick={() => setIsEditingTarget(false)} className="p-2 bg-slate-200 text-slate-600 rounded-lg font-bold w-full">ยกเลิก</button>
                     </div>
                 </div>
-                <div>
-                    <div className={theme.subText}>ประชากรรวม</div>
-                    <div className={`text-xl font-black ${progress.actual_population >= progress.target_population ? 'text-emerald-500' : 'text-blue-500'}`}>
-                        {progress.actual_population} <span className="text-sm text-slate-400">/ {progress.target_population || 0}</span>
+            ) : (
+                <div className="flex gap-6 text-right items-center">
+                    <div>
+                        <div className={theme.subText}>บ้าน/หลังคาเรือน</div>
+                        <div className={`text-xl font-black ${progress.actual_houses >= progress.target_houses ? 'text-emerald-500' : 'text-amber-500'}`}>
+                            {progress.actual_houses} <span className="text-sm text-slate-400">/ {progress.target_houses || 0}</span>
+                        </div>
                     </div>
+                    <div>
+                        <div className={theme.subText}>ประชากรรวม</div>
+                        <div className={`text-xl font-black ${progress.actual_population >= progress.target_population ? 'text-emerald-500' : 'text-blue-500'}`}>
+                            {progress.actual_population} <span className="text-sm text-slate-400">/ {progress.target_population || 0}</span>
+                        </div>
+                    </div>
+                    <button onClick={() => setIsEditingTarget(true)} className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all"><Edit2 size={16}/></button>
                 </div>
-            </div>
+            )}
         </div>
 
-        {/* 🌟 1. ฟอร์มค้นหาและบันทึกบ้าน */}
-        <div className={`${theme.glassCard} p-6 border-l-4 ${currentHouse ? 'border-l-emerald-500' : 'border-l-blue-500'}`}>
+        {/* 🌟 2. ฟอร์มค้นหาและบันทึกบ้าน */}
+        <div className={`${theme.glassCard} p-6 border-l-4 ${currentHouse ? 'border-l-emerald-500' : 'border-l-indigo-500'}`}>
             <h3 className={`flex items-center gap-2 pb-4 border-b border-slate-100 ${theme.headingText}`}>
-                <Home size={20} className={currentHouse ? "text-emerald-500" : "text-blue-500"}/> 
-                1. ระบุบ้านเลขที่และสถานที่ตั้ง
+                <Home size={20} className={currentHouse ? "text-emerald-500" : "text-indigo-500"}/> 
+                บันทึกบ้านเลขที่และสถานที่ตั้ง
             </h3>
             
             <form onSubmit={handleSearch} className="flex gap-3 mt-4">
@@ -284,11 +329,11 @@ const AddHousehold = () => {
             )}
         </div>
 
-        {/* 🌟 2. ฟอร์มเพิ่มประชากร (จะขึ้นเมื่อพบบ้าน) */}
+        {/* 🌟 3. ฟอร์มเพิ่มประชากร (จะขึ้นเมื่อพบบ้าน) */}
         {currentHouse && (
             <div className={`${theme.glassCard} p-6 border-l-4 border-l-purple-500 animate-fade-in-up`}>
                 <h3 className={`flex items-center gap-2 pb-4 border-b border-slate-100 ${theme.headingText}`}>
-                    <Users size={20} className="text-purple-500"/> 2. รายชื่อประชากรในบ้าน {currentHouse.house_no}
+                    <Users size={20} className="text-purple-500"/> รายชื่อประชากรในบ้าน {currentHouse.house_no}
                 </h3>
                 
                 {existingMembers.length > 0 && (
@@ -306,8 +351,8 @@ const AddHousehold = () => {
                     </div>
                 )}
 
-                <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-5 mt-4">
-                    <h4 className="flex items-center gap-2 text-emerald-700 font-bold mb-4"><UserPlus size={18}/> เพิ่มประชากรใหม่เข้าบ้านนี้</h4>
+                <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-5 mt-4">
+                    <h4 className="flex items-center gap-2 text-purple-700 font-bold mb-4"><UserPlus size={18}/> เพิ่มประชากรใหม่เข้าบ้านนี้ (แจ้งเกิด / ย้ายเข้า)</h4>
                     <form onSubmit={saveMember} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="col-span-full flex items-center gap-2">
                             <input type="checkbox" id="is_foreigner" checked={newMember.is_foreigner} onChange={(e) => handleNewMemberChange('is_foreigner', e.target.checked)} className="w-4 h-4 cursor-pointer" />
@@ -346,7 +391,7 @@ const AddHousehold = () => {
             </div>
         )}
 
-        {/* 🌟 3. Card ทะเบียนบ้านเลขที่ (ใหม่ล่าสุด) แสดง 10 รายการ และจัดการลูกบ้าน */}
+        {/* 🌟 4. สมุดทะเบียนบ้าน (มีปุ่มแก้ไข, ย้ายออก, เสียชีวิต) */}
         <div className={`${theme.glassCard} p-6 border-t-4 border-t-amber-400`}>
             <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-100">
                 <h3 className={`flex items-center gap-2 ${theme.headingText}`}><FileText size={20} className="text-amber-500"/> สมุดทะเบียนบ้าน (10 ล่าสุด)</h3>
@@ -355,10 +400,13 @@ const AddHousehold = () => {
             <div className="space-y-3">
                 {householdsList.map((house) => (
                     <div key={house.household_id} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden transition-all">
-                        {/* 🌟 Header ของแต่ละบ้าน (กดเพื่อขยาย) */}
+                        
                         <div onClick={() => toggleHouseCard(house.household_id)} className="p-4 cursor-pointer hover:bg-slate-50 flex justify-between items-center">
                             <div>
-                                <div className="text-lg font-black text-slate-800">บ้านเลขที่ {house.house_no}</div>
+                                <div className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                    บ้านเลขที่ {house.house_no}
+                                    {house.total_members === "0" && <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">บ้านว่าง</span>}
+                                </div>
                                 <div className="text-xs text-slate-500">จำนวนผู้อยู่อาศัย: {house.total_members} คน</div>
                             </div>
                             <div className="bg-amber-100 p-2 rounded-full text-amber-600">
@@ -366,16 +414,13 @@ const AddHousehold = () => {
                             </div>
                         </div>
 
-                        {/* 🌟 Body (ขยายออกเมื่อกด) */}
                         {expandedHouseId === house.household_id && (
                             <div className="p-4 border-t border-slate-100 bg-slate-50/50 space-y-3 animate-fade-in">
                                 
-                                {/* ปุ่มแจ้งเกิด / เพิ่มคน */}
-                                <button onClick={() => { setCurrentHouse(house); window.scrollTo({top: 0, behavior: 'smooth'}); }} className="w-full py-2 bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 flex items-center justify-center gap-2 text-sm">
-                                    <UserPlus size={16}/> แจ้งเพิ่มคนเข้าบ้านนี้
+                                <button onClick={() => { setSearchHouseNo(house.house_no); setCurrentHouse(house); window.scrollTo({top: 0, behavior: 'smooth'}); }} className="w-full py-2 bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 flex items-center justify-center gap-2 text-sm">
+                                    <UserPlus size={16}/> แจ้งเกิด / เพิ่มประชากรเข้าบ้านนี้
                                 </button>
 
-                                {/* รายชื่อลูกบ้าน และปุ่มอัปเดตสถานะ */}
                                 {houseMembersList[house.household_id]?.map((member, idx) => (
                                     <div key={idx} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between md:items-center gap-3">
                                         <div>
@@ -383,10 +428,14 @@ const AddHousehold = () => {
                                                 {member.first_name} {member.last_name} 
                                                 {member.is_head_of_household && <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px]">เจ้าบ้าน</span>}
                                             </div>
-                                            <div className="text-xs text-slate-500">สถานะ: {member.living_status === 'LIVING_HERE' ? 'อยู่จริง' : member.living_status === 'MOVED_AWAY' ? 'ย้ายออกไปแล้ว' : 'เสียชีวิต'}</div>
+                                            <div className="text-xs text-slate-500">
+                                                สถานะ: <span className={member.living_status === 'LIVING_HERE' ? 'text-emerald-600' : member.living_status === 'MOVED_AWAY' ? 'text-amber-600' : 'text-red-600'}>
+                                                    {member.living_status === 'LIVING_HERE' ? 'อยู่จริง' : member.living_status === 'MOVED_AWAY' ? 'ย้ายออกไปแล้ว' : 'เสียชีวิต'}
+                                                </span>
+                                            </div>
                                         </div>
                                         
-                                        {/* ปุ่ม แจ้งย้ายออก / เสียชีวิต (แสดงเฉพาะคนที่ยังมีชีวิตและอาศัยอยู่) */}
+                                        {/* 🌟 ปุ่มแจ้งย้ายออก / เสียชีวิต */}
                                         {member.living_status === 'LIVING_HERE' && (
                                             <div className="flex gap-2">
                                                 <button onClick={() => updateMemberStatus(member.member_id, 'MOVED_AWAY', house.household_id)} className="px-3 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded text-xs font-bold flex items-center gap-1 hover:bg-amber-100 transition-all">
