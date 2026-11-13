@@ -232,9 +232,9 @@ return (
               </div>
             </div>
 
-            {/* --- Card 2: ข้อมูลพื้นที่รับผิดชอบ (ปรับเป็น Glassmorphism และเพิ่มวาระ) --- */}
+            
             {/* --- Card 2: ข้อมูลพื้นที่รับผิดชอบ (ปรับให้ฉลาดขึ้น แยกผู้บริหาร กับ ประชาชน) --- */}
-           // นำโค้ดนี้ไปแทนที่ Card 2 เดิมใน Dashboard.jsx
+         
 <div 
   style={{ 
     backgroundColor: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(12px)', borderRadius: '16px', padding: '16px', 
