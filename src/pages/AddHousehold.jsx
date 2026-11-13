@@ -1,40 +1,42 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useJsApiLoader, GoogleMap, Marker } from '@react-google-maps/api';
-import { ArrowLeft, Home, Users, MapPin, Save, Map, Search, CheckCircle, RefreshCcw, BarChart2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Home, Users, UserPlus, MapPin, Save, Map, Search, CheckCircle, RefreshCcw, BarChart2, Trash2 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
-const onMapLoad = useCallback((map) => setMapInstance(map), []);
-  const onMapUnmount = useCallback(() => setMapInstance(null), []);
+
 const mapContainerStyle = { width: '100%', height: '350px', borderRadius: '12px' };
 
 const AddHousehold = () => {
   const navigate = useNavigate();
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   
-  // 🌟 Progress State
+  // 🌟 State ต่างๆ ต้องอยู่ภายในฟังก์ชันนี้เท่านั้น
   const [progress, setProgress] = useState({ target_houses: 0, actual_houses: 0, target_population: 0, actual_population: 0 });
 
-  // 🌟 Map State
   const [mapInstance, setMapInstance] = useState(null);
   const [markerPos, setMarkerPos] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(true);
   const [mapStatus, setMapStatus] = useState("กำลังดึงตำแหน่ง...");
+  
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: GOOGLE_MAPS_API_KEY });
 
-  // 🌟 Household State
+  // 🌟 ฟังก์ชันโหลดแผนที่ (แก้ปัญหา onMapLoad is not defined)
+  const onMapLoad = useCallback((map) => setMapInstance(map), []);
+  const onMapUnmount = useCallback(() => setMapInstance(null), []);
+
   const [searchHouseNo, setSearchHouseNo] = useState('');
   const [currentHouse, setCurrentHouse] = useState(null); 
   const [houseData, setHouseData] = useState({ occupancy_status: 'OWNER_OCCUPIED' });
   const [isSavingHouse, setIsSavingHouse] = useState(false);
 
-  // 🌟 Members State
   const [existingMembers, setExistingMembers] = useState([]); 
   const [isSavingMember, setIsSavingMember] = useState(false);
+  
   const initialMemberState = { 
       citizen_id: '', first_name: '', last_name: '', nickname: '', 
       date_of_birth: '', gender: '', is_head_of_household: false, 
@@ -43,9 +45,6 @@ const AddHousehold = () => {
   };
   const [newMember, setNewMember] = useState(initialMemberState);
 
-  // ----------------------------------------
-  // 1. โหลดข้อมูลเริ่มต้น
-  // ----------------------------------------
   useEffect(() => {
      fetchProgress();
      if(isLoaded) fetchLocation();
@@ -78,9 +77,6 @@ const AddHousehold = () => {
       } else { setIsLocating(false); }
   };
 
-  // ----------------------------------------
-  // 2. การค้นหาและบันทึกบ้าน
-  // ----------------------------------------
   const handleSearch = async (e) => {
       e.preventDefault();
       if(!searchHouseNo.trim()) return alert("กรุณาพิมพ์บ้านเลขที่ก่อนค้นหา");
@@ -125,9 +121,6 @@ const AddHousehold = () => {
       setIsSavingHouse(false);
   };
 
-  // ----------------------------------------
-  // 3. การจัดการประชากร (Members)
-  // ----------------------------------------
   const fetchMembers = async (householdId) => {
       try {
           const res = await fetch(`${API_URL}/api/households/${householdId}/members`);
@@ -192,7 +185,7 @@ const AddHousehold = () => {
       
       <div style={{ padding: '80px 20px 100px 20px', maxWidth: '900px', margin: '0 auto' }}>
         
-        {/* 🌟 0. แถบความคืบหน้า (Progress Banner) */}
+        {/* 🌟 0. แถบความคืบหน้า */}
         <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                 <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '50%', color: '#3b82f6' }}>
@@ -221,7 +214,7 @@ const AddHousehold = () => {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
             
-            {/* 🌟 1. ค้นหาและบันทึกบ้าน (Household) */}
+            {/* 🌟 1. ค้นหาและบันทึกบ้าน */}
             <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: currentHouse ? '2px solid #10b981' : '1px solid #e2e8f0' }}>
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px', marginTop: 0, color: '#0f172a' }}>
                     <Home size={20} className={currentHouse ? "text-emerald-500" : "text-blue-600"}/> 1. ระบุบ้านเลขที่และสถานที่ตั้ง
@@ -239,7 +232,6 @@ const AddHousehold = () => {
                     )}
                 </form>
 
-                {/* 🌟 ถ้าค้นหาแล้วไม่เจอ ให้แสดงฟอร์มปักหมุดเพื่อบันทึกบ้าน */}
                 {!currentHouse && searchHouseNo && (
                     <div className="animate-fade-in">
                         <div style={{ marginBottom: '15px' }}>
@@ -276,7 +268,7 @@ const AddHousehold = () => {
                 )}
             </div>
 
-            {/* 🌟 2. เพิ่มประชากร (เฉพาะตอนที่บ้านถูกบันทึก/เลือกแล้ว) */}
+            {/* 🌟 2. เพิ่มประชากร */}
             {currentHouse && (
                 <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' }} className="animate-fade-in-up">
                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px', marginTop: 0, color: '#0f172a' }}>
@@ -301,7 +293,7 @@ const AddHousehold = () => {
                     )}
 
                     <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '15px' }}>
-                        <h4 style={{ margin: '0 0 15px 0', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>เพิ่มประชากรใหม่เข้าบ้านนี้</h4>
+                        <h4 style={{ margin: '0 0 15px 0', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}><UserPlus size={18}/> เพิ่มประชากรใหม่เข้าบ้านนี้</h4>
                         <form onSubmit={saveMember}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 
