@@ -8,8 +8,15 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 // ==========================================
 // 🌟 1. Component ก้อน Node
 // ==========================================
+// ==========================================
+// 🌟 1. Component ก้อน Node
+// ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   const hasUser = !!node.account_id;
+  
+  // 🌟 ดึงข้อมูลสิทธิ์จาก localStorage เพื่อใช้ซ่อน/แสดงปุ่ม
+  const currentUser = JSON.parse(localStorage.getItem('userData') || '{}');
+  const isAdmin = currentUser.role === 'HEADMAN' || currentUser.position_level === 'VILLAGE' || currentUser.isSuperAdmin;
 
   return (
     <div className="flex flex-col items-center">
@@ -31,36 +38,42 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
             {node.role_name || 'ตำแหน่งใหม่'}
           </span>
           <h3 className="font-bold text-slate-800 text-xs md:text-sm truncate w-full text-center">
-            {hasUser ? `${node.first_name} ${node.last_name}` : 'คลิกระบุบุคลากร'}
+            {hasUser ? `${node.first_name || ''} ${node.last_name || ''}` : 'คลิกระบุบุคลากร'}
           </h3>
           <p className="text-[10px] md:text-xs text-slate-500 mt-1 truncate w-full text-center">
             {node.responsibilities || 'ยังไม่ระบุหน้าที่'}
           </p>
 
-          <div className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
-             <button onClick={() => onEditNode(node)} className="p-1.5 bg-white/80 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-sm" title="แก้ไขข้อมูล">
-               <Edit size={14} />
-             </button>
-             {(!node.isRoot && hasUser) && (
-               <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white/80 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-sm" title="ลบบุคลากรออกจากตำแหน่ง">
-                 <Trash2 size={14} />
+          {/* 🌟 ซ่อนปุ่ม Edit/Delete มุมขวาบนถ้าไม่ใช่ Admin */}
+          {isAdmin && (
+            <div className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+               <button onClick={() => onEditNode(node)} className="p-1.5 bg-white/80 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-sm" title="แก้ไขข้อมูล">
+                 <Edit size={14} />
                </button>
-             )}
-          </div>
+               {(!node.isRoot && hasUser) && (
+                 <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white/80 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-sm" title="ลบบุคลากรออกจากตำแหน่ง">
+                   <Trash2 size={14} />
+                 </button>
+               )}
+            </div>
+          )}
         </div>
 
-        {hasUser ? (
-           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา (ลูกน้อง)">
-             <Plus size={14} />
-           </button>
-        ) : (
-           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
-             <Edit size={18} />
-           </button>
+        {/* 🌟 ซ่อนปุ่มเพิ่มคนตรงกลางล่างถ้าไม่ใช่ Admin */}
+        {isAdmin && (
+          hasUser ? (
+             <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา (ลูกน้อง)">
+               <Plus size={14} />
+             </button>
+          ) : (
+             <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
+               <Edit size={18} />
+             </button>
+          )
         )}
         
-        {/* 🌟 ปรับปุ่มซ้าย/ขวา ให้คลิกง่ายขึ้นและเด่นขึ้นเล็กน้อย */}
-        {!node.isRoot && (
+        {/* 🌟 ซ่อนปุ่มซ้าย/ขวาถ้าไม่ใช่ Admin */}
+        {isAdmin && !node.isRoot && (
            <>
              <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 md:-left-4 transform -translate-y-1/2 bg-white border border-slate-200 text-blue-600 rounded-full p-1.5 shadow-md opacity-40 group-hover:opacity-100 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all z-20" title="เพิ่มตำแหน่งระดับเดียวกัน">
                <Plus size={12} />
@@ -166,7 +179,7 @@ const CommunityLeaders = () => {
     } catch (error) { console.error("Error fetching committees:", error); }
   };
 
-  const fetchLeaders = async (dateQuery = '', committeeId) => {
+ const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
       const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
@@ -177,7 +190,23 @@ const CommunityLeaders = () => {
         const treeData = buildTree(result.data);
         setOrgTree(treeData);
       } else {
-        setOrgTree({ isRoot: true, role_name: 'ประธาน / หัวหน้าชุด', id: 'root-0', children: [] });
+        // 🌟 เช็คสิทธิ์ก่อนสร้างกล่อง Mock ของผู้ใหญ่บ้าน
+        const isAdmin = userData.role === 'HEADMAN' || userData.position_level === 'VILLAGE' || userData.isSuperAdmin;
+        if (isAdmin) {
+            setOrgTree({ 
+                isRoot: true, 
+                id: `mock-root-${userData.id || userData.account_id || 1}`, 
+                role_name: userData.position_name || 'ผู้ใหญ่บ้าน', 
+                account_id: userData.id || userData.account_id,
+                first_name: userData.firstName,
+                last_name: userData.lastName,
+                user_image: userData.userImage || '/profile-img.jpg',
+                responsibilities: 'ผู้นำสูงสุดของผังนี้',
+                children: [] 
+            });
+        } else {
+            setOrgTree({ isRoot: true, role_name: 'ยังไม่มีข้อมูลผังองค์กร', id: 'root-0', children: [] });
+        }
       }
     } catch (error) { console.error("Error fetching leaders:", error); }
   };
