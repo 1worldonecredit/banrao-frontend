@@ -7,9 +7,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 const ManagePopulation = () => {
   // 1. ดึงข้อมูล User จาก LocalStorage
-  const currentUser = JSON.parse(localStorage.getItem('userData')) || {};
+ const currentUser = JSON.parse(localStorage.getItem('userData')) || {};
   // 🌟 สมมติว่าใน userData มี scope_village_id เก็บไว้ (ถ้าไม่มี ให้ระบุ UUID ของหมู่บ้านเพื่อทดสอบก่อน)
-  const currentVillageId = currentUser.scope_village_id || 'ใส่_UUID_ของหมู่บ้านที่นี่_เพื่อทดสอบ'; 
+ const currentVillageId = currentUser.scope_village_id || '22845744-e5d7-42ff-a6fe-xxxxxxxxxxxx';
 
   const [households, setHouseholds] = useState([]);
   const [householdMembers, setHouseholdMembers] = useState([]);
