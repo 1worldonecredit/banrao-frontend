@@ -10,9 +10,6 @@ const ManagePopulation = () => {
   const [households, setHouseholds] = useState([]);
   const [householdMembers, setHouseholdMembers] = useState([]);
   const [selectedHousehold, setSelectedHousehold] = useState(null);
-  
-  // 🌟 นำ State กลับมาใช้เก็บข้อมูลพื้นที่จาก API
-  const [locationContext, setLocationContext] = useState(null);
 
   const [isLoadingHouses, setIsLoadingHouses] = useState(false);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
@@ -23,20 +20,31 @@ const ManagePopulation = () => {
     citizen_id: '', first_name: '', last_name: '', nickname: '', gender: '', date_of_birth: ''
   });
 
-  const currentUser = JSON.parse(localStorage.getItem('userData')) || {};
-  const currentVillageId = currentUser.village_id || currentUser.scope_village_id;
-
-  // 🌟 ฟังก์ชันดึงข้อมูลพื้นที่แบบเต็มจากฐานข้อมูล
-  const fetchLocationContext = async () => {
-    if (!currentVillageId) return;
+  // 1. ดึงข้อมูล User จาก LocalStorage อย่างปลอดภัย
+  const getUserData = () => {
     try {
-      const res = await fetch(`${API_URL}/api/location-context/${currentVillageId}`);
-      const result = await res.json();
-      if (result.success) setLocationContext(result.data);
+      const data = localStorage.getItem('userData');
+      return data ? JSON.parse(data) : {};
     } catch (error) {
-      console.error("Error fetching location context:", error);
+      console.error("Error parsing userData:", error);
+      return {};
     }
   };
+
+  const currentUser = getUserData();
+  const currentVillageId = currentUser?.village_id || currentUser?.scope_village_id;
+
+  // 2. สร้าง locationContext โดยดึงข้อมูลจาก currentUser
+  // หากไม่มีข้อมูล ให้แสดงข้อความ default แทน
+  const locationContext = {
+    village_no: currentUser?.village_no || 'ไม่ระบุหมู่',
+    village_name: currentUser?.village_name || 'ไม่ระบุหมู่บ้าน',
+    tambon_name_th: currentUser?.tambon_name_th || currentUser?.tambon_name || 'ไม่ระบุตำบล',
+    amphure_name_th: currentUser?.amphure_name_th || currentUser?.amphure_name || 'ไม่ระบุอำเภอ',
+    province_name_th: currentUser?.province_name_th || currentUser?.province_name || 'ไม่ระบุจังหวัด'
+  };
+
+  // 3. ลบ State และ ฟังก์ชันที่เกี่ยวกับ fetchLocationContext ออกทั้งหมด
 
   const fetchHouseholds = async () => {
     if (!currentVillageId) return;
@@ -72,10 +80,9 @@ const ManagePopulation = () => {
     }
   };
 
-  // 🌟 เรียกใช้ทั้ง 2 ฟังก์ชันเมื่อเปิดหน้ามา
+  // 4. เรียกใช้ฟังก์ชันที่เหลือเมื่อ component โหลด
   useEffect(() => {
-    fetchLocationContext(); 
-    fetchHouseholds();      
+    fetchHouseholds();
   }, [currentVillageId]);
 
   useEffect(() => {
@@ -83,7 +90,7 @@ const ManagePopulation = () => {
     else setHouseholdMembers([]);
   }, [selectedHousehold]);
 
-  
+    
   // ---------------------------------------------
   // ฟังก์ชันบันทึกข้อมูล
   // ---------------------------------------------
