@@ -6,17 +6,14 @@ import BottomNavbar from '../components/BottomNavbar';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 const ManagePopulation = () => {
-  // 1. ดึงข้อมูล User จาก LocalStorage
- const currentUser = JSON.parse(localStorage.getItem('userData')) || {};
-  // 🌟 สมมติว่าใน userData มี scope_village_id เก็บไว้ (ถ้าไม่มี ให้ระบุ UUID ของหมู่บ้านเพื่อทดสอบก่อน)
- const currentVillageId = currentUser.scope_village_id || '22845744-e5d7-42ff-a6fe-xxxxxxxxxxxx';
+
 
   const [households, setHouseholds] = useState([]);
   const [householdMembers, setHouseholdMembers] = useState([]);
   const [selectedHousehold, setSelectedHousehold] = useState(null);
   
   // 🌟 State สำหรับเก็บข้อมูลพื้นที่เต็มรูปแบบ
-  const [locationContext, setLocationContext] = useState(null);
+
 
   const [isLoadingHouses, setIsLoadingHouses] = useState(false);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
@@ -27,19 +24,25 @@ const ManagePopulation = () => {
     citizen_id: '', first_name: '', last_name: '', nickname: '', gender: '', date_of_birth: ''
   });
 
-  // ---------------------------------------------
-  // ฟังก์ชันดึงข้อมูล API
-  // ---------------------------------------------
-  const fetchLocationContext = async () => {
-    if (!currentVillageId) return;
-    try {
-      const res = await fetch(`${API_URL}/api/location-context/${currentVillageId}`);
-      const result = await res.json();
-      if (result.success) setLocationContext(result.data);
-    } catch (error) {
-      console.error("Error fetching location context:", error);
-    }
+  // 1. ดึงข้อมูล User จาก LocalStorage ที่ได้มาตอน Login
+  const currentUser = JSON.parse(localStorage.getItem('userData')) || {};
+  
+  // ใช้ village_id จากข้อมูลผู้ใช้ที่ Login เข้ามา
+  const currentVillageId = currentUser.village_id || currentUser.scope_village_id;
+
+  // สร้าง Object เก็บข้อมูลพื้นที่โดยดึงจาก currentUser โดยตรง
+  // (อิงจากชื่อ property ทั่วไปที่มักส่งมาตอน Login)
+  const locationContext = {
+    village_no: currentUser.village_no || '-',
+    village_name: currentUser.village_name || '-',
+    tambon_name_th: currentUser.tambon_name_th || currentUser.tambon_name || '-',
+    amphure_name_th: currentUser.amphure_name_th || currentUser.amphure_name || '-',
+    province_name_th: currentUser.province_name_th || currentUser.province_name || '-'
   };
+
+  // ... (โค้ดส่วนอื่นๆ ยังคงเหมือนเดิม) ...
+
+  // ลบฟังก์ชัน fetchLocationContext() และ useEffect ที่เรียกใช้มันออกไปได้เลยครับ
 
   const fetchHouseholds = async () => {
     if (!currentVillageId) return;
