@@ -81,6 +81,7 @@ const AddVillageMaster = () => {
   }, [selectedAmphure]);
 
   // ฟังก์ชันดึงรายชื่อหมู่บ้านที่มีอยู่แล้ว
+  // ฟังก์ชันดึงรายชื่อหมู่บ้านที่มีอยู่แล้ว พร้อมจัดเรียงเลขหมู่บ้านให้ถูกต้อง
   const fetchExistingVillages = () => {
     if (!selectedTambon) {
         setExistingVillages([]);
@@ -89,11 +90,23 @@ const AddVillageMaster = () => {
     setIsLoadingTable(true);
     fetch(`${API_URL}/api/villages/by-tambon-id/${selectedTambon}`)
       .then(res => res.json())
-      .then(data => setExistingVillages(Array.isArray(data) ? data : []))
+      .then(data => {
+          if (Array.isArray(data)) {
+              // ใช้คำสั่ง localeCompare พร้อมเปิดโหมด numeric เพื่อให้เรียง 1, 2, 3...10, 11 ได้ถูกต้อง
+              const sortedData = data.sort((a, b) => {
+                  return String(a.village_no).localeCompare(String(b.village_no), undefined, {
+                      numeric: true,
+                      sensitivity: 'base'
+                  });
+              });
+              setExistingVillages(sortedData);
+          } else {
+              setExistingVillages([]);
+          }
+      })
       .catch(err => console.error("Error fetching existing villages:", err))
       .finally(() => setIsLoadingTable(false));
   };
-
   // ดึงข้อมูลอัตโนมัติเมื่อเปลี่ยนตำบล
   useEffect(() => {
     fetchExistingVillages();
