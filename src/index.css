@@ -587,5 +587,145 @@ html, body {
     font-size: 22px !important;
     margin-bottom: 20px !important;
   }
+} 
+
+
+
+
+/* ==========================================================================
+   โครงสร้างพื้นฐานสำหรับ Mobile Layout (แก้ไขปัญหา Navbar ไม่ Fix)
+   ========================================================================== */
+
+
+/* คลาสหลักครอบคลุมทั้งหน้าจอ */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  position: relative;
+  /* กำหนดพื้นหลังแบบไล่สี (Gradient Background) */
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
 }
 
+/* ==========================================================================
+   Top Navbar (แถบนำทางด้านบน)
+   ========================================================================== */
+.top-navbar {
+  flex-shrink: 0; 
+  position: sticky;
+  top: 0;
+  z-index: 50; 
+  width: 100%;
+  
+  /* เอฟเฟกต์ Glassmorphism ตามภาพ rrr.jpg / ww.jpg */
+  background: rgba(15, 23, 42, 0.8); /* พื้นหลังโปร่งแสง 80% */
+  backdrop-filter: blur(12px);      /* เบลอพื้นหลัง */
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
+  
+  /* แสงสะท้อนเรืองแสง (Glow effect) */
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3), 
+              inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ==========================================================================
+   Content Area (พื้นที่เนื้อหาหลักที่เลื่อนได้)
+   ========================================================================== */
+.content-area {
+  flex: 1 1 auto; 
+  overflow-y: auto; /* อนุญาตให้เลื่อนขึ้นลงได้เฉพาะพื้นที่นี้ */
+  -webkit-overflow-scrolling: touch; /* เพื่อความลื่นไหลบน iOS */
+  padding: 20px;
+  padding-bottom: 90px; /* เว้นระยะห่างด้านล่างไม่ให้ถูก Bottom Navbar บัง */
+  
+  /* ซ่อน Scrollbar (ถ้าต้องการความสะอาดตา) */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+.content-area::-webkit-scrollbar {
+  width: 6px;
+}
+.content-area::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+}
+
+/* ==========================================================================
+   Bottom Navbar (แถบนำทางด้านล่าง)
+   ========================================================================== */
+.bottom-navbar {
+  flex-shrink: 0;
+  position: absolute; /* ลอยอยู่เหนือ Content Area */
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 50;
+  
+  /* เอฟเฟกต์ Glassmorphism */
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* ==========================================================================
+   Glassmorphism Card & Dropdown UI (การ์ดและช่องเลือกข้อมูล)
+   ========================================================================== */
+
+/* คลาสสำหรับการ์ดเนื้อหา (Card) */
+.glass-card {
+  /* พื้นหลังการ์ดโปร่งแสง 60% ตามความต้องการ */
+  background: rgba(255, 255, 255, 0.05); 
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  
+  /* เส้นขอบบางๆ สีขาวโปร่งแสง */
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 24px;
+  
+  /* แสงสะท้อนเล็กน้อย */
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* คลาสสำหรับช่อง Select (Dropdown) และ Input */
+.glass-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2) !important; /* พื้นหลังช่องกรอกสีเข้มโปร่งแสง */
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 12px;
+  color: #f8fafc !important; /* สีตัวอักษรเป็นสีขาวสว่าง */
+  font-weight: 500;
+  outline: none;
+  transition: all 0.3s ease;
+  appearance: none; /* ลบลูกศร Dropdown ดั้งเดิมออก (ถ้าต้องการ) */
+}
+
+.glass-input:focus {
+  background: rgba(0, 0, 0, 0.4) !important;
+  /* ขอบเรืองแสงสีฟ้าอมม่วง (อิงจากภาพ rrr.jpg) */
+  border-color: rgba(59, 130, 246, 0.6) !important; 
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+/* ตัวเลือก (Options) ภายใน Dropdown */
+.glass-input option {
+  /* ไม่สามารถทำ Glassmorphism ให้กับ Option โดยตรงด้วย CSS พื้นฐานได้ (เบราว์เซอร์จะจัดการเอง) 
+     แต่สามารถกำหนดสีพื้นหลังและตัวอักษรได้ */
+  background: #1e293b; 
+  color: #f8fafc;
+}
+
+/* สีหัวข้อ (Text Headers) */
+.glass-text-header {
+  /* ไล่สีตัวอักษรจากสีสว่างไปมืดเล็กน้อย */
+  background: linear-gradient(to right, #ffffff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
