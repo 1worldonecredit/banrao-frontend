@@ -595,7 +595,52 @@ html, body {
 /* ==========================================================================
    โครงสร้างพื้นฐานสำหรับ Mobile Layout (แก้ไขปัญหา Navbar ไม่ Fix)
    ========================================================================== */
+/* ==========================================================================
+   ช่องกรอกข้อมูล และ Dropdown (แก้ปัญหาล้นจอ / Overflow)
+   ========================================================================== */
+.glass-input {
+  width: 100%;
+  max-width: 100%; /* บังคับไม่ให้กว้างเกินกล่องแม่ */
+  box-sizing: border-box !important; /* สำคัญมาก! บังคับให้ padding ไม่ดันขนาดกล่องบานออก */
+  padding: 12px 16px;
+  
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px;
+  color: #1e293b !important;
+  transition: all 0.3s ease;
+  
+  /* จัดการข้อความที่ยาวเกินไป (ป้องกันตัวอักษรดันกล่องจนล้นจอ) */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  
+  /* ทำให้ดูสวยงามขึ้นบนมือถือ (ลบเงาและสไตล์พื้นฐานของเบราว์เซอร์บางส่วน) */
+  -webkit-appearance: none;
+  appearance: none;
+  /* เพิ่มลูกศรกลับเข้าไปแบบ Custom เพราะเราลบของเดิมออกด้วย appearance: none */
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 1rem center !important;
+  background-size: 1em !important;
+  padding-right: 2.5rem !important; /* เว้นที่ให้ลูกศร */
+}
 
+.glass-input:focus {
+  background: #ffffff !important;
+  border-color: #3b82f6 !important; 
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  outline: none;
+}
+
+/* จัดการตัวเลือก (Option) ภายในไม่ให้ยาวยืดเกินไปบนจอคอมฯ */
+.glass-input option {
+  max-width: 100%;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  background: #ffffff;
+  color: #1e293b;
+}
 
 /* คลาสหลักครอบคลุมทั้งหน้าจอ */
 .app-container {
