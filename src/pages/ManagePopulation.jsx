@@ -162,7 +162,8 @@ const ManagePopulation = () => {
       </div>
 
       {/* 2. ส่วนเนื้อหา: พื้นที่ตรงกลางที่เลื่อนได้ (Scrollable) */}
-      <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '16px', paddingBottom: '80px', width: '100%' }}>
+      {/* เปลี่ยน padding ให้มีระยะขอบบน (pt) เผื่อ Navbar ด้วย */}
+        <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '100px 16px 80px 16px', width: '100%' }}>
         <div className="max-w-7xl mx-auto">
           
           {/* Header แสดงข้อมูลผู้ Login และ พื้นที่ */}
