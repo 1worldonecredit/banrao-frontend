@@ -10,6 +10,9 @@ const ManagePopulation = () => {
   const [households, setHouseholds] = useState([]);
   const [householdMembers, setHouseholdMembers] = useState([]);
   const [selectedHousehold, setSelectedHousehold] = useState(null);
+  
+  // 🌟 นำ State สำหรับดึงข้อมูลพื้นที่จาก Backend กลับมาใช้อีกครั้ง
+  const [locationContext, setLocationContext] = useState(null);
 
   const [isLoadingHouses, setIsLoadingHouses] = useState(false);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
@@ -20,32 +23,22 @@ const ManagePopulation = () => {
     citizen_id: '', first_name: '', last_name: '', nickname: '', gender: '', date_of_birth: ''
   });
 
-  // 1. ดึงข้อมูล User จาก LocalStorage อย่างปลอดภัย
-  const getUserData = () => {
+  const currentUser = JSON.parse(localStorage.getItem('userData')) || {};
+  const currentVillageId = currentUser.village_id || currentUser.scope_village_id;
+
+  // 1. ฟังก์ชันดึงข้อมูลพื้นที่เต็มๆ (ตำบล อำเภอ จังหวัด) จาก Database
+  const fetchLocationContext = async () => {
+    if (!currentVillageId) return;
     try {
-      const data = localStorage.getItem('userData');
-      return data ? JSON.parse(data) : {};
+      const res = await fetch(`${API_URL}/api/location-context/${currentVillageId}`);
+      const result = await res.json();
+      if (result.success) setLocationContext(result.data);
     } catch (error) {
-      console.error("Error parsing userData:", error);
-      return {};
+      console.error("Error fetching location context:", error);
     }
   };
 
-  const currentUser = getUserData();
-  const currentVillageId = currentUser?.village_id || currentUser?.scope_village_id;
-
-  // 2. สร้าง locationContext โดยดึงข้อมูลจาก currentUser
-  // หากไม่มีข้อมูล ให้แสดงข้อความ default แทน
-  const locationContext = {
-    village_no: currentUser?.village_no || 'ไม่ระบุหมู่',
-    village_name: currentUser?.village_name || 'ไม่ระบุหมู่บ้าน',
-    tambon_name_th: currentUser?.tambon_name_th || currentUser?.tambon_name || 'ไม่ระบุตำบล',
-    amphure_name_th: currentUser?.amphure_name_th || currentUser?.amphure_name || 'ไม่ระบุอำเภอ',
-    province_name_th: currentUser?.province_name_th || currentUser?.province_name || 'ไม่ระบุจังหวัด'
-  };
-
-  // 3. ลบ State และ ฟังก์ชันที่เกี่ยวกับ fetchLocationContext ออกทั้งหมด
-
+  // 2. ฟังก์ชันดึงข้อมูลบ้านทั้งหมดในหมู่บ้าน
   const fetchHouseholds = async () => {
     if (!currentVillageId) return;
     setIsLoadingHouses(true);
@@ -54,6 +47,7 @@ const ManagePopulation = () => {
       const result = await res.json();
       if (result.success) {
         setHouseholds(result.data);
+        // ถ้ามีการเลือกบ้านไว้อยู่ ให้อัปเดตข้อมูลบ้านนั้นๆ ด้วย
         if (selectedHousehold) {
           const updatedHouse = result.data.find(h => h.household_id === selectedHousehold.household_id);
           if (updatedHouse) setSelectedHousehold(updatedHouse);
@@ -66,6 +60,7 @@ const ManagePopulation = () => {
     }
   };
 
+  // 3. ฟังก์ชันดึงรายชื่อคนในบ้านที่เลือก
   const fetchMembers = async (householdId) => {
     if (!householdId) return;
     setIsLoadingMembers(true);
@@ -80,17 +75,18 @@ const ManagePopulation = () => {
     }
   };
 
-  // 4. เรียกใช้ฟังก์ชันที่เหลือเมื่อ component โหลด
+  // 4. สั่งโหลดข้อมูลเมื่อเปิดหน้า
   useEffect(() => {
-    fetchHouseholds();
+    fetchLocationContext(); 
+    fetchHouseholds();      
   }, [currentVillageId]);
 
+  // สั่งโหลดคนในบ้านเมื่อคลิกเลือกบ้าน
   useEffect(() => {
     if (selectedHousehold) fetchMembers(selectedHousehold.household_id);
     else setHouseholdMembers([]);
   }, [selectedHousehold]);
-
-    
+      
   // ---------------------------------------------
   // ฟังก์ชันบันทึกข้อมูล
   // ---------------------------------------------
@@ -174,39 +170,38 @@ const ManagePopulation = () => {
         <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '100px 16px 80px 16px', width: '100%' }}>
         <div className="max-w-7xl mx-auto">
           
-          {/* Header แสดงข้อมูลผู้ Login และ พื้นที่ */}
-          <div className="flex items-center gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-            {/* รููปโปรไฟล์ผู้ Login */}
-            <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-2 border-blue-500">
-              {currentUser.profile_image_url ? (
-                <img src={currentUser.profile_image_url} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <Users size={24} className="text-blue-600" />
-              )}
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-800">
-                จัดการข้อมูลประชากร
-              </h1>
-             {/* เปลี่ยนตรงการแสดงผลให้มีการเช็คค่าก่อน */}
-              {locationContext ? (
-                <p className="text-sm font-medium text-blue-600 mt-1 flex items-center gap-1">
-                  <MapPin size={14}/> 
-                  หมู่ที่ {locationContext.village_no} บ้าน{locationContext.village_name} 
-                  ต.{locationContext.tambon_name_th} อ.{locationContext.amphure_name_th} จ.{locationContext.province_name_th}
-                </p>
-              ) : (
-                <p className="text-sm font-medium text-slate-400 mt-1 animate-pulse">กำลังดึงข้อมูลพื้นที่...</p>
-              )}
-            </div>
-          </div>
+         {/* Header แสดงข้อมูลผู้ Login และ พื้นที่ */}
+              <div className="flex items-center gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-2 border-blue-500">
+                  {currentUser?.profile_image_url ? (
+                    <img src={currentUser.profile_image_url} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <Users size={24} className="text-blue-600" />
+                  )}
+                </div>
+                <div>
+                  <h1 className="text-xl font-black text-slate-800">
+                    จัดการข้อมูลประชากร
+                  </h1>
+                  {/* เปลี่ยนการโชว์ข้อมูลพื้นที่ ให้เช็คค่าก่อน */}
+                  {locationContext ? (
+                    <p className="text-sm font-medium text-blue-600 mt-1 flex items-center gap-1">
+                      <MapPin size={14}/> 
+                      หมู่ที่ {locationContext.village_no} บ้าน{locationContext.village_name} 
+                      ต.{locationContext.tambon_name_th} อ.{locationContext.amphure_name_th} จ.{locationContext.province_name_th}
+                    </p>
+                  ) : (
+                    <p className="text-sm font-medium text-slate-400 mt-1 animate-pulse">กำลังดึงข้อมูลพื้นที่...</p>
+                  )}
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
-            {/* ======================================================== */}
-            {/* ฝั่งซ้าย: จัดการบ้านเลขที่ */}
-            {/* ======================================================== */}
-            <div className="lg:col-span-4 flex flex-col gap-4">
+             {/* ======================================================== */}
+             {/* ฝั่งซ้าย: จัดการบ้านเลขที่ */}
+             {/* ======================================================== */}
+             <div className="lg:col-span-4 flex flex-col gap-4">
               
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <h3 className="text-md font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
@@ -238,13 +233,12 @@ const ManagePopulation = () => {
                   ) : households.length === 0 ? (
                      <div className="text-center py-6 text-slate-400 text-sm">ยังไม่มีข้อมูลบ้าน</div>
                   ) : (
-                    // หาบรรทัดนี้: households.map(household => {
+                  // หาตรงบริเวณนี้: households.map(household => {
 households.map(household => {
-  // ✅ ใช้ Number() แปลงค่าให้ชัวร์ และถ้าไม่มีค่าให้เป็น 0
-  const currentCount = Number(household.current_count || 0); 
-  const expectedCount = Number(household.expected_member_count || 0);
+  // ✅ ดึงค่ามาตรงๆ เลย เพราะ API จะส่งมาเป็นตัวเลขหรือ String ของตัวเลขแน่นอน
+  const currentCount = Number(household.current_count); 
+  const expectedCount = Number(household.expected_member_count);
   
-  // เช็คเงื่อนไขความครบถ้วน
   const isComplete = expectedCount > 0 && currentCount >= expectedCount;
   const isSelected = selectedHousehold?.household_id === household.household_id;
   
@@ -257,7 +251,7 @@ households.map(household => {
     >
       <div>
         <div className="font-bold text-slate-800 text-lg">บ้านเลขที่ {household.house_no}</div>
-        {/* ✅ แสดงตัวเลขที่แปลงแล้ว */}
+        {/* ✅ จะแสดงตัวเลขที่ถูกต้องแล้ว */}
         <div className="text-xs text-slate-500 mt-1">จำนวนคน: {currentCount} / {expectedCount} คน</div>
       </div>
       
@@ -267,8 +261,7 @@ households.map(household => {
          </div>
       ) : (
          <div className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full whitespace-nowrap">
-           {/* ✅ ป้องกันตัวเลขติดลบ */}
-           <AlertCircle size={14} /> ขาด {Math.max(0, expectedCount - currentCount)}
+           <AlertCircle size={14} /> ขาด {expectedCount - currentCount}
          </div>
       )}
     </button>
