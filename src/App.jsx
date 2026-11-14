@@ -42,6 +42,7 @@ import CommunityLeaders from './pages/CommunityLeaders'; // <-- นำเข้�
 import AssignPosition from './pages/AssignPosition';
 import AddHousehold from './pages/AddHousehold';
 import AddVillageMaster from './pages/AddVillageMaster';
+import ManagePopulation from './pages/ManagePopulation';
 
 function App() {
   return (
@@ -94,6 +95,7 @@ function App() {
             <Route path="/assign-position" element={<AssignPosition />} /> 
             <Route path="/add-household" element={<AddHousehold />} /> 
             <Route path="/add-village-master" element={<AddVillageMaster />} /> 
+             <Route path="/manage-population" element={<ManagePopulation />} /> 
             </Routes>
           
         </div>
