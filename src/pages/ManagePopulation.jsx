@@ -11,7 +11,7 @@ const ManagePopulation = () => {
   const [householdMembers, setHouseholdMembers] = useState([]);
   const [selectedHousehold, setSelectedHousehold] = useState(null);
   
-  // 🌟 นำ State สำหรับดึงข้อมูลพื้นที่จาก Backend กลับมาใช้อีกครั้ง
+  // State เก็บข้อมูลพื้นที่จาก API
   const [locationContext, setLocationContext] = useState(null);
 
   const [isLoadingHouses, setIsLoadingHouses] = useState(false);
@@ -26,7 +26,7 @@ const ManagePopulation = () => {
   const currentUser = JSON.parse(localStorage.getItem('userData')) || {};
   const currentVillageId = currentUser.village_id || currentUser.scope_village_id;
 
-  // 1. ฟังก์ชันดึงข้อมูลพื้นที่เต็มๆ (ตำบล อำเภอ จังหวัด) จาก Database
+  // 1. โหลดข้อมูลพื้นที่เต็มรูปแบบ
   const fetchLocationContext = async () => {
     if (!currentVillageId) return;
     try {
@@ -38,7 +38,7 @@ const ManagePopulation = () => {
     }
   };
 
-  // 2. ฟังก์ชันดึงข้อมูลบ้านทั้งหมดในหมู่บ้าน
+  // 2. โหลดรายการบ้าน
   const fetchHouseholds = async () => {
     if (!currentVillageId) return;
     setIsLoadingHouses(true);
@@ -47,7 +47,6 @@ const ManagePopulation = () => {
       const result = await res.json();
       if (result.success) {
         setHouseholds(result.data);
-        // ถ้ามีการเลือกบ้านไว้อยู่ ให้อัปเดตข้อมูลบ้านนั้นๆ ด้วย
         if (selectedHousehold) {
           const updatedHouse = result.data.find(h => h.household_id === selectedHousehold.household_id);
           if (updatedHouse) setSelectedHousehold(updatedHouse);
@@ -60,7 +59,7 @@ const ManagePopulation = () => {
     }
   };
 
-  // 3. ฟังก์ชันดึงรายชื่อคนในบ้านที่เลือก
+  // 3. โหลดสมาชิกในบ้าน
   const fetchMembers = async (householdId) => {
     if (!householdId) return;
     setIsLoadingMembers(true);
@@ -75,21 +74,17 @@ const ManagePopulation = () => {
     }
   };
 
-  // 4. สั่งโหลดข้อมูลเมื่อเปิดหน้า
   useEffect(() => {
     fetchLocationContext(); 
     fetchHouseholds();      
   }, [currentVillageId]);
 
-  // สั่งโหลดคนในบ้านเมื่อคลิกเลือกบ้าน
   useEffect(() => {
     if (selectedHousehold) fetchMembers(selectedHousehold.household_id);
     else setHouseholdMembers([]);
   }, [selectedHousehold]);
-      
-  // ---------------------------------------------
-  // ฟังก์ชันบันทึกข้อมูล
-  // ---------------------------------------------
+
+  // ฟังก์ชันบันทึก
   const handleAddHousehold = async (e) => {
     e.preventDefault();
     if(!newHouseholdForm.house_no || !newHouseholdForm.expected_member_count) return;
@@ -120,9 +115,14 @@ const ManagePopulation = () => {
   const handleAddMember = async (e) => {
     e.preventDefault();
     if(!selectedHousehold) return;
-    if (Number(selectedHousehold.current_count) >= Number(selectedHousehold.expected_member_count)) {
+    
+    const currentCount = Number(selectedHousehold.current_count || 0);
+    const expectedCount = Number(selectedHousehold.expected_member_count || 0);
+    
+    if (currentCount >= expectedCount && expectedCount > 0) {
       return alert("บ้านหลังนี้เพิ่มสมาชิกครบตามจำนวนที่ระบุไว้แล้ว!");
     }
+    
     setIsSaving(true);
     try {
       const res = await fetch(`${API_URL}/api/household-members`, {
@@ -154,55 +154,46 @@ const ManagePopulation = () => {
   const inputStyle = "w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm bg-slate-50 focus:bg-white transition-all";
   const labelStyle = "block text-xs font-bold text-slate-500 mb-1";
 
-  // ส่วน return ลงไปปล่อยไว้ตามเดิมครับ
+  // ตัวแปร Fallback ป้องกันการพังตอนข้อมูลพื้นที่ยังไม่มา
+  const fallbackLocation = {
+    village_no: currentUser?.village_no || 'ไม่ระบุหมู่',
+    village_name: currentUser?.village_name || 'ไม่ระบุหมู่บ้าน',
+    tambon_name_th: currentUser?.tambon_name_th || 'ไม่ระบุตำบล',
+    amphure_name_th: currentUser?.amphure_name_th || 'ไม่ระบุอำเภอ',
+    province_name_th: currentUser?.province_name_th || 'ไม่ระบุจังหวัด'
+  };
+
+  const loc = locationContext || fallbackLocation;
 
   return (
-    // โครงสร้างหลัก: บังคับความสูง 100vh ป้องกันการ Scroll ทะลุ (เหมือนหน้า AddVillage)
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
-      
-      {/* 1. ส่วนหัว: แถบนำทางด้านบน (ยึดติด) */}
       <div style={{ flexShrink: 0, zIndex: 50, position: 'sticky', top: 0, width: '100%' }}>
         <TopNavbar />
       </div>
 
-      {/* 2. ส่วนเนื้อหา: พื้นที่ตรงกลางที่เลื่อนได้ (Scrollable) */}
-      {/* เปลี่ยน padding ให้มีระยะขอบบน (pt) เผื่อ Navbar ด้วย */}
-        <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '100px 16px 80px 16px', width: '100%' }}>
+      <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '100px 16px 80px 16px', width: '100%' }}>
         <div className="max-w-7xl mx-auto">
           
-         {/* Header แสดงข้อมูลผู้ Login และ พื้นที่ */}
-              <div className="flex items-center gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-2 border-blue-500">
-                  {currentUser?.profile_image_url ? (
-                    <img src={currentUser.profile_image_url} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <Users size={24} className="text-blue-600" />
-                  )}
-                </div>
-                <div>
-                  <h1 className="text-xl font-black text-slate-800">
-                    จัดการข้อมูลประชากร
-                  </h1>
-                  {/* เปลี่ยนการโชว์ข้อมูลพื้นที่ ให้เช็คค่าก่อน */}
-                  {locationContext ? (
-                    <p className="text-sm font-medium text-blue-600 mt-1 flex items-center gap-1">
-                      <MapPin size={14}/> 
-                      หมู่ที่ {locationContext.village_no} บ้าน{locationContext.village_name} 
-                      ต.{locationContext.tambon_name_th} อ.{locationContext.amphure_name_th} จ.{locationContext.province_name_th}
-                    </p>
-                  ) : (
-                    <p className="text-sm font-medium text-slate-400 mt-1 animate-pulse">กำลังดึงข้อมูลพื้นที่...</p>
-                  )}
-                </div>
-              </div>
+          <div className="flex items-center gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+            <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-2 border-blue-500">
+              {currentUser?.profile_image_url ? (
+                <img src={currentUser.profile_image_url} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <Users size={24} className="text-blue-600" />
+              )}
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-slate-800">จัดการข้อมูลประชากร</h1>
+              <p className="text-sm font-medium text-blue-600 mt-1 flex items-center gap-1">
+                <MapPin size={14}/> 
+                หมู่ที่ {loc.village_no} บ้าน{loc.village_name} 
+                ต.{loc.tambon_name_th} อ.{loc.amphure_name_th} จ.{loc.province_name_th}
+              </p>
+            </div>
+          </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-             {/* ======================================================== */}
-             {/* ฝั่งซ้าย: จัดการบ้านเลขที่ */}
-             {/* ======================================================== */}
-             <div className="lg:col-span-4 flex flex-col gap-4">
-              
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-4 flex flex-col gap-4">
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <h3 className="text-md font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
                   <Home size={18} className="text-blue-500" /> เพิ่มข้อมูลบ้าน
@@ -233,48 +224,39 @@ const ManagePopulation = () => {
                   ) : households.length === 0 ? (
                      <div className="text-center py-6 text-slate-400 text-sm">ยังไม่มีข้อมูลบ้าน</div>
                   ) : (
-                  // หาตรงบริเวณนี้: households.map(household => {
-households.map(household => {
-  // ✅ ดึงค่ามาตรงๆ เลย เพราะ API จะส่งมาเป็นตัวเลขหรือ String ของตัวเลขแน่นอน
-  const currentCount = Number(household.current_count); 
-  const expectedCount = Number(household.expected_member_count);
-  
-  const isComplete = expectedCount > 0 && currentCount >= expectedCount;
-  const isSelected = selectedHousehold?.household_id === household.household_id;
-  
-  return (
-    <button 
-      key={household.household_id}
-      onClick={() => setSelectedHousehold(household)}
-      className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between
-        ${isSelected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
-    >
-      <div>
-        <div className="font-bold text-slate-800 text-lg">บ้านเลขที่ {household.house_no}</div>
-        {/* ✅ จะแสดงตัวเลขที่ถูกต้องแล้ว */}
-        <div className="text-xs text-slate-500 mt-1">จำนวนคน: {currentCount} / {expectedCount} คน</div>
-      </div>
-      
-      {isComplete ? (
-         <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full whitespace-nowrap">
-           <CheckCircle size={14} /> ครบถ้วน
-         </div>
-      ) : (
-         <div className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full whitespace-nowrap">
-           <AlertCircle size={14} /> ขาด {expectedCount - currentCount}
-         </div>
-      )}
-    </button>
-  );
-})
+                    households.map(household => {
+                      const currentCount = Number(household.current_count || 0);
+                      const expectedCount = Number(household.expected_member_count || 0);
+                      const isComplete = expectedCount > 0 && currentCount >= expectedCount;
+                      const isSelected = selectedHousehold?.household_id === household.household_id;
+                      
+                      return (
+                        <button 
+                          key={household.household_id}
+                          onClick={() => setSelectedHousehold(household)}
+                          className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between ${isSelected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
+                        >
+                          <div>
+                            <div className="font-bold text-slate-800 text-lg">บ้านเลขที่ {household.house_no}</div>
+                            <div className="text-xs text-slate-500 mt-1">จำนวนคน: {currentCount} / {expectedCount} คน</div>
+                          </div>
+                          {isComplete ? (
+                             <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full whitespace-nowrap">
+                               <CheckCircle size={14} /> ครบถ้วน
+                             </div>
+                          ) : (
+                             <div className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full whitespace-nowrap">
+                               <AlertCircle size={14} /> ขาด {Math.max(0, expectedCount - currentCount)}
+                             </div>
+                          )}
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               </div>
             </div>
 
-            {/* ======================================================== */}
-            {/* ฝั่งขวา: จัดการสมาชิกในบ้าน */}
-            {/* ======================================================== */}
             <div className="lg:col-span-8">
               {!selectedHousehold ? (
                 <div className="bg-white h-full rounded-2xl border border-slate-200 border-dashed flex flex-col items-center justify-center p-10 text-slate-400 min-h-[400px]">
@@ -285,25 +267,20 @@ households.map(household => {
               ) : (
                 <div className="flex flex-col gap-6">
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-200 bg-gradient-to-r from-white to-blue-50">
-                   // หาบริเวณนี้ในโค้ดฝั่งขวา
-<div className="flex justify-between items-center mb-4">
-  <h2 className="text-xl font-black text-slate-800">
-    รายละเอียดบ้านเลขที่ <span className="text-blue-600">{selectedHousehold.house_no}</span>
-  </h2>
-  
-  {/* ✅ แก้ไขตรงนี้: ครอบด้วย Number() และใช้ || 0 ป้องกันค่าว่าง */}
-  <div className="text-sm font-bold bg-white px-3 py-1 rounded-lg border shadow-sm flex items-center gap-2">
-    ความคืบหน้า: 
-    <span className={Number(selectedHousehold.current_count || 0) >= Number(selectedHousehold.expected_member_count || 0) ? 'text-emerald-600' : 'text-amber-600'}>
-      {Number(selectedHousehold.current_count || 0)} / {Number(selectedHousehold.expected_member_count || 0)}
-    </span>
-  </div>
-</div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-black text-slate-800">
+                        รายละเอียดบ้านเลขที่ <span className="text-blue-600">{selectedHousehold.house_no}</span>
+                      </h2>
+                      <div className="text-sm font-bold bg-white px-3 py-1 rounded-lg border shadow-sm flex items-center gap-2">
+                        ความคืบหน้า: 
+                        <span className={Number(selectedHousehold.current_count || 0) >= Number(selectedHousehold.expected_member_count || 0) ? 'text-emerald-600' : 'text-amber-600'}>
+                          {Number(selectedHousehold.current_count || 0)} / {Number(selectedHousehold.expected_member_count || 0)}
+                        </span>
+                      </div>
+                    </div>
 
-{/* ✅ แก้ไขเงื่อนไขซ่อน/แสดงฟอร์มด้วย */}
-{Number(selectedHousehold.current_count || 0) < Number(selectedHousehold.expected_member_count || 0) && (
-  <form onSubmit={handleAddMember} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mt-4">
-     {/* ... โค้ดฟอร์มภายในปล่อยไว้ตามเดิม ... */}
+                    {Number(selectedHousehold.current_count || 0) < Number(selectedHousehold.expected_member_count || 0) && (
+                      <form onSubmit={handleAddMember} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mt-4">
                         <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2"><UserPlus size={16}/> เพิ่มประชากรใหม่</h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                           <div className="md:col-span-3">
@@ -348,11 +325,11 @@ households.map(household => {
 
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                     <h3 className="text-md font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
-                      <Users size={18} className="text-slate-500" /> สมาชิกในบ้าน ({currentMembers.length} คน)
+                      <Users size={18} className="text-slate-500" /> สมาชิกในบ้าน ({householdMembers.length} คน)
                     </h3>
                     {isLoadingMembers ? (
                       <div className="text-center py-8 text-slate-400 text-sm animate-pulse">กำลังโหลดข้อมูลสมาชิก...</div>
-                    ) : currentMembers.length === 0 ? (
+                    ) : householdMembers.length === 0 ? (
                       <div className="text-center py-8 text-slate-400 text-sm">ยังไม่มีรายชื่อสมาชิกในบ้านนี้</div>
                     ) : (
                       <div className="overflow-x-auto">
@@ -366,7 +343,7 @@ households.map(household => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {currentMembers.map((person, idx) => (
+                            {householdMembers.map((person, idx) => (
                               <tr key={person.member_id || idx} className="hover:bg-slate-50">
                                 <td className="px-4 py-3 font-mono text-slate-500">{person.citizen_id}</td>
                                 <td className="px-4 py-3 font-medium text-slate-800">
@@ -390,16 +367,13 @@ households.map(household => {
                 </div>
               )}
             </div>
-
           </div>
         </div>
       </div>
       
-      {/* 3. ส่วนท้าย: แถบนำทางด้านล่าง (ยึดติด) */}
       <div style={{ flexShrink: 0, position: 'fixed', bottom: 0, width: '100%', zIndex: 50 }}>
         <BottomNavbar /> 
       </div>
-      
     </div>
   );
 };
