@@ -24,6 +24,7 @@ import MyPlaces from './pages/MyPlaces';
 import EditPlace from './pages/EditPlace';
 import RegisterVillage from './pages/RegisterVillage';
 import villageDetails from './pages/TempVillageDetails';
+import Layout from './components/Layout';
 
 // ระบบสมาชิก สื่อ และอื่นๆ
 import Team from './pages/team';
@@ -48,8 +49,7 @@ function App() {
   return (
     <BrowserRouter>
       {/* ใช้ app-container เพื่อคุม Layout ให้เป็นไปตาม CSS ที่ตั้งไว้ */}
-      <div className="app-container">
-        <div className="main-content">
+     
           
           {/* ========================================== */}
           {/* 2. ส่วนกำหนดเส้นทาง (Routes) */}
@@ -98,8 +98,8 @@ function App() {
              <Route path="/manage-population" element={<ManagePopulation />} /> 
             </Routes>
           
-        </div>
-      </div>
+       
+      
     </BrowserRouter>
   );
 }
