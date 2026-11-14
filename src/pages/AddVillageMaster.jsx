@@ -3,7 +3,7 @@ import { Save, MapPin, ListPlus, Lock } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar'; // ตรวจสอบ Path ให้ตรงกับโฟลเดอร์ของคุณ
 import BottomNavbar from '../components/BottomNavbar'; // ตรวจสอบ Path ให้ตรงกับโฟลเดอร์ของคุณ
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'; // เปลี่ยนเป็น URL Backend จริงเมื่อขึ้น Production
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 const AddVillageMaster = () => {
   // 1. จำลองข้อมูลสิทธิ์ผู้ใช้งาน (ดึงจาก LocalStorage ถ้ามี)
