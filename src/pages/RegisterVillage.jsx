@@ -59,6 +59,7 @@ const RegisterVillage = () => {
     }, [formData.sub_district]);
     // ==========================================
 
+
     // ดึงพิกัด GPS ปัจจุบัน
     const fetchCurrentLocation = () => {
         setIsLocating(true);

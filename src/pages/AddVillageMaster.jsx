@@ -104,6 +104,12 @@ const AddVillageMaster = () => {
       if (result.success) {
         alert(result.message);
         setVillagesInput(''); // ล้างช่องเฉพาะรายชื่อหมู่บ้าน เพื่อให้กรอกตำบลถัดไปได้เลย
+        
+        // 🌟 เพิ่มคำสั่งนี้เพื่อโหลดข้อมูลตารางใหม่ทันทีที่บันทึกสำเร็จ
+        if (typeof fetchExistingVillages === 'function') {
+            fetchExistingVillages();
+        }
+        
       } else {
         alert('เกิดข้อผิดพลาด: ' + result.message);
       }
@@ -113,6 +119,29 @@ const AddVillageMaster = () => {
       setIsLoading(false);
     }
   };
+
+  // --- State สำหรับตารางแสดงหมู่บ้าน ---
+  const [existingVillages, setExistingVillages] = useState([]);
+  const [isLoadingTable, setIsLoadingTable] = useState(false);
+
+  // ฟังก์ชันดึงรายชื่อหมู่บ้านที่มีอยู่แล้ว
+  const fetchExistingVillages = () => {
+    if (!selectedTambon) {
+        setExistingVillages([]);
+        return;
+    }
+    setIsLoadingTable(true);
+    fetch(`${API_URL}/api/villages/by-tambon-id/${selectedTambon}`)
+      .then(res => res.json())
+      .then(data => setExistingVillages(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Error fetching existing villages:", err))
+      .finally(() => setIsLoadingTable(false));
+  };
+
+  // ดึงข้อมูลอัตโนมัติเมื่อเปลี่ยนตำบล
+  useEffect(() => {
+    fetchExistingVillages();
+  }, [selectedTambon]);
 
   return (
     <div className="bg-slate-50 min-h-screen pb-24 font-sans">
@@ -165,21 +194,46 @@ const AddVillageMaster = () => {
             </div>
 
             {/* Dropdown ตำบล */}
-            <div>
-              <label className="flex items-center gap-1 text-sm font-bold text-slate-700 mb-2">
-                ตำบล {currentUser.scope_tambon_id && <Lock size={12} className="text-slate-400"/>}
-              </label>
-              <select 
-                className={`w-full p-3 border border-slate-200 rounded-xl font-medium outline-none 
-                  ${currentUser.scope_tambon_id ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50 focus:border-blue-500'}`}
-                value={selectedTambon} 
-                onChange={(e) => setSelectedTambon(e.target.value)}
-                disabled={!!currentUser.scope_tambon_id || !selectedAmphure}
-              >
-                <option value="">-- เลือกตำบล --</option>
-                {tambons.map(t => <option key={t.id} value={t.id}>{t.name_th}</option>)}
-              </select>
+           {/* ============================================== */}
+          {/* ตารางแสดงข้อมูลหมู่บ้านที่มีอยู่แล้ว (จะแสดงเมื่อเลือกตำบล) */}
+          {/* ============================================== */}
+          {selectedTambon && (
+            <div className="mt-8 border-t border-slate-200 pt-6">
+              <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <ListPlus size={18} className="text-blue-600" />
+                รายชื่อหมู่บ้านที่มีในระบบแล้ว ({existingVillages.length} หมู่บ้าน)
+              </h3>
+              
+              {isLoadingTable ? (
+                <div className="text-center py-6 text-slate-500 text-sm font-medium animate-pulse">
+                  กำลังโหลดข้อมูลหมู่บ้าน...
+                </div>
+              ) : existingVillages.length > 0 ? (
+                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-700">
+                      <tr>
+                        <th className="px-6 py-4 font-bold border-b border-slate-200 w-32">หมู่ที่</th>
+                        <th className="px-6 py-4 font-bold border-b border-slate-200">ชื่อหมู่บ้าน</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {existingVillages.map((v, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-3 font-medium text-slate-900">{v.village_no}</td>
+                          <td className="px-6 py-3 text-slate-600">{v.village_name}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-slate-50 rounded-xl p-6 text-center text-slate-500 text-sm border border-slate-200 border-dashed">
+                  ยังไม่มีข้อมูลหมู่บ้านในตำบลนี้
+                </div>
+              )}
             </div>
+          )}
           </div>
 
           {/* ช่องกรอกข้อมูลหมู่บ้าน */}
