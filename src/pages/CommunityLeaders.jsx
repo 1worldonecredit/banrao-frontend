@@ -234,24 +234,33 @@ const CommunityLeaders = () => {
     const file = e.target.files[0];
     if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
   };
-
-  const handleSearchUser = async () => {
+const handleSearchUser = async () => {
     const rawCitizenId = searchCitizenId.replace(/-/g, ''); 
     if (rawCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
     setIsLoading(true);
     try {
-        const res = await fetch(`${API_URL}/api/search-citizen/${rawCitizenId}`);
+        // 🌟 เติม ?village_id=${villageId} ต่อท้าย URL เพื่อส่งรหัสหมู่บ้านไปกรองที่ Backend
+        const res = await fetch(`${API_URL}/api/search-citizen/${rawCitizenId}?village_id=${villageId}`);
         const result = await res.json();
+        
         if (result.success) {
             setFoundUser(result.data);
             setFormData(prev => ({
-                ...prev, account_id: result.data.account_id, previewUrl: result.data.user_image || '/profile-img.jpg', responsibilities: result.data.responsibilities || prev.responsibilities
+                ...prev, 
+                account_id: result.data.account_id, 
+                previewUrl: result.data.user_image || '/profile-img.jpg', 
+                responsibilities: result.data.responsibilities || prev.responsibilities
             }));
         } else {
-            alert(result.message || 'ไม่พบข้อมูลลูกบ้าน');
+            // แสดงข้อความแจ้งเตือนที่ได้จาก Backend (เช่น 'ไม่พบข้อมูล หรือ บุคคลนี้ไม่ได้อยู่ในหมู่บ้านของคุณ')
+            alert(result.message || 'ไม่พบข้อมูลลูกบ้านในหมู่บ้านของคุณ');
             setFoundUser(null);
         }
-    } catch (error) { alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); } finally { setIsLoading(false); }
+    } catch (error) { 
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); 
+    } finally { 
+        setIsLoading(false); 
+    }
   };
 
   // 🌟 ฟังก์ชันจัดการเพิ่มคน (แก้ไขลอจิก ซ้าย/ขวา/ล่าง)
