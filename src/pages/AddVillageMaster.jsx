@@ -7,10 +7,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 const AddVillageMaster = () => {
   // 1. จำลองข้อมูลสิทธิ์ผู้ใช้งาน (ดึงจาก LocalStorage ถ้ามี)
-  // หากต้องการล็อกจังหวัด ให้ใส่รหัสจังหวัด 2 หลักตรง scope_province_code (เช่น '67' คือเพชรบูรณ์)
   const currentUser = JSON.parse(localStorage.getItem('userData')) || {
-      scope_province_code: null, // สมมติถ้าเป็น '67' จะล็อกที่เพชรบูรณ์
-      scope_amphure_code: null,  // สมมติถ้าเป็น '6701' จะล็อกที่เมืองเพชรบูรณ์
+      scope_province_code: null, 
+      scope_amphure_code: null,  
       scope_tambon_id: null      
   };
 
@@ -26,7 +25,7 @@ const AddVillageMaster = () => {
   const [villagesInput, setVillagesInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // 3. ดึงรายชื่อจังหวัดทั้งหมด (ใช้ province_code)
+  // 3. ดึงรายชื่อจังหวัดทั้งหมด
   useEffect(() => {
     fetch(`${API_URL}/api/sys-provinces`)
       .then(res => res.json())
@@ -40,7 +39,7 @@ const AddVillageMaster = () => {
       .catch(err => console.error("Error fetching provinces:", err));
   }, []);
 
-  // 4. ดึงรายชื่ออำเภอ เมื่อมีการเลือกจังหวัด (ใช้ amphure_code)
+  // 4. ดึงรายชื่ออำเภอ เมื่อมีการเลือกจังหวัด
   useEffect(() => {
     if (!selectedProvince) {
         setAmphures([]);
@@ -59,7 +58,7 @@ const AddVillageMaster = () => {
       .catch(err => console.error("Error fetching amphures:", err));
   }, [selectedProvince]);
 
-  // 5. ดึงรายชื่อตำบล เมื่อมีการเลือกอำเภอ (ต้องคืนค่า tambon_id เพื่อใช้บันทึกลงฐานข้อมูล)
+  // 5. ดึงรายชื่อตำบล เมื่อมีการเลือกอำเภอ
   useEffect(() => {
     if (!selectedAmphure) {
         setTambons([]);
@@ -76,49 +75,6 @@ const AddVillageMaster = () => {
       })
       .catch(err => console.error("Error fetching tambons:", err));
   }, [selectedAmphure]);
-
-  // 6. ฟังก์ชันจัดการการกดบันทึกข้อมูล
-  const handleSave = async () => {
-    if (!selectedTambon) return alert("กรุณาเลือกตำบล");
-    if (!villagesInput.trim()) return alert("กรุณากรอกรายชื่อหมู่บ้าน");
-
-    setIsLoading(true);
-    
-    // แยกบรรทัดและจัดรูปแบบข้อมูลเพื่อส่งไป Backend
-    const lines = villagesInput.split('\n').filter(line => line.trim() !== '');
-    const villagesToSave = lines.map(line => {
-        const parts = line.trim().split(' ');
-        const moo = !isNaN(parts[0]) ? parts[0] : '-'; // ถ้านำหน้าด้วยตัวเลข ให้ถือว่าเป็นหมู่ที่
-        const name = !isNaN(parts[0]) ? parts.slice(1).join(' ') : line.trim();
-        return { village_no: moo, village_name: name };
-    });
-
-    try {
-      const res = await fetch(`${API_URL}/api/sys-villages/batch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tambon_id: selectedTambon, villages: villagesToSave })
-      });
-      const result = await res.json();
-      
-      if (result.success) {
-        alert(result.message);
-        setVillagesInput(''); // ล้างช่องเฉพาะรายชื่อหมู่บ้าน เพื่อให้กรอกตำบลถัดไปได้เลย
-        
-        // 🌟 เพิ่มคำสั่งนี้เพื่อโหลดข้อมูลตารางใหม่ทันทีที่บันทึกสำเร็จ
-        if (typeof fetchExistingVillages === 'function') {
-            fetchExistingVillages();
-        }
-        
-      } else {
-        alert('เกิดข้อผิดพลาด: ' + result.message);
-      }
-    } catch (error) {
-      alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้: ' + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // --- State สำหรับตารางแสดงหมู่บ้าน ---
   const [existingVillages, setExistingVillages] = useState([]);
@@ -142,6 +98,44 @@ const AddVillageMaster = () => {
   useEffect(() => {
     fetchExistingVillages();
   }, [selectedTambon]);
+
+  // 6. ฟังก์ชันจัดการการกดบันทึกข้อมูล
+  const handleSave = async () => {
+    if (!selectedTambon) return alert("กรุณาเลือกตำบล");
+    if (!villagesInput.trim()) return alert("กรุณากรอกรายชื่อหมู่บ้าน");
+
+    setIsLoading(true);
+    
+    // แยกบรรทัดและจัดรูปแบบข้อมูลเพื่อส่งไป Backend
+    const lines = villagesInput.split('\n').filter(line => line.trim() !== '');
+    const villagesToSave = lines.map(line => {
+        const parts = line.trim().split(' ');
+        const moo = !isNaN(parts[0]) ? parts[0] : '-'; 
+        const name = !isNaN(parts[0]) ? parts.slice(1).join(' ') : line.trim();
+        return { village_no: moo, village_name: name };
+    });
+
+    try {
+      const res = await fetch(`${API_URL}/api/sys-villages/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tambon_id: selectedTambon, villages: villagesToSave })
+      });
+      const result = await res.json();
+      
+      if (result.success) {
+        alert(result.message);
+        setVillagesInput(''); // ล้างช่องเฉพาะรายชื่อหมู่บ้าน
+        fetchExistingVillages(); // โหลดข้อมูลตารางใหม่ทันทีที่บันทึกสำเร็จ
+      } else {
+        alert('เกิดข้อผิดพลาด: ' + result.message);
+      }
+    } catch (error) {
+      alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="bg-slate-50 min-h-screen pb-24 font-sans">
@@ -193,9 +187,54 @@ const AddVillageMaster = () => {
               </select>
             </div>
 
-            {/* Dropdown ตำบล */}
-           {/* ============================================== */}
-          {/* ตารางแสดงข้อมูลหมู่บ้านที่มีอยู่แล้ว (จะแสดงเมื่อเลือกตำบล) */}
+            {/* Dropdown ตำบล (เอากลับมาแล้ว) */}
+            <div>
+              <label className="flex items-center gap-1 text-sm font-bold text-slate-700 mb-2">
+                ตำบล {currentUser.scope_tambon_id && <Lock size={12} className="text-slate-400"/>}
+              </label>
+              <select 
+                className={`w-full p-3 border border-slate-200 rounded-xl font-medium outline-none 
+                  ${currentUser.scope_tambon_id ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50 focus:border-blue-500'}`}
+                value={selectedTambon} 
+                onChange={(e) => setSelectedTambon(e.target.value)}
+                disabled={!!currentUser.scope_tambon_id || !selectedAmphure}
+              >
+                <option value="">-- เลือกตำบล --</option>
+                {tambons.map(t => <option key={t.id} value={t.id}>{t.name_th}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* ช่องกรอกข้อมูลหมู่บ้าน */}
+          <div className="mb-6">
+            <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+              <ListPlus size={16} /> รายชื่อหมู่บ้าน (แยกบรรทัด)
+            </label>
+            <textarea 
+              rows="8"
+              value={villagesInput}
+              onChange={(e) => setVillagesInput(e.target.value)}
+              placeholder="กรอกข้อมูลรูปแบบ: [หมู่ที่] [ชื่อหมู่บ้าน] (1 บรรทัดต่อ 1 หมู่บ้าน)&#10;เช่น:&#10;1 บ้านดง&#10;2 บ้านน้ำร้อน&#10;บ้านสันป่าตอง (ถ้าไม่มีหมู่ที่)"
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-50 transition-all font-medium text-sm leading-relaxed"
+            ></textarea>
+            <p className="text-xs text-slate-400 mt-2">ระบบจะแยกข้อมูลด้วยการเว้นวรรคช่องแรก หากพิมพ์ "1 บ้านดง" ระบบจะบันทึก หมู่ที่=1, ชื่อ=บ้านดง</p>
+          </div>
+
+          {/* ปุ่มบันทึก */}
+          <button 
+            onClick={handleSave} 
+            disabled={isLoading || !selectedTambon || !villagesInput}
+            className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-md ${
+              (isLoading || !selectedTambon || !villagesInput) 
+              ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+              : 'bg-blue-600 text-white hover:bg-blue-700 hover:-translate-y-0.5'
+            }`}
+          >
+            {isLoading ? 'กำลังบันทึก...' : <><Save size={18} /> บันทึกข้อมูลหมู่บ้านเข้าสู่ระบบ</>}
+          </button>
+
+          {/* ============================================== */}
+          {/* ตารางแสดงข้อมูลหมู่บ้านที่มีอยู่แล้ว (ย้ายมาไว้ด้านล่างสุด) */}
           {/* ============================================== */}
           {selectedTambon && (
             <div className="mt-8 border-t border-slate-200 pt-6">
@@ -234,35 +273,6 @@ const AddVillageMaster = () => {
               )}
             </div>
           )}
-          </div>
-
-          {/* ช่องกรอกข้อมูลหมู่บ้าน */}
-          <div className="mb-6">
-            <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
-              <ListPlus size={16} /> รายชื่อหมู่บ้าน (แยกบรรทัด)
-            </label>
-            <textarea 
-              rows="8"
-              value={villagesInput}
-              onChange={(e) => setVillagesInput(e.target.value)}
-              placeholder="กรอกข้อมูลรูปแบบ: [หมู่ที่] [ชื่อหมู่บ้าน] (1 บรรทัดต่อ 1 หมู่บ้าน)&#10;เช่น:&#10;1 บ้านดง&#10;2 บ้านน้ำร้อน&#10;บ้านสันป่าตอง (ถ้าไม่มีหมู่ที่)"
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-sm leading-relaxed"
-            ></textarea>
-            <p className="text-xs text-slate-400 mt-2">* ระบบจะแยกข้อมูลด้วยการเว้นวรรคช่องแรก หากพิมพ์ "1 บ้านดง" ระบบจะบันทึก หมู่ที่=1, ชื่อ=บ้านดง</p>
-          </div>
-
-          {/* ปุ่มบันทึก */}
-          <button 
-            onClick={handleSave} 
-            disabled={isLoading || !selectedTambon || !villagesInput}
-            className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-md ${
-              (isLoading || !selectedTambon || !villagesInput) 
-              ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-              : 'bg-blue-600 text-white hover:bg-blue-700 hover:-translate-y-0.5'
-            }`}
-          >
-            {isLoading ? 'กำลังบันทึก...' : <><Save size={18} /> บันทึกข้อมูลหมู่บ้านเข้าสู่ระบบ</>}
-          </button>
 
         </div>
       </div>
