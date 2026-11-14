@@ -157,7 +157,18 @@ const RegisterVillage = () => {
     };
 
     // 🌟 ดึงข้อมูลผู้แนะนำจาก API
-    const checkReferrer = async (phone) => {
+// 1. เพิ่ม useEffect ตัวนี้เข้าไป เพื่อดักจับตอนพิมพ์เบอร์ครบ 10 หลัก
+  useEffect(() => {
+    if (referrerPhone.length === 10) {
+        checkReferrer(referrerPhone); // เรียกใช้ฟังก์ชันเดิมของคุณ
+    } else {
+        setReferrerInfo(null); // ล้างข้อมูลออกถ้าเบอร์ยังไม่ครบ
+    }
+  }, [referrerPhone]);
+
+
+  // ฟังก์ชันเดิมของคุณ (ไม่ต้องแก้อะไร)
+  const checkReferrer = async (phone) => {
         setIsCheckingReferrer(true);
         try {
             const res = await fetch(`${API_URL}/api/users/referrer/${phone}`);
@@ -171,7 +182,7 @@ const RegisterVillage = () => {
             console.error(e);
         }
         setIsCheckingReferrer(false);
-    };
+  };
 
     // 🌟 ยืนยันการบันทึก
     const handleSubmit = async (e) => {
