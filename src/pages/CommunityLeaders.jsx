@@ -263,13 +263,13 @@ const handleSearchUser = async () => {
     }
   };
 
-  // 🌟 ฟังก์ชันจัดการเพิ่มคน (แก้ไขลอจิก ซ้าย/ขวา/ล่าง)
+// 🌟 ฟังก์ชันจัดการเพิ่มคน (ฉบับสมบูรณ์ แยกซ้าย/ขวา/ล่าง และใช้ node.id)
   const handleAddNode = (node, direction) => {
     let targetParentId = null;
     
     if (direction === 'child') {
       // เพิ่มลูกน้อง (ลงล่าง) -> ให้กล่องที่ถูกคลิกเป็นหัวหน้า
-      targetParentId = node.position_record_id || node.id;
+      targetParentId = node.id; 
     } else {
       // เพิ่มเพื่อนร่วมงาน (ซ้าย/ขวา) -> ให้หัวหน้าของกล่องที่ถูกคลิก เป็นหัวหน้าของคนใหม่ด้วย
       targetParentId = node.parent_id || null;
@@ -278,7 +278,15 @@ const handleSearchUser = async () => {
     setEditingSlot({ isNew: true, parentId: targetParentId, direction }); 
     
     const today = new Date().toISOString().split('T')[0];
-    setFormData({ role_name: '', account_id: '', start_date: today, end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null });
+    setFormData({ 
+        role_name: '', 
+        account_id: '', 
+        start_date: today, 
+        end_date: '', 
+        responsibilities: '', 
+        previewUrl: '/profile-img.jpg', 
+        image_file: null 
+    });
     setFoundUser(null);
     setSearchCitizenId('');
     setIsModalOpen(true);
