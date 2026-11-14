@@ -10,6 +10,9 @@ const ManagePopulation = () => {
   const [households, setHouseholds] = useState([]);
   const [householdMembers, setHouseholdMembers] = useState([]);
   const [selectedHousehold, setSelectedHousehold] = useState(null);
+  
+  // 🌟 นำ State กลับมาใช้เก็บข้อมูลพื้นที่จาก API
+  const [locationContext, setLocationContext] = useState(null);
 
   const [isLoadingHouses, setIsLoadingHouses] = useState(false);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
@@ -20,19 +23,19 @@ const ManagePopulation = () => {
     citizen_id: '', first_name: '', last_name: '', nickname: '', gender: '', date_of_birth: ''
   });
 
-  // 1. ดึงข้อมูล User จาก LocalStorage ที่ได้มาตอน Login
   const currentUser = JSON.parse(localStorage.getItem('userData')) || {};
-  
-  // ใช้ village_id จากข้อมูลผู้ใช้ที่ Login เข้ามา
   const currentVillageId = currentUser.village_id || currentUser.scope_village_id;
 
-  // สร้าง Object เก็บข้อมูลพื้นที่โดยดึงจาก currentUser โดยตรง
-  const locationContext = {
-    village_no: currentUser.village_no || '-',
-    village_name: currentUser.village_name || '-',
-    tambon_name_th: currentUser.tambon_name_th || currentUser.tambon_name || '-',
-    amphure_name_th: currentUser.amphure_name_th || currentUser.amphure_name || '-',
-    province_name_th: currentUser.province_name_th || currentUser.province_name || '-'
+  // 🌟 ฟังก์ชันดึงข้อมูลพื้นที่แบบเต็มจากฐานข้อมูล
+  const fetchLocationContext = async () => {
+    if (!currentVillageId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/location-context/${currentVillageId}`);
+      const result = await res.json();
+      if (result.success) setLocationContext(result.data);
+    } catch (error) {
+      console.error("Error fetching location context:", error);
+    }
   };
 
   const fetchHouseholds = async () => {
@@ -69,9 +72,10 @@ const ManagePopulation = () => {
     }
   };
 
-  // ลบ fetchLocationContext() ออกไปแล้ว เหลือแค่โหลดบ้าน
+  // 🌟 เรียกใช้ทั้ง 2 ฟังก์ชันเมื่อเปิดหน้ามา
   useEffect(() => {
-    fetchHouseholds();
+    fetchLocationContext(); 
+    fetchHouseholds();      
   }, [currentVillageId]);
 
   useEffect(() => {
@@ -79,6 +83,7 @@ const ManagePopulation = () => {
     else setHouseholdMembers([]);
   }, [selectedHousehold]);
 
+  
   // ---------------------------------------------
   // ฟังก์ชันบันทึกข้อมูล
   // ---------------------------------------------
@@ -176,7 +181,7 @@ const ManagePopulation = () => {
               <h1 className="text-xl font-black text-slate-800">
                 จัดการข้อมูลประชากร
               </h1>
-              {/* แสดงข้อมูลพื้นที่แบบ Full Path */}
+             {/* เปลี่ยนตรงการแสดงผลให้มีการเช็คค่าก่อน */}
               {locationContext ? (
                 <p className="text-sm font-medium text-blue-600 mt-1 flex items-center gap-1">
                   <MapPin size={14}/> 
