@@ -7,13 +7,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 const ManagePopulation = () => {
 
-
   const [households, setHouseholds] = useState([]);
   const [householdMembers, setHouseholdMembers] = useState([]);
   const [selectedHousehold, setSelectedHousehold] = useState(null);
-  
-  // 🌟 State สำหรับเก็บข้อมูลพื้นที่เต็มรูปแบบ
-
 
   const [isLoadingHouses, setIsLoadingHouses] = useState(false);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
@@ -31,7 +27,6 @@ const ManagePopulation = () => {
   const currentVillageId = currentUser.village_id || currentUser.scope_village_id;
 
   // สร้าง Object เก็บข้อมูลพื้นที่โดยดึงจาก currentUser โดยตรง
-  // (อิงจากชื่อ property ทั่วไปที่มักส่งมาตอน Login)
   const locationContext = {
     village_no: currentUser.village_no || '-',
     village_name: currentUser.village_name || '-',
@@ -39,10 +34,6 @@ const ManagePopulation = () => {
     amphure_name_th: currentUser.amphure_name_th || currentUser.amphure_name || '-',
     province_name_th: currentUser.province_name_th || currentUser.province_name || '-'
   };
-
-  // ... (โค้ดส่วนอื่นๆ ยังคงเหมือนเดิม) ...
-
-  // ลบฟังก์ชัน fetchLocationContext() และ useEffect ที่เรียกใช้มันออกไปได้เลยครับ
 
   const fetchHouseholds = async () => {
     if (!currentVillageId) return;
@@ -78,9 +69,9 @@ const ManagePopulation = () => {
     }
   };
 
+  // ลบ fetchLocationContext() ออกไปแล้ว เหลือแค่โหลดบ้าน
   useEffect(() => {
-    fetchLocationContext(); // โหลดชื่อพื้นที่
-    fetchHouseholds();      // โหลดรายการบ้าน
+    fetchHouseholds();
   }, [currentVillageId]);
 
   useEffect(() => {
@@ -154,6 +145,8 @@ const ManagePopulation = () => {
 
   const inputStyle = "w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 text-sm bg-slate-50 focus:bg-white transition-all";
   const labelStyle = "block text-xs font-bold text-slate-500 mb-1";
+
+  // ส่วน return ลงไปปล่อยไว้ตามเดิมครับ
 
   return (
     // โครงสร้างหลัก: บังคับความสูง 100vh ป้องกันการ Scroll ทะลุ (เหมือนหน้า AddVillage)
