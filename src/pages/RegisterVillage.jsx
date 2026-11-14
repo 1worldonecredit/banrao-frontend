@@ -285,36 +285,46 @@ const RegisterVillage = () => {
                             {/* ===== ส่วนที่แก้ไขเป็น Dropdown ===== */}
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <label className={labelStyle}>หมู่ที่ และ ชื่อหมู่บ้าน / ชุมชน *</label>
-                                <select 
-                                    name="village_id" 
-                                    value={formData.village_id || ''} 
-                                    onChange={(e) => {
-                                        const selected = villagesList.find(v => v.village_id === e.target.value);
-                                        if (selected) {
-                                            handleChange({ target: { name: 'village_id', value: selected.village_id } });
-                                            handleChange({ target: { name: 'village_no', value: selected.village_no } });
-                                            handleChange({ target: { name: 'village_name', value: selected.village_name } });
-                                        } else {
-                                            handleChange({ target: { name: 'village_id', value: '' } });
-                                            handleChange({ target: { name: 'village_no', value: '' } });
-                                            handleChange({ target: { name: 'village_name', value: '' } });
-                                        }
-                                    }} 
-                                    className={inputStyle}
-                                    disabled={!villagesList || villagesList.length === 0}
-                                    required
-                                >
-                                    <option value="">
-                                        {(!villagesList || villagesList.length === 0) 
-                                            ? '-- กรุณารอระบบระบุตำบลก่อน หรือ กำลังโหลดข้อมูล... --' 
-                                            : '-- เลือกหมู่บ้านของคุณ --'}
-                                    </option>
-                                    {villagesList && villagesList.map(v => (
-                                        <option key={v.village_id} value={v.village_id}>
-                                            หมู่ที่ {v.village_no} {v.village_name}
-                                        </option>
-                                    ))}
-                                </select>
+                               <select 
+    name="village_id" 
+    value={formData.village_id || ''} 
+    onChange={(e) => {
+        // ค้นหาข้อมูลหมู่บ้านที่ถูกเลือก (แปลงเป็น String เพื่อให้เทียบกันได้แม่นยำ 100%)
+        const selected = villagesList.find(v => String(v.village_id) === String(e.target.value));
+        
+        if (selected) {
+            // อัปเดต State รวดเดียว 3 ค่าพร้อมกัน ป้องกัน React บันทึกข้อมูลทับกัน
+            setFormData(prev => ({
+                ...prev,
+                village_id: selected.village_id,
+                village_no: selected.village_no,
+                village_name: selected.village_name
+            }));
+        } else {
+            // กรณีเลือก "-- เลือกหมู่บ้านของคุณ --" ให้เคลียร์ค่าทิ้ง
+            setFormData(prev => ({
+                ...prev,
+                village_id: '',
+                village_no: '',
+                village_name: ''
+            }));
+        }
+    }} 
+    className={inputStyle}
+    disabled={!villagesList || villagesList.length === 0}
+    required
+>
+    <option value="">
+        {(!villagesList || villagesList.length === 0) 
+            ? '-- กรุณารอระบบระบุตำบลก่อน หรือ กำลังโหลดข้อมูล... --' 
+            : '-- เลือกหมู่บ้านของคุณ --'}
+    </option>
+    {villagesList && villagesList.map(v => (
+        <option key={v.village_id} value={v.village_id}>
+            หมู่ที่ {v.village_no} {v.village_name}
+        </option>
+    ))}
+</select>
                             </div>
                             {/* ================================== */}
 
