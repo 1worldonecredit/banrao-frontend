@@ -316,14 +316,13 @@ const CommunityLeaders = () => {
         } catch (error) { alert('เกิดข้อผิดพลาดในการลบข้อมูล'); }
     }
   };
-
-  const handleSave = async (e) => {
+    const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.account_id) return alert("กรุณาระบุบุคลากร");
     if (!formData.role_name) return alert("กรุณาระบุชื่อตำแหน่ง");
 
     try {
-      // 🌟 1. ดักจับ parent_id ถ้าเป็น Mock Node ให้ปรับเป็น null
+      // ดักจับ parent_id ถ้าเป็น Mock Node ให้ปรับเป็น null
       let finalParentId = editingSlot.parentId;
       if (finalParentId && typeof finalParentId === 'string' && finalParentId.startsWith('mock-root')) {
           finalParentId = null;
@@ -337,7 +336,7 @@ const CommunityLeaders = () => {
         start_date: formData.start_date,
         end_date: formData.end_date || null,
         responsibilities: formData.responsibilities,
-        parent_id: finalParentId // 🌟 2. ใช้ค่า finalParentId ที่ผ่านการตรวจสอบแล้ว
+        parent_id: finalParentId 
       };
 
       const url = editingSlot.isNew ? `${API_URL}/api/community-leaders` : `${API_URL}/api/community-leaders/${editingSlot.recordId}`;
@@ -350,21 +349,11 @@ const CommunityLeaders = () => {
         setIsModalOpen(false);
         fetchLeaders(selectedDate, activeTab);
       } else alert('บันทึกไม่สำเร็จ: ' + result.message);
-    } catch (error) { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
+    } catch (error) { 
+        alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); 
+    }
   };
 
-      const url = editingSlot.isNew ? `${API_URL}/api/community-leaders` : `${API_URL}/api/community-leaders/${editingSlot.recordId}`;
-      const method = editingSlot.isNew ? 'POST' : 'PUT';
-
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const result = await res.json();
-      if (result.success) {
-        alert('บันทึกข้อมูลเรียบร้อยแล้ว!');
-        setIsModalOpen(false);
-        fetchLeaders(selectedDate, activeTab);
-      } else alert('บันทึกไม่สำเร็จ: ' + result.message);
-    } catch (error) { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
-  };
 
   const handleSaveCommittee = async (e) => {
     e.preventDefault();
