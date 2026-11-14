@@ -144,9 +144,9 @@ const CommunityLeaders = () => {
     let lookup = {};
 
     data.forEach(item => {
-      lookup[item.position_record_id] = { 
+      // 🌟 ใช้ item.id แทน item.position_record_id ทั้งหมด
+      lookup[item.id] = { 
         ...item, 
-        id: item.position_record_id, 
         role_name: item.position_name,
         userName: `${item.first_name || ''} ${item.last_name || ''}`,
         children: [] 
@@ -154,11 +154,12 @@ const CommunityLeaders = () => {
     });
 
     data.forEach(item => {
+      // 🌟 ตรวจสอบ parent_id และใช้ item.id เพื่อหาตำแหน่งใน lookup
       if (item.parent_id && lookup[item.parent_id]) {
-        lookup[item.parent_id].children.push(lookup[item.position_record_id]);
+        lookup[item.parent_id].children.push(lookup[item.id]);
       } else {
-        lookup[item.position_record_id].isRoot = true;
-        tree.push(lookup[item.position_record_id]);
+        lookup[item.id].isRoot = true;
+        tree.push(lookup[item.id]);
       }
     });
 
@@ -449,9 +450,9 @@ const handleSearchUser = async () => {
               <p className="text-sm text-slate-500 font-medium mt-0.5">หมู่บ้าน: {userData?.villageName || 'ของคุณ'}</p>
             </div>
           </div>
-        </div>
+         </div>
 
-        <div className="flex overflow-x-auto gap-3 mb-6 pb-2 hide-scrollbar items-center px-1">
+         <div className="flex overflow-x-auto gap-3 mb-6 pb-2 hide-scrollbar items-center px-1">
           {committees.map(c => (
             <div key={c.committee_id} className="relative group shrink-0">
               <button
