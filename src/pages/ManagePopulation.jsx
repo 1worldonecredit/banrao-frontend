@@ -238,29 +238,42 @@ const ManagePopulation = () => {
                   ) : households.length === 0 ? (
                      <div className="text-center py-6 text-slate-400 text-sm">ยังไม่มีข้อมูลบ้าน</div>
                   ) : (
-                    households.map(household => {
-                      const currentCount = Number(household.current_count);
-                      const expectedCount = Number(household.expected_member_count);
-                      const isComplete = currentCount >= expectedCount;
-                      const isSelected = selectedHousehold?.household_id === household.household_id;
-                      return (
-                        <button key={household.household_id} onClick={() => setSelectedHousehold(household)} className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between ${isSelected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}>
-                          <div>
-                            <div className="font-bold text-slate-800 text-lg">บ้านเลขที่ {household.house_no}</div>
-                            <div className="text-xs text-slate-500 mt-1">จำนวนคน: {currentCount} / {expectedCount} คน</div>
-                          </div>
-                          {isComplete ? (
-                             <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full whitespace-nowrap">
-                               <CheckCircle size={14} /> ครบถ้วน
-                             </div>
-                          ) : (
-                             <div className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full whitespace-nowrap">
-                               <AlertCircle size={14} /> ขาด {expectedCount - currentCount}
-                             </div>
-                          )}
-                        </button>
-                      );
-                    })
+                    // หาบรรทัดนี้: households.map(household => {
+households.map(household => {
+  // ✅ ใช้ Number() แปลงค่าให้ชัวร์ และถ้าไม่มีค่าให้เป็น 0
+  const currentCount = Number(household.current_count || 0); 
+  const expectedCount = Number(household.expected_member_count || 0);
+  
+  // เช็คเงื่อนไขความครบถ้วน
+  const isComplete = expectedCount > 0 && currentCount >= expectedCount;
+  const isSelected = selectedHousehold?.household_id === household.household_id;
+  
+  return (
+    <button 
+      key={household.household_id}
+      onClick={() => setSelectedHousehold(household)}
+      className={`w-full p-4 rounded-xl border text-left transition-all flex items-center justify-between
+        ${isSelected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
+    >
+      <div>
+        <div className="font-bold text-slate-800 text-lg">บ้านเลขที่ {household.house_no}</div>
+        {/* ✅ แสดงตัวเลขที่แปลงแล้ว */}
+        <div className="text-xs text-slate-500 mt-1">จำนวนคน: {currentCount} / {expectedCount} คน</div>
+      </div>
+      
+      {isComplete ? (
+         <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full whitespace-nowrap">
+           <CheckCircle size={14} /> ครบถ้วน
+         </div>
+      ) : (
+         <div className="flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-full whitespace-nowrap">
+           {/* ✅ ป้องกันตัวเลขติดลบ */}
+           <AlertCircle size={14} /> ขาด {Math.max(0, expectedCount - currentCount)}
+         </div>
+      )}
+    </button>
+  );
+})
                   )}
                 </div>
               </div>
@@ -279,20 +292,25 @@ const ManagePopulation = () => {
               ) : (
                 <div className="flex flex-col gap-6">
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-200 bg-gradient-to-r from-white to-blue-50">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-xl font-black text-slate-800">
-                        รายละเอียดบ้านเลขที่ <span className="text-blue-600">{selectedHousehold.house_no}</span>
-                      </h2>
-                      <div className="text-sm font-bold bg-white px-3 py-1 rounded-lg border shadow-sm flex items-center gap-2">
-                        ความคืบหน้า: 
-                        <span className={Number(selectedHousehold.current_count) >= Number(selectedHousehold.expected_member_count) ? 'text-emerald-600' : 'text-amber-600'}>
-                          {selectedHousehold.current_count} / {selectedHousehold.expected_member_count}
-                        </span>
-                      </div>
-                    </div>
+                   // หาบริเวณนี้ในโค้ดฝั่งขวา
+<div className="flex justify-between items-center mb-4">
+  <h2 className="text-xl font-black text-slate-800">
+    รายละเอียดบ้านเลขที่ <span className="text-blue-600">{selectedHousehold.house_no}</span>
+  </h2>
+  
+  {/* ✅ แก้ไขตรงนี้: ครอบด้วย Number() และใช้ || 0 ป้องกันค่าว่าง */}
+  <div className="text-sm font-bold bg-white px-3 py-1 rounded-lg border shadow-sm flex items-center gap-2">
+    ความคืบหน้า: 
+    <span className={Number(selectedHousehold.current_count || 0) >= Number(selectedHousehold.expected_member_count || 0) ? 'text-emerald-600' : 'text-amber-600'}>
+      {Number(selectedHousehold.current_count || 0)} / {Number(selectedHousehold.expected_member_count || 0)}
+    </span>
+  </div>
+</div>
 
-                    {Number(selectedHousehold.current_count) < Number(selectedHousehold.expected_member_count) && (
-                      <form onSubmit={handleAddMember} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mt-4">
+{/* ✅ แก้ไขเงื่อนไขซ่อน/แสดงฟอร์มด้วย */}
+{Number(selectedHousehold.current_count || 0) < Number(selectedHousehold.expected_member_count || 0) && (
+  <form onSubmit={handleAddMember} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mt-4">
+     {/* ... โค้ดฟอร์มภายในปล่อยไว้ตามเดิม ... */}
                         <h4 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2"><UserPlus size={16}/> เพิ่มประชากรใหม่</h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                           <div className="md:col-span-3">
