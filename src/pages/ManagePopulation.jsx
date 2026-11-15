@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Users, UserPlus, CheckCircle, AlertCircle, Plus, MapPin, Save, Loader2, X, Edit, Trash2 } from 'lucide-react';
+import { Home, Users, UserPlus, Plus, MapPin, Save, Loader2, X, Edit, Trash2 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar'; 
 import BottomNavbar from '../components/BottomNavbar'; 
 
@@ -12,7 +12,7 @@ const ManagePopulation = () => {
   const [selectedHousehold, setSelectedHousehold] = useState(null);
   const [locationContext, setLocationContext] = useState(null);
   
-  // State สำหรับ Popup
+  // State สำหรับ Popup สมาชิก
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
 
@@ -20,6 +20,7 @@ const ManagePopulation = () => {
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // ฟอร์ม
   const [newHouseholdForm, setNewHouseholdForm] = useState({ house_no: '', expected_member_count: '' });
   const [memberForm, setMemberForm] = useState({
     citizen_id: '', first_name: '', last_name: '', nickname: '', gender: '', date_of_birth: '', status: 'ACTIVE'
@@ -28,7 +29,7 @@ const ManagePopulation = () => {
   const currentUser = JSON.parse(localStorage.getItem('userData')) || {};
   const currentVillageId = currentUser.village_id || currentUser.scope_village_id;
 
-  // โหลดข้อมูลต่างๆ
+  // โหลดพื้นที่
   const fetchLocationContext = async () => {
     if (!currentVillageId) return;
     try {
@@ -38,6 +39,7 @@ const ManagePopulation = () => {
     } catch (error) { console.error("Error location:", error); }
   };
 
+  // โหลดบ้าน
   const fetchHouseholds = async () => {
     if (!currentVillageId) return;
     setIsLoadingHouses(true);
@@ -55,6 +57,7 @@ const ManagePopulation = () => {
     finally { setIsLoadingHouses(false); }
   };
 
+  // โหลดคนในบ้าน
   const fetchMembers = async (householdId) => {
     if (!householdId) return;
     setIsLoadingMembers(true);
@@ -76,7 +79,7 @@ const ManagePopulation = () => {
     else setHouseholdMembers([]);
   }, [selectedHousehold]);
 
-  // ฟังก์ชันต่างๆ
+  // ฟังก์ชัน: สร้างบ้าน
   const handleAddHousehold = async (e) => {
     e.preventDefault();
     if(!newHouseholdForm.house_no || !newHouseholdForm.expected_member_count) return;
@@ -94,9 +97,9 @@ const ManagePopulation = () => {
       const result = await res.json();
       if (result.success) {
         setNewHouseholdForm({ house_no: '', expected_member_count: '' });
-        fetchHouseholds();
+        fetchHouseholds(); // รีโหลดบ้านใหม่
       } else alert(result.message);
-    } catch (error) { alert('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้'); } 
+    } catch (error) { alert('เชื่อมต่อไม่ได้'); } 
     finally { setIsSaving(false); }
   };
 
@@ -111,28 +114,21 @@ const ManagePopulation = () => {
   const openEditMemberModal = (member) => {
     setEditingMember(member);
     setMemberForm({
-      citizen_id: member.citizen_id || '',
-      first_name: member.first_name || '',
-      last_name: member.last_name || '',
-      nickname: member.nickname || '',
-      gender: member.gender || '',
-      date_of_birth: member.date_of_birth || '',
+      citizen_id: member.citizen_id || '', first_name: member.first_name || '',
+      last_name: member.last_name || '', nickname: member.nickname || '',
+      gender: member.gender || '', date_of_birth: member.date_of_birth ? member.date_of_birth.split('T')[0] : '', 
       status: member.status || 'ACTIVE'
     });
     setShowMemberModal(true);
   };
 
-  // บันทึกสมาชิก (ใช้ทั้ง เพิ่ม และ แก้ไข)
+  // ฟังก์ชัน: บันทึกสมาชิก (เงื่อนไขเลขบัตรประชาชนต้องไม่ซ้ำ)
   const handleSaveMember = async (e) => {
     e.preventDefault();
     if(!selectedHousehold) return;
     setIsSaving(true);
     
-    // TODO: ถ้ามี API แก้ไขสมาชิก ให้เรียกใช้แยกกันตรงนี้
-    const url = editingMember 
-      ? `${API_URL}/api/household-members/${editingMember.member_id}` // สมมติว่ามี API แก้ไข
-      : `${API_URL}/api/household-members`;
-      
+    const url = editingMember ? `${API_URL}/api/household-members/${editingMember.member_id}` : `${API_URL}/api/household-members`;
     const method = editingMember ? 'PUT' : 'POST';
 
     try {
@@ -145,13 +141,13 @@ const ManagePopulation = () => {
       if (result.success) {
         setShowMemberModal(false);
         fetchMembers(selectedHousehold.household_id);
-        fetchHouseholds();
-      } else alert(result.message);
-    } catch (error) { alert('เชื่อมต่อไม่ได้'); } 
+        fetchHouseholds(); // รีโหลดเพื่ออัปเดตจำนวนคน (current_count)
+      } else alert(result.message); // เช่น "เลขบัตรประชาชนนี้อยู่ในระบบแล้ว"
+    } catch (error) { alert('บันทึกไม่สำเร็จ'); } 
     finally { setIsSaving(false); }
   };
 
-  // เปลี่ยนสถานะ (ลบแบบ Soft Delete)
+  // ฟังก์ชัน: เปลี่ยนสถานะ (Active/Inactive)
   const handleToggleStatus = async (member_id, currentStatus) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     if(!window.confirm(`ต้องการเปลี่ยนสถานะเป็น "${newStatus === 'ACTIVE' ? 'อาศัยอยู่' : 'เคยอาศัย'}" ใช่หรือไม่?`)) return;
@@ -164,24 +160,14 @@ const ManagePopulation = () => {
       });
       if ((await res.json()).success) {
         fetchMembers(selectedHousehold.household_id);
+        fetchHouseholds(); // รีโหลดจำนวน
       }
     } catch (error) { alert('เปลี่ยนสถานะไม่สำเร็จ'); }
   };
 
-  const getGenderLabel = (genderCode) => {
-    if(genderCode === 'MALE') return 'ชาย';
-    if(genderCode === 'FEMALE') return 'หญิง';
-    if(genderCode === 'OTHER') return 'LGBTQ';
-    return '-';
-  };
-
-  const inputStyle = "w-full p-2.5 border border-slate-200 rounded-lg outline-none focus:border-blue-500 text-sm bg-slate-50 focus:bg-white";
+  const inputStyle = "w-full p-2.5 border border-slate-200 rounded-lg outline-none focus:border-blue-500 text-sm bg-slate-50";
   const labelStyle = "block text-xs font-bold text-slate-500 mb-1";
-
-  const loc = locationContext || {
-    village_no: currentUser?.village_no || '-', village_name: currentUser?.village_name || '-',
-    tambon_name_th: '-', amphure_name_th: '-', province_name_th: '-'
-  };
+  const loc = locationContext || { village_no: '-', village_name: '-', tambon_name_th: '-', amphure_name_th: '-', province_name_th: '-' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
@@ -190,30 +176,25 @@ const ManagePopulation = () => {
       <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '90px 16px 80px 16px', width: '100%' }}>
         <div className="max-w-7xl mx-auto">
           
-          {/* Header */}
+          {/* Header แสดงพื้นที่ */}
           <div className="flex items-center gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
             <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-2 border-blue-500">
-              {currentUser?.profile_image_url ? (
-                <img src={currentUser.profile_image_url} alt="Profile" className="w-full h-full object-cover" />
-              ) : <Users size={24} className="text-blue-600" />}
+              <Users size={24} className="text-blue-600" />
             </div>
             <div>
               <h1 className="text-xl font-black text-slate-800">จัดการข้อมูลประชากร</h1>
               <p className="text-sm font-medium text-blue-600 mt-1 flex items-center gap-1">
                 <MapPin size={14}/> 
-                หมู่ที่ {loc.village_no} บ้าน{loc.village_name} 
-                ต.{loc.tambon_name_th} อ.{loc.amphure_name_th} จ.{loc.province_name_th}
+                หมู่ที่ {loc.village_no} บ้าน{loc.village_name} ต.{loc.tambon_name_th} อ.{loc.amphure_name_th} จ.{loc.province_name_th}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* ซ้าย: เพิ่มและรายการบ้าน */}
+            {/* ฝั่งซ้าย: จัดการบ้าน */}
             <div className="lg:col-span-4 flex flex-col gap-4">
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                <h3 className="text-md font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
-                  <Home size={18} className="text-blue-500" /> เพิ่มข้อมูลบ้าน
-                </h3>
+                <h3 className="text-md font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2"><Home size={18} className="text-blue-500" /> เพิ่มข้อมูลบ้าน</h3>
                 <form onSubmit={handleAddHousehold} className="flex flex-col gap-3">
                   <div>
                     <label className={labelStyle}>บ้านเลขที่ *</label>
@@ -230,19 +211,16 @@ const ManagePopulation = () => {
               </div>
 
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex-1">
-                <h3 className="text-md font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
-                  <MapPin size={18} className="text-slate-500" /> รายการบ้าน ({households.length})
-                </h3>
+                <h3 className="text-md font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2"><MapPin size={18} className="text-slate-500" /> รายการบ้าน ({households.length})</h3>
                 <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                   {households.map(h => {
                     const cCount = Number(h.current_count || 0);
                     const eCount = Number(h.expected_member_count || 0);
-                    const isSelected = selectedHousehold?.household_id === h.household_id;
                     return (
-                      <button key={h.household_id} onClick={() => setSelectedHousehold(h)} className={`w-full p-3 rounded-xl border text-left transition-all flex items-center justify-between ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                      <button key={h.household_id} onClick={() => setSelectedHousehold(h)} className={`w-full p-3 rounded-xl border text-left transition-all flex items-center justify-between ${selectedHousehold?.household_id === h.household_id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                         <div>
                           <div className="font-bold text-slate-800">บ้านเลขที่ {h.house_no}</div>
-                          <div className="text-xs text-slate-500 mt-1">จำนวนคน: {cCount} / {eCount}</div>
+                          <div className="text-xs text-slate-500 mt-1">ประชากรปัจจุบัน: {cCount} / {eCount}</div>
                         </div>
                       </button>
                     );
@@ -251,12 +229,11 @@ const ManagePopulation = () => {
               </div>
             </div>
 
-            {/* ขวา: สมาชิก */}
+            {/* ฝั่งขวา: รายชื่อคนในบ้าน */}
             <div className="lg:col-span-8">
               {!selectedHousehold ? (
                 <div className="bg-white h-full rounded-2xl border border-slate-200 border-dashed flex flex-col items-center justify-center p-10 text-slate-400 min-h-[400px]">
-                  <Home size={48} className="mb-4 text-slate-300" />
-                  <h2 className="text-xl font-bold">เลือกลิสต์บ้านด้านซ้าย</h2>
+                  <h2 className="text-xl font-bold">เลือกลิสต์บ้านด้านซ้ายเพื่อดูสมาชิก</h2>
                 </div>
               ) : (
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -344,6 +321,10 @@ const ManagePopulation = () => {
                   <select className={inputStyle} value={memberForm.status} onChange={e => setMemberForm({...memberForm, status: e.target.value})}>
                     <option value="ACTIVE">อาศัยอยู่</option><option value="INACTIVE">เคยอาศัย</option>
                   </select>
+                </div>
+                <div className="col-span-2">
+                  <label className={labelStyle}>วันเกิด</label>
+                  <input type="date" className={inputStyle} value={memberForm.date_of_birth} onChange={e => setMemberForm({...memberForm, date_of_birth: e.target.value})} />
                 </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">
