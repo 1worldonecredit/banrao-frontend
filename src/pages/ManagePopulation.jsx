@@ -184,6 +184,7 @@ const ManagePopulation = () => {
       const res = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await res.json();
       if (result.success) {
+        alert('บันทึกข้อมูลประชากรสำเร็จ!'); // 👈 เพิ่มบรรทัดนี้เข้าไปครับ
         setShowMemberModal(false);
         fetchMembers(selectedHousehold.household_id);
         fetchHouseholds();
