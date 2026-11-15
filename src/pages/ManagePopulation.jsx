@@ -5,10 +5,7 @@ import BottomNavbar from '../components/BottomNavbar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
-const thaiMonths = [
-  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-];
+const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 const currentThaiYear = new Date().getFullYear() + 543;
 const years = Array.from({ length: 120 }, (_, i) => currentThaiYear - i);
 const days = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -36,11 +33,9 @@ const ManagePopulation = () => {
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ฟอร์มบ้าน (เพิ่ม owner_name กรณีไม่มีเลขที่)
   const [newHouseholdForm, setNewHouseholdForm] = useState({ house_no: '', expected_member_count: '', owner_name: '' });
   const [isNoHouseNumber, setIsNoHouseNumber] = useState(false);
   
-  // ฟอร์มสมาชิก
   const [memberForm, setMemberForm] = useState({
     is_foreigner: false, citizen_id: '', passport_no: '', nationality: 'ไทย',
     first_name: '', last_name: '', nickname: '', gender: '', 
@@ -100,7 +95,6 @@ const ManagePopulation = () => {
 
   const handleAddHousehold = async (e) => {
     e.preventDefault();
-    // ถ้าเลือก "ไม่มีเลขที่" ให้รวมชื่อเจ้าของไปใน house_no เลย เพื่อให้แสดงผลได้ง่ายๆ
     const finalHouseNo = isNoHouseNumber ? `ไม่มีเลขที่ (${newHouseholdForm.owner_name})` : newHouseholdForm.house_no;
     if(!finalHouseNo || !newHouseholdForm.expected_member_count) return;
     setIsSaving(true);
@@ -110,7 +104,7 @@ const ManagePopulation = () => {
         body: JSON.stringify({ village_id: currentVillageId, house_no: finalHouseNo, expected_member_count: parseInt(newHouseholdForm.expected_member_count) })
       });
       if ((await res.json()).success) {
-        alert('บันทึกข้อมูลบ้านสำเร็จ!'); // 👈 เพิ่มแจ้งเตือน
+        alert('บันทึกข้อมูลบ้านสำเร็จ!');
         setNewHouseholdForm({ house_no: '', expected_member_count: '', owner_name: '' });
         setIsNoHouseNumber(false);
         fetchHouseholds();
@@ -187,7 +181,7 @@ const ManagePopulation = () => {
       const res = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await res.json();
       if (result.success) {
-        alert('บันทึกข้อมูลสมาชิกสำเร็จ!'); // 👈 เพิ่มแจ้งเตือน
+        alert('บันทึกข้อมูลสมาชิกสำเร็จ!');
         setShowMemberModal(false);
         fetchMembers(selectedHousehold.household_id);
         fetchHouseholds();
@@ -216,7 +210,7 @@ const ManagePopulation = () => {
 
   const inputStyle = "w-full p-2.5 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm bg-slate-50 hover:bg-white text-slate-700 transition-all";
   const labelStyle = "block text-xs font-bold text-slate-500 mb-1.5";
-  const loc = locationContext || { village_no: '-', village_name: 'กำลังโหลด...', tambon_name_th: '-', amphure_name_th: '-', province_name_th: '-' };
+  const loc = locationContext || { village_no: '-', village_name: '...', tambon_name_th: '...', amphure_name_th: '...', province_name_th: '...' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
@@ -240,7 +234,6 @@ const ManagePopulation = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-4 flex flex-col gap-5">
               
-              {/* === เพิ่มข้อมูลบ้าน === */}
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100"><Home size={18} className="text-blue-500" /> เพิ่มข้อมูลบ้าน</h3>
                 <form onSubmit={handleAddHousehold} className="flex flex-col gap-4">
@@ -273,10 +266,9 @@ const ManagePopulation = () => {
                 </form>
               </div>
 
-              {/* === รายการบ้าน === */}
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col">
                 <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100"><MapPin size={18} className="text-slate-400" /> รายการบ้าน ({households.length})</h3>
-                <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 custom-scrollbar">
+                <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 custom-scrollbar max-h-[350px]">
                   {households.map(h => {
                     const cCount = Number(h.current_count || 0);
                     const eCount = Number(h.expected_member_count || 0);
@@ -295,14 +287,13 @@ const ManagePopulation = () => {
               </div>
             </div>
 
-            {/* === รายชื่อคนในบ้าน === */}
             <div className="lg:col-span-8">
               {!selectedHousehold ? (
                 <div className="bg-white h-full rounded-2xl border border-slate-200 border-dashed flex flex-col items-center justify-center p-10 text-slate-400 min-h-[400px]">
                   <h2 className="text-xl font-bold text-slate-500">เลือกลิสต์บ้านด้านซ้ายเพื่อจัดการสมาชิก</h2>
                 </div>
               ) : (
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-full flex flex-col">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-full flex flex-col min-h-[400px]">
                   <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-100">
                     <div>
                       <h2 className="text-xl font-black text-slate-700">บ้านเลขที่ <span className="text-blue-600">{selectedHousehold.house_no}</span></h2>
@@ -353,7 +344,7 @@ const ManagePopulation = () => {
                                   )}
                                 </td>
                                 <td className="px-4 py-3 text-[11px] font-semibold text-slate-500">
-                                  {isReg ? 'ในทะเบียนบ้าน' : 'ผู้อยู่อาศัย (ไม่เข้าทะเบียน)'}
+                                  {isReg ? 'ในทะเบียนบ้าน' : 'ไม่มีชื่อในทะเบียน'}
                                 </td>
                                 <td className="px-4 py-3 text-center">
                                   <span className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold cursor-pointer transition-colors ${isInactive ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100'}`} onClick={() => handleToggleStatus(person.member_id, person.status, person.resident_type)} title="คลิกเพื่อเปลี่ยนสถานะ">
@@ -380,7 +371,6 @@ const ManagePopulation = () => {
       </div>
       <div style={{ flexShrink: 0, position: 'fixed', bottom: 0, width: '100%', zIndex: 40 }}><BottomNavbar /></div>
 
-      {/* ===================== MODAL เพิ่ม/แก้ไข สมาชิก ===================== */}
       {showMemberModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-slate-100">
@@ -392,7 +382,6 @@ const ManagePopulation = () => {
             </div>
             
             <form onSubmit={handleSaveMember} className="p-6 overflow-y-auto max-h-[75vh] custom-scrollbar bg-slate-50/50">
-              
               <div className="flex mb-5 bg-slate-100/70 p-1 rounded-xl">
                 <button type="button" onClick={() => setMemberForm({...memberForm, resident_type: 'REGISTERED', household_status: 'ผู้อาศัย'})} className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${memberForm.resident_type === 'REGISTERED' ? 'bg-white text-blue-700 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}>
                   มีชื่อในทะเบียนบ้าน
