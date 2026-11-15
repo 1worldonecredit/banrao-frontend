@@ -36,10 +36,11 @@ const ManagePopulation = () => {
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [newHouseholdForm, setNewHouseholdForm] = useState({ house_no: '', expected_member_count: '' });
+  // ฟอร์มบ้าน (เพิ่ม owner_name กรณีไม่มีเลขที่)
+  const [newHouseholdForm, setNewHouseholdForm] = useState({ house_no: '', expected_member_count: '', owner_name: '' });
   const [isNoHouseNumber, setIsNoHouseNumber] = useState(false);
   
-  // เพิ่ม State สำหรับชาวต่างชาติ
+  // ฟอร์มสมาชิก
   const [memberForm, setMemberForm] = useState({
     is_foreigner: false, citizen_id: '', passport_no: '', nationality: 'ไทย',
     first_name: '', last_name: '', nickname: '', gender: '', 
@@ -99,7 +100,8 @@ const ManagePopulation = () => {
 
   const handleAddHousehold = async (e) => {
     e.preventDefault();
-    const finalHouseNo = isNoHouseNumber ? 'ไม่มีเลขที่' : newHouseholdForm.house_no;
+    // ถ้าเลือก "ไม่มีเลขที่" ให้รวมชื่อเจ้าของไปใน house_no เลย เพื่อให้แสดงผลได้ง่ายๆ
+    const finalHouseNo = isNoHouseNumber ? `ไม่มีเลขที่ (${newHouseholdForm.owner_name})` : newHouseholdForm.house_no;
     if(!finalHouseNo || !newHouseholdForm.expected_member_count) return;
     setIsSaving(true);
     try {
@@ -108,7 +110,8 @@ const ManagePopulation = () => {
         body: JSON.stringify({ village_id: currentVillageId, house_no: finalHouseNo, expected_member_count: parseInt(newHouseholdForm.expected_member_count) })
       });
       if ((await res.json()).success) {
-        setNewHouseholdForm({ house_no: '', expected_member_count: '' });
+        alert('บันทึกข้อมูลบ้านสำเร็จ!'); // 👈 เพิ่มแจ้งเตือน
+        setNewHouseholdForm({ house_no: '', expected_member_count: '', owner_name: '' });
         setIsNoHouseNumber(false);
         fetchHouseholds();
       }
@@ -184,7 +187,7 @@ const ManagePopulation = () => {
       const res = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await res.json();
       if (result.success) {
-        alert('บันทึกข้อมูลประชากรสำเร็จ!'); // 👈 เพิ่มบรรทัดนี้เข้าไปครับ
+        alert('บันทึกข้อมูลสมาชิกสำเร็จ!'); // 👈 เพิ่มแจ้งเตือน
         setShowMemberModal(false);
         fetchMembers(selectedHousehold.household_id);
         fetchHouseholds();
@@ -236,18 +239,29 @@ const ManagePopulation = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-4 flex flex-col gap-5">
-              {/* เพิ่มข้อมูลบ้าน */}
+              
+              {/* === เพิ่มข้อมูลบ้าน === */}
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100"><Home size={18} className="text-blue-500" /> เพิ่มข้อมูลบ้าน</h3>
                 <form onSubmit={handleAddHousehold} className="flex flex-col gap-4">
                   <div>
-                    <label className={labelStyle}>บ้านเลขที่ *</label>
-                    <input required={!isNoHouseNumber} disabled={isNoHouseNumber} type="text" className={`${inputStyle} ${isNoHouseNumber ? 'opacity-50 cursor-not-allowed' : ''}`} placeholder="เช่น 123/4" value={newHouseholdForm.house_no} onChange={e => setNewHouseholdForm({...newHouseholdForm, house_no: e.target.value})} />
-                    <label className="flex items-center gap-2 mt-2 cursor-pointer w-max group">
-                      <input type="checkbox" className="hidden" checked={isNoHouseNumber} onChange={() => setIsNoHouseNumber(!isNoHouseNumber)} />
-                      {isNoHouseNumber ? <CheckSquare size={16} className="text-blue-600"/> : <Square size={16} className="text-slate-300 group-hover:text-blue-400 transition-colors"/>}
-                      <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-700 transition-colors">บ้านไม่มีเลขที่</span>
-                    </label>
+                    <div className="flex justify-between items-center mb-1.5">
+                       <label className="text-xs font-bold text-slate-500">บ้านเลขที่ *</label>
+                       <label className="flex items-center gap-1.5 cursor-pointer group">
+                         <input type="checkbox" className="hidden" checked={isNoHouseNumber} onChange={() => { setIsNoHouseNumber(!isNoHouseNumber); setNewHouseholdForm({...newHouseholdForm, house_no: '', owner_name: ''}); }} />
+                         {isNoHouseNumber ? <CheckSquare size={14} className="text-blue-600"/> : <Square size={14} className="text-slate-300 group-hover:text-blue-400"/>}
+                         <span className="text-[11px] font-bold text-slate-500 group-hover:text-slate-700">ไม่มีเลขที่</span>
+                       </label>
+                    </div>
+
+                    {isNoHouseNumber ? (
+                      <div className="space-y-2">
+                        <input disabled type="text" className={`${inputStyle} opacity-50 bg-slate-100`} value="ไม่มีเลขที่" />
+                        <input required type="text" className={inputStyle} placeholder="ระบุชื่อเจ้าของบ้าน/ผู้พักอาศัยหลัก" value={newHouseholdForm.owner_name} onChange={e => setNewHouseholdForm({...newHouseholdForm, owner_name: e.target.value})} />
+                      </div>
+                    ) : (
+                      <input required type="text" className={inputStyle} placeholder="เช่น 123/4" value={newHouseholdForm.house_no} onChange={e => setNewHouseholdForm({...newHouseholdForm, house_no: e.target.value})} />
+                    )}
                   </div>
                   <div>
                     <label className={labelStyle}>จำนวนคนตามทะเบียนบ้าน *</label>
@@ -259,7 +273,7 @@ const ManagePopulation = () => {
                 </form>
               </div>
 
-              {/* รายการบ้าน */}
+              {/* === รายการบ้าน === */}
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col">
                 <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100"><MapPin size={18} className="text-slate-400" /> รายการบ้าน ({households.length})</h3>
                 <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 custom-scrollbar">
@@ -281,7 +295,7 @@ const ManagePopulation = () => {
               </div>
             </div>
 
-            {/* รายชื่อคนในบ้าน */}
+            {/* === รายชื่อคนในบ้าน === */}
             <div className="lg:col-span-8">
               {!selectedHousehold ? (
                 <div className="bg-white h-full rounded-2xl border border-slate-200 border-dashed flex flex-col items-center justify-center p-10 text-slate-400 min-h-[400px]">
@@ -379,7 +393,6 @@ const ManagePopulation = () => {
             
             <form onSubmit={handleSaveMember} className="p-6 overflow-y-auto max-h-[75vh] custom-scrollbar bg-slate-50/50">
               
-              {/* TABS กลุ่มผู้พักอาศัย */}
               <div className="flex mb-5 bg-slate-100/70 p-1 rounded-xl">
                 <button type="button" onClick={() => setMemberForm({...memberForm, resident_type: 'REGISTERED', household_status: 'ผู้อาศัย'})} className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${memberForm.resident_type === 'REGISTERED' ? 'bg-white text-blue-700 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}>
                   มีชื่อในทะเบียนบ้าน
@@ -389,7 +402,6 @@ const ManagePopulation = () => {
                 </button>
               </div>
 
-              {/* Toggle ชาวต่างชาติ (Smart Switch) */}
               <div className="flex justify-end mb-4">
                 <label className="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
                   <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${memberForm.is_foreigner ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-300 text-transparent'}`}>
@@ -401,11 +413,8 @@ const ManagePopulation = () => {
                 </label>
               </div>
 
-              {/* ฟอร์มข้อมูลส่วนตัว */}
               <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm mb-4 transition-all">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  
-                  {/* Smart ID Fields (เปลี่ยนตาม Toggle ต่างชาติ) */}
                   {memberForm.is_foreigner ? (
                     <>
                       <div>
@@ -436,11 +445,8 @@ const ManagePopulation = () => {
                 </div>
               </div>
 
-              {/* ฟอร์มสถานะและรายละเอียดตาม Tab */}
               <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  
-                  {/* Smart Date Picker: ทะเบียนบ้านใช้ Dropdown ไทย, ผู้อาศัยใช้วันที่มาตรฐาน */}
                   {memberForm.resident_type === 'REGISTERED' ? (
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                       <div className="md:col-span-3"><label className={labelStyle}>วันเดือนปีเกิด (แบบไทย)</label></div>
@@ -493,7 +499,6 @@ const ManagePopulation = () => {
                     <label className={labelStyle}>โน้ต / รายละเอียดเพิ่มเติม</label>
                     <textarea className={`${inputStyle} resize-none h-24`} placeholder="พิมพ์รายละเอียดเพิ่มเติม..." value={memberForm.note} onChange={e => setMemberForm({...memberForm, note: e.target.value})}></textarea>
                   </div>
-
                 </div>
               </div>
               
