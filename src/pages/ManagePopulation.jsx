@@ -12,7 +12,7 @@ const ManagePopulation = () => {
   const [selectedHousehold, setSelectedHousehold] = useState(null);
   const [locationContext, setLocationContext] = useState(null);
   
-  // State สำหรับ Popup สมาชิก
+  // State Popup
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
 
@@ -20,10 +20,13 @@ const ManagePopulation = () => {
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ฟอร์ม
+  // ฟอร์มบ้าน
   const [newHouseholdForm, setNewHouseholdForm] = useState({ house_no: '', expected_member_count: '' });
+  
+  // ฟอร์มสมาชิก (เพิ่มฟิลด์ resident_type, relationship, note)
   const [memberForm, setMemberForm] = useState({
-    citizen_id: '', first_name: '', last_name: '', nickname: '', gender: '', date_of_birth: '', status: 'ACTIVE'
+    citizen_id: '', first_name: '', last_name: '', nickname: '', gender: '', date_of_birth: '', 
+    status: 'ACTIVE', resident_type: 'REGISTERED', relationship: '', note: ''
   });
 
   const currentUser = JSON.parse(localStorage.getItem('userData')) || {};
@@ -57,7 +60,7 @@ const ManagePopulation = () => {
     finally { setIsLoadingHouses(false); }
   };
 
-  // โหลดคนในบ้าน
+  // โหลดสมาชิก
   const fetchMembers = async (householdId) => {
     if (!householdId) return;
     setIsLoadingMembers(true);
@@ -79,7 +82,7 @@ const ManagePopulation = () => {
     else setHouseholdMembers([]);
   }, [selectedHousehold]);
 
-  // ฟังก์ชัน: สร้างบ้าน
+  // สร้างบ้าน
   const handleAddHousehold = async (e) => {
     e.preventDefault();
     if(!newHouseholdForm.house_no || !newHouseholdForm.expected_member_count) return;
@@ -89,15 +92,13 @@ const ManagePopulation = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          village_id: currentVillageId,
-          house_no: newHouseholdForm.house_no,
-          expected_member_count: parseInt(newHouseholdForm.expected_member_count)
+          village_id: currentVillageId, house_no: newHouseholdForm.house_no, expected_member_count: parseInt(newHouseholdForm.expected_member_count)
         })
       });
       const result = await res.json();
       if (result.success) {
         setNewHouseholdForm({ house_no: '', expected_member_count: '' });
-        fetchHouseholds(); // รีโหลดบ้านใหม่
+        fetchHouseholds();
       } else alert(result.message);
     } catch (error) { alert('เชื่อมต่อไม่ได้'); } 
     finally { setIsSaving(false); }
@@ -106,7 +107,10 @@ const ManagePopulation = () => {
   // เปิด Popup เพิ่มสมาชิก
   const openAddMemberModal = () => {
     setEditingMember(null);
-    setMemberForm({ citizen_id: '', first_name: '', last_name: '', nickname: '', gender: '', date_of_birth: '', status: 'ACTIVE' });
+    setMemberForm({ 
+      citizen_id: '', first_name: '', last_name: '', nickname: '', gender: '', date_of_birth: '', 
+      status: 'ACTIVE', resident_type: 'REGISTERED', relationship: '', note: '' 
+    });
     setShowMemberModal(true);
   };
 
@@ -117,12 +121,13 @@ const ManagePopulation = () => {
       citizen_id: member.citizen_id || '', first_name: member.first_name || '',
       last_name: member.last_name || '', nickname: member.nickname || '',
       gender: member.gender || '', date_of_birth: member.date_of_birth ? member.date_of_birth.split('T')[0] : '', 
-      status: member.status || 'ACTIVE'
+      status: member.status || 'ACTIVE', resident_type: member.resident_type || 'REGISTERED', 
+      relationship: member.relationship || '', note: member.note || ''
     });
     setShowMemberModal(true);
   };
 
-  // ฟังก์ชัน: บันทึกสมาชิก (เงื่อนไขเลขบัตรประชาชนต้องไม่ซ้ำ)
+  // บันทึกสมาชิก
   const handleSaveMember = async (e) => {
     e.preventDefault();
     if(!selectedHousehold) return;
@@ -141,13 +146,13 @@ const ManagePopulation = () => {
       if (result.success) {
         setShowMemberModal(false);
         fetchMembers(selectedHousehold.household_id);
-        fetchHouseholds(); // รีโหลดเพื่ออัปเดตจำนวนคน (current_count)
-      } else alert(result.message); // เช่น "เลขบัตรประชาชนนี้อยู่ในระบบแล้ว"
+        fetchHouseholds();
+      } else alert(result.message);
     } catch (error) { alert('บันทึกไม่สำเร็จ'); } 
     finally { setIsSaving(false); }
   };
 
-  // ฟังก์ชัน: เปลี่ยนสถานะ (Active/Inactive)
+  // เปลี่ยนสถานะ (Active/Inactive)
   const handleToggleStatus = async (member_id, currentStatus) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     if(!window.confirm(`ต้องการเปลี่ยนสถานะเป็น "${newStatus === 'ACTIVE' ? 'อาศัยอยู่' : 'เคยอาศัย'}" ใช่หรือไม่?`)) return;
@@ -160,7 +165,7 @@ const ManagePopulation = () => {
       });
       if ((await res.json()).success) {
         fetchMembers(selectedHousehold.household_id);
-        fetchHouseholds(); // รีโหลดจำนวน
+        fetchHouseholds();
       }
     } catch (error) { alert('เปลี่ยนสถานะไม่สำเร็จ'); }
   };
@@ -169,6 +174,22 @@ const ManagePopulation = () => {
   const labelStyle = "block text-xs font-bold text-slate-500 mb-1";
   const loc = locationContext || { village_no: '-', village_name: '-', tambon_name_th: '-', amphure_name_th: '-', province_name_th: '-' };
 
+  // Helper สำหรับแปลงปี ค.ศ. เป็น พ.ศ. ในช่อง Date
+  const handleDateChange = (e) => {
+    const rawValue = e.target.value;
+    if (!rawValue) {
+       setMemberForm({...memberForm, date_of_birth: ''});
+       return;
+    }
+    const [year, month, day] = rawValue.split('-');
+    // ถ้าผู้ใช้พิมพ์ปี พ.ศ. เข้ามาตรงๆ (เช่น 2530) ให้แปลงเป็น ค.ศ. (1987) ก่อนเก็บลง state
+    if (parseInt(year) > 2400) {
+       setMemberForm({...memberForm, date_of_birth: `${parseInt(year) - 543}-${month}-${day}`});
+    } else {
+       setMemberForm({...memberForm, date_of_birth: rawValue});
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
       <div style={{ flexShrink: 0, zIndex: 40, position: 'sticky', top: 0, width: '100%' }}><TopNavbar /></div>
@@ -176,7 +197,6 @@ const ManagePopulation = () => {
       <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '90px 16px 80px 16px', width: '100%' }}>
         <div className="max-w-7xl mx-auto">
           
-          {/* Header แสดงพื้นที่ */}
           <div className="flex items-center gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
             <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-2 border-blue-500">
               <Users size={24} className="text-blue-600" />
@@ -184,14 +204,12 @@ const ManagePopulation = () => {
             <div>
               <h1 className="text-xl font-black text-slate-800">จัดการข้อมูลประชากร</h1>
               <p className="text-sm font-medium text-blue-600 mt-1 flex items-center gap-1">
-                <MapPin size={14}/> 
-                หมู่ที่ {loc.village_no} บ้าน{loc.village_name} ต.{loc.tambon_name_th} อ.{loc.amphure_name_th} จ.{loc.province_name_th}
+                <MapPin size={14}/> หมู่ที่ {loc.village_no} บ้าน{loc.village_name} ต.{loc.tambon_name_th} อ.{loc.amphure_name_th} จ.{loc.province_name_th}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* ฝั่งซ้าย: จัดการบ้าน */}
             <div className="lg:col-span-4 flex flex-col gap-4">
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <h3 className="text-md font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2"><Home size={18} className="text-blue-500" /> เพิ่มข้อมูลบ้าน</h3>
@@ -229,7 +247,6 @@ const ManagePopulation = () => {
               </div>
             </div>
 
-            {/* ฝั่งขวา: รายชื่อคนในบ้าน */}
             <div className="lg:col-span-8">
               {!selectedHousehold ? (
                 <div className="bg-white h-full rounded-2xl border border-slate-200 border-dashed flex flex-col items-center justify-center p-10 text-slate-400 min-h-[400px]">
@@ -256,6 +273,7 @@ const ManagePopulation = () => {
                           <tr>
                             <th className="px-4 py-3 border-b">ชื่อ-สกุล</th>
                             <th className="px-4 py-3 border-b">เลขบัตร</th>
+                            <th className="px-4 py-3 border-b">กลุ่ม</th>
                             <th className="px-4 py-3 border-b text-center">สถานะ</th>
                             <th className="px-4 py-3 border-b text-center">จัดการ</th>
                           </tr>
@@ -263,10 +281,16 @@ const ManagePopulation = () => {
                         <tbody className="divide-y divide-slate-100">
                           {householdMembers.map((person) => (
                             <tr key={person.member_id} className={`hover:bg-slate-50 ${person.status !== 'ACTIVE' ? 'opacity-50' : ''}`}>
-                              <td className="px-4 py-3 font-medium text-slate-800">{person.first_name} {person.last_name}</td>
+                              <td className="px-4 py-3 font-medium text-slate-800">
+                                {person.first_name} {person.last_name}
+                                <div className="text-[10px] text-slate-400">{person.relationship}</div>
+                              </td>
                               <td className="px-4 py-3 font-mono text-slate-500">{person.citizen_id}</td>
+                              <td className="px-4 py-3 text-xs text-slate-600">
+                                {person.resident_type === 'REGISTERED' ? 'ในทะเบียนบ้าน' : 'ผู้อยู่อาศัย (ไม่เข้าทะเบียน)'}
+                              </td>
                               <td className="px-4 py-3 text-center">
-                                <span className={`px-2 py-1 rounded-md text-xs font-bold ${person.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-600'}`}>
+                                <span className={`px-2 py-1 rounded-md text-xs font-bold cursor-pointer ${person.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-600'}`} onClick={() => handleToggleStatus(person.member_id, person.status)} title="คลิกเพื่อเปลี่ยนสถานะ">
                                   {person.status === 'ACTIVE' ? 'อาศัยอยู่' : 'เคยอาศัย'}
                                 </span>
                               </td>
@@ -291,43 +315,99 @@ const ManagePopulation = () => {
       {/* Popup Modal สำหรับเพิ่ม/แก้ไขสมาชิก */}
       {showMemberModal && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex justify-center items-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50">
               <h2 className="font-bold text-lg text-slate-800">{editingMember ? 'แก้ไขข้อมูลสมาชิก' : 'เพิ่มสมาชิกใหม่'}</h2>
               <button onClick={() => setShowMemberModal(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
             </div>
-            <form onSubmit={handleSaveMember} className="p-6 overflow-y-auto max-h-[70vh]">
+            
+            <form onSubmit={handleSaveMember} className="p-6 overflow-y-auto max-h-[75vh]">
+              
+              {/* เลือกกลุ่มข้อมูล */}
+              <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="block text-sm font-bold text-slate-700 mb-3">กลุ่มข้อมูลผู้อยู่อาศัย *</label>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="resident_type" value="REGISTERED" checked={memberForm.resident_type === 'REGISTERED'} onChange={(e) => {setMemberForm({...memberForm, resident_type: e.target.value, relationship: ''})}} className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-slate-700">อยู่ในทะเบียนบ้าน</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="resident_type" value="NON_REGISTERED" checked={memberForm.resident_type === 'NON_REGISTERED'} onChange={(e) => {setMemberForm({...memberForm, resident_type: e.target.value, relationship: ''})}} className="w-4 h-4 text-amber-600" />
+                    <span className="text-sm font-medium text-slate-700">ผู้อยู่อาศัย (ไม่อยู่ในทะเบียนบ้าน)</span>
+                  </label>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className={labelStyle}>เลขบัตรประชาชน (ต้องไม่ซ้ำ) *</label>
                   <input required type="text" maxLength="13" className={inputStyle} value={memberForm.citizen_id} onChange={e => setMemberForm({...memberForm, citizen_id: e.target.value.replace(/\D/g, '')})} disabled={editingMember} />
                 </div>
+                
                 <div>
                   <label className={labelStyle}>ชื่อจริง *</label>
                   <input required type="text" className={inputStyle} value={memberForm.first_name} onChange={e => setMemberForm({...memberForm, first_name: e.target.value})} />
                 </div>
+                
                 <div>
                   <label className={labelStyle}>นามสกุล *</label>
                   <input required type="text" className={inputStyle} value={memberForm.last_name} onChange={e => setMemberForm({...memberForm, last_name: e.target.value})} />
                 </div>
+                
                 <div>
                   <label className={labelStyle}>เพศ *</label>
                   <select required className={inputStyle} value={memberForm.gender} onChange={e => setMemberForm({...memberForm, gender: e.target.value})}>
                     <option value="">เลือกเพศ</option><option value="MALE">ชาย</option><option value="FEMALE">หญิง</option><option value="OTHER">LGBTQ</option>
                   </select>
                 </div>
+                
                 <div>
-                  <label className={labelStyle}>สถานะ</label>
+                  <label className={labelStyle}>สถานะการอยู่อาศัย</label>
                   <select className={inputStyle} value={memberForm.status} onChange={e => setMemberForm({...memberForm, status: e.target.value})}>
-                    <option value="ACTIVE">อาศัยอยู่</option><option value="INACTIVE">เคยอาศัย</option>
+                    <option value="ACTIVE">เข้าบ้าน (อาศัยอยู่)</option>
+                    <option value="INACTIVE">ผู้อยู่อาศัย (เคยอาศัย/ย้ายออก)</option>
                   </select>
                 </div>
+
                 <div className="col-span-2">
-                  <label className={labelStyle}>วันเกิด</label>
-                  <input type="date" className={inputStyle} value={memberForm.date_of_birth} onChange={e => setMemberForm({...memberForm, date_of_birth: e.target.value})} />
+                  <label className={labelStyle}>วันเกิด (รองรับการพิมพ์ พ.ศ. เช่น 2530)</label>
+                  {/* เปลี่ยน Date Type ให้รองรับการใส่ ค.ศ. แต่แปลงจาก พ.ศ. */}
+                  <input type="date" className={inputStyle} value={memberForm.date_of_birth} onChange={handleDateChange} />
                 </div>
+
+                {/* ส่วนตัวเลือกย่อยตามกลุ่มที่เลือก */}
+                <div className="col-span-2 mt-2">
+                  <label className={labelStyle}>{memberForm.resident_type === 'REGISTERED' ? 'สถานะในครอบครัว' : 'ประเภทผู้อยู่อาศัย'}</label>
+                  <select className={inputStyle} value={memberForm.relationship} onChange={e => setMemberForm({...memberForm, relationship: e.target.value})}>
+                    <option value="">-- เลือกระบุ --</option>
+                    {memberForm.resident_type === 'REGISTERED' ? (
+                      <>
+                        <option value="เจ้าบ้าน">เจ้าบ้าน</option>
+                        <option value="พ่อ">พ่อ</option>
+                        <option value="แม่">แม่</option>
+                        <option value="ลูก">ลูก</option>
+                        <option value="ญาติ">ญาติ</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="ผู้เช่ารายเดือน">ผู้เช่ารายเดือน</option>
+                        <option value="ผู้เช่ารายวัน">ผู้เช่ารายวัน</option>
+                        <option value="พนักงาน/ลูกจ้าง">พนักงาน/ลูกจ้าง</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div className="col-span-2">
+                  <label className={labelStyle}>โน้ต / รายละเอียดเพิ่มเติม</label>
+                  <textarea className={`${inputStyle} resize-none h-20`} placeholder="ระบุรายละเอียดเพิ่มเติม..." value={memberForm.note} onChange={e => setMemberForm({...memberForm, note: e.target.value})}></textarea>
+                </div>
+
               </div>
-              <div className="mt-6 flex justify-end gap-3">
+              
+              <div className="mt-6 flex justify-end gap-3 pt-4 border-t">
                 <button type="button" onClick={() => setShowMemberModal(false)} className="px-5 py-2.5 text-slate-500 font-bold hover:bg-slate-100 rounded-lg">ยกเลิก</button>
                 <button type="submit" disabled={isSaving} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 flex items-center gap-2">
                   {isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
