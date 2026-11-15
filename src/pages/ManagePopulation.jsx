@@ -29,15 +29,17 @@ const ManagePopulation = () => {
   
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  
+  // State สำหรับแก้ไขบ้าน
+  const [editingHouseId, setEditingHouseId] = useState(null);
+
   const [isLoadingHouses, setIsLoadingHouses] = useState(false);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ฟอร์มบ้าน
   const [newHouseholdForm, setNewHouseholdForm] = useState({ house_no: '', expected_member_count: '', owner_name: '' });
   const [isNoHouseNumber, setIsNoHouseNumber] = useState(false);
   
-  // ฟอร์มสมาชิก
   const [memberForm, setMemberForm] = useState({
     is_foreigner: false, citizen_id: '', passport_no: '', nationality: 'ไทย',
     first_name: '', last_name: '', nickname: '', gender: '', 
@@ -95,26 +97,64 @@ const ManagePopulation = () => {
     else setHouseholdMembers([]);
   }, [selectedHousehold]);
 
+  // ฟังก์ชัน เพิ่ม/แก้ไข บ้าน
   const handleAddHousehold = async (e) => {
     e.preventDefault();
     const finalHouseNo = isNoHouseNumber ? `ไม่มีเลขที่ (${newHouseholdForm.owner_name})` : newHouseholdForm.house_no;
     if(!finalHouseNo || !newHouseholdForm.expected_member_count) return;
+    
     setIsSaving(true);
+    
+    const url = editingHouseId ? `${API_URL}/api/households/${editingHouseId}` : `${API_URL}/api/households`;
+    const method = editingHouseId ? 'PUT' : 'POST';
+    const payload = editingHouseId 
+      ? { house_no: finalHouseNo, expected_member_count: parseInt(newHouseholdForm.expected_member_count) }
+      : { village_id: currentVillageId, house_no: finalHouseNo, expected_member_count: parseInt(newHouseholdForm.expected_member_count) };
+
     try {
-      const res = await fetch(`${API_URL}/api/households`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ village_id: currentVillageId, house_no: finalHouseNo, expected_member_count: parseInt(newHouseholdForm.expected_member_count) })
+      const res = await fetch(url, {
+        method: method, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
       if ((await res.json()).success) {
-        alert('บันทึกข้อมูลบ้านสำเร็จ!');
-        setNewHouseholdForm({ house_no: '', expected_member_count: '', owner_name: '' });
-        setIsNoHouseNumber(false);
+        alert(editingHouseId ? 'แก้ไขข้อมูลบ้านสำเร็จ!' : 'บันทึกข้อมูลบ้านสำเร็จ!');
+        cancelEditHouse();
         fetchHouseholds();
       }
     } catch (error) { alert('เชื่อมต่อไม่ได้'); } 
     finally { setIsSaving(false); }
   };
 
+  // เปิดโหมดแก้ไขบ้าน
+  const handleEditHouseClick = (house) => {
+    setEditingHouseId(house.household_id);
+    const isNoNum = house.house_no.startsWith('ไม่มีเลขที่');
+    setIsNoHouseNumber(isNoNum);
+    
+    let hNo = house.house_no;
+    let oName = '';
+    
+    if (isNoNum) {
+      const match = house.house_no.match(/\((.*?)\)/);
+      if (match) oName = match[1];
+      hNo = '';
+    }
+    
+    setNewHouseholdForm({
+      house_no: hNo,
+      owner_name: oName,
+      expected_member_count: house.expected_member_count || ''
+    });
+  };
+
+  // ยกเลิกแก้ไขบ้าน
+  const cancelEditHouse = () => {
+    setEditingHouseId(null);
+    setNewHouseholdForm({ house_no: '', expected_member_count: '', owner_name: '' });
+    setIsNoHouseNumber(false);
+  };
+
+  // สมาชิก
   const openAddMemberModal = () => {
     setEditingMember(null);
     setMemberForm({ 
@@ -236,8 +276,18 @@ const ManagePopulation = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-4 flex flex-col gap-5">
               
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100"><Home size={18} className="text-blue-500" /> เพิ่มข้อมูลบ้าน</h3>
+              {/* === กล่องฟอร์ม เพิ่ม/แก้ไข บ้าน === */}
+              <div className={`bg-white p-5 rounded-2xl shadow-sm border transition-colors ${editingHouseId ? 'border-amber-400 bg-amber-50/20' : 'border-slate-200'}`}>
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                  <h3 className="text-md font-bold text-slate-700 flex items-center gap-2">
+                    {editingHouseId ? <Edit size={18} className="text-amber-500" /> : <Home size={18} className="text-blue-500" />}
+                    {editingHouseId ? 'แก้ไขข้อมูลบ้าน' : 'เพิ่มข้อมูลบ้าน'}
+                  </h3>
+                  {editingHouseId && (
+                    <button onClick={cancelEditHouse} className="text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-100 px-2 py-1 rounded-md">ยกเลิก</button>
+                  )}
+                </div>
+
                 <form onSubmit={handleAddHousehold} className="flex flex-col gap-4">
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
@@ -262,12 +312,14 @@ const ManagePopulation = () => {
                     <label className={labelStyle}>จำนวนคนตามทะเบียนบ้าน *</label>
                     <input required type="number" min="1" className={inputStyle} value={newHouseholdForm.expected_member_count} onChange={e => setNewHouseholdForm({...newHouseholdForm, expected_member_count: e.target.value})} />
                   </div>
-                  <button disabled={isSaving} type="submit" className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 flex items-center justify-center gap-2 mt-2 shadow-sm transition-all">
-                    <Plus size={18} /> สร้างข้อมูลบ้าน
+                  <button disabled={isSaving} type="submit" className={`w-full py-3 text-white rounded-xl font-bold flex items-center justify-center gap-2 mt-2 shadow-sm transition-all ${editingHouseId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                    {editingHouseId ? <Save size={18} /> : <Plus size={18} />} 
+                    {editingHouseId ? 'บันทึกการแก้ไข' : 'สร้างข้อมูลบ้าน'}
                   </button>
                 </form>
               </div>
 
+              {/* === ลิสต์บ้าน === */}
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex-1 flex flex-col">
                 <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100"><MapPin size={18} className="text-slate-400" /> รายการบ้าน ({households.length})</h3>
                 <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 custom-scrollbar max-h-[350px]">
@@ -276,13 +328,22 @@ const ManagePopulation = () => {
                     const eCount = Number(h.expected_member_count || 0);
                     const isSelect = selectedHousehold?.household_id === h.household_id;
                     return (
-                      <button key={h.household_id} onClick={() => setSelectedHousehold(h)} className={`w-full p-4 rounded-xl border text-left transition-all flex flex-col justify-between ${isSelect ? 'border-blue-500 bg-blue-50/50 shadow-sm' : 'border-slate-100 hover:border-blue-200 hover:bg-slate-50'}`}>
-                        <div className="font-bold text-slate-700 text-[15px]">บ้านเลขที่ {h.house_no}</div>
-                        <div className="text-[11px] font-semibold text-slate-500 mt-1.5 flex justify-between">
-                          <span>ประชากรที่บันทึกแล้ว:</span>
-                          <span className={cCount >= eCount ? 'text-emerald-600' : 'text-amber-600'}>{cCount} / {eCount}</span>
+                      <div key={h.household_id} className={`relative w-full p-4 rounded-xl border text-left transition-all flex flex-col justify-between ${isSelect ? 'border-blue-500 bg-blue-50/50 shadow-sm' : 'border-slate-100 hover:border-blue-200 hover:bg-slate-50'}`}>
+                        {/* ไอคอนดินสอแก้ไขบ้าน (แสดงเฉพาะตอนไม่ได้ Edit อยู่) */}
+                        {!editingHouseId && (
+                          <button onClick={(e) => { e.stopPropagation(); handleEditHouseClick(h); }} className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors">
+                            <Edit size={14} />
+                          </button>
+                        )}
+                        
+                        <div className="cursor-pointer" onClick={() => setSelectedHousehold(h)}>
+                          <div className="font-bold text-slate-700 text-[15px] pr-6">บ้านเลขที่ {h.house_no}</div>
+                          <div className="text-[11px] font-semibold text-slate-500 mt-1.5 flex justify-between">
+                            <span>ประชากรที่บันทึกแล้ว:</span>
+                            <span className={cCount >= eCount ? 'text-emerald-600' : 'text-amber-600'}>{cCount} / {eCount}</span>
+                          </div>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
