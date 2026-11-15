@@ -7,7 +7,7 @@ import BottomNavbar from '../components/BottomNavbar';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
-const mapContainerStyle = { width: '100%', height: '350px', borderRadius: '12px' };
+const mapContainerStyle = { width: '100%', height: '400px', borderRadius: '16px' };
 
 const RegisterVillage = () => {
     const navigate = useNavigate();
@@ -21,11 +21,9 @@ const RegisterVillage = () => {
     const [locationStatus, setLocationStatus] = useState('กำลังค้นหาตำแหน่งของคุณ...');
     const [isLocating, setIsLocating] = useState(true);
     
-    // State รหัสผ่าน
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    // 🌟 State ระบบผู้แนะนำ
     const [referrerPhone, setReferrerPhone] = useState('');
     const [referrerInfo, setReferrerInfo] = useState(null);
     const [isCheckingReferrer, setIsCheckingReferrer] = useState(false);
@@ -38,13 +36,11 @@ const RegisterVillage = () => {
     const onMapLoad = useCallback((map) => setMapInstance(map), []);
     const onMapUnmount = useCallback(() => setMapInstance(null), []);
 
-    // ฟอร์มข้อมูลหลัก
     const [formData, setFormData] = useState({
         village_id: '', village_no: '', village_name: '', province: '', district: '', sub_district: '',
         citizen_id: '', first_name: '', last_name: '', nickname: '', phone_number: '', password: '', confirm_password: ''
     });
 
-    // 🌟 1. เพิ่ม State และ useEffect สำหรับ Dropdown หมู่บ้าน (จุดที่ทำให้เกิด Error หน้าจอขาว)
     const [villagesList, setVillagesList] = useState([]);
 
     useEffect(() => {
@@ -54,13 +50,10 @@ const RegisterVillage = () => {
                 .then(data => setVillagesList(data))
                 .catch(err => console.error("Error fetching villages:", err));
         } else {
-            setVillagesList([]); // ล้างข้อมูลออกถ้าไม่มีตำบล
+            setVillagesList([]); 
         }
     }, [formData.sub_district]);
-    // ==========================================
 
-
-    // ดึงพิกัด GPS ปัจจุบัน
     const fetchCurrentLocation = () => {
         setIsLocating(true);
         setLocationStatus('กำลังดึงตำแหน่ง GPS...');
@@ -142,20 +135,17 @@ const RegisterVillage = () => {
         setFormData({ ...formData, [name]: value });
     };
 
-    // ควบคุมเบอร์โทร (ตัวเลขเท่านั้น)
     const handlePhoneChange = (e) => {
         const value = e.target.value.replace(/\D/g, ''); 
         if (value.length <= 10) setFormData({ ...formData, phone_number: value });
     };
 
-    // ควบคุมรหัสผ่าน (ภาษาอังกฤษและตัวเลข)
     const handlePasswordChange = (e) => {
         const { name, value } = e.target;
         const alphanumericValue = value.replace(/[^a-zA-Z0-9]/g, ''); 
         setFormData({ ...formData, [name]: alphanumericValue });
     };
 
-    // ฟอร์แมตเลขบัตรประชาชน
     const formatCitizenId = (e) => {
         let val = e.target.value.replace(/\D/g, '');
         let formatted = '';
@@ -167,7 +157,6 @@ const RegisterVillage = () => {
         setFormData({ ...formData, citizen_id: formatted });
     };
 
-    // 🌟 ดึงข้อมูลผู้แนะนำจาก API
     useEffect(() => {
         if (referrerPhone.length === 10) {
             checkReferrer(referrerPhone);
@@ -192,10 +181,8 @@ const RegisterVillage = () => {
         setIsCheckingReferrer(false);
     };
 
-    // 🌟 ยืนยันการบันทึก
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
         if(!formData.village_id) return alert("กรุณาเลือกหมู่บ้านจากรายการ");
         if(formData.phone_number.length !== 10) return alert("กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก");
         if(formData.password.length < 6) return alert("รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
@@ -234,232 +221,227 @@ const RegisterVillage = () => {
         setIsSubmitting(false);
     };
 
-    const inputStyle = "w-full p-3 rounded-xl border border-slate-200 bg-white/80 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-800";
-    const labelStyle = "block text-xs font-bold text-slate-500 mb-1 ml-1";
+    const inputStyle = "w-full p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-slate-700 text-sm";
+    const labelStyle = "block text-xs font-bold text-slate-500 mb-1.5";
 
     if (loadError) return <div>Error loading maps</div>;
     if (!isLoaded || (!userLocation && isLocating)) return (
-        <div style={{minHeight: '100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'15px', backgroundColor:'#f8fafc'}}>
-            <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTopColor: '#10b981', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            <p style={{color:'#64748b', fontWeight:'bold'}}>{locationStatus}</p>
-            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50">
+            <div className="w-10 h-10 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
+            <p className="font-bold text-slate-500">{locationStatus}</p>
         </div>
     );
 
     return (
-        <div style={{ backgroundColor: '#f1f5f9', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-            <TopNavbar userData={userData} />
+        <div className="flex flex-col min-h-screen overflow-hidden bg-slate-50 font-sans">
+            <div className="flex-shrink-0 z-40 sticky top-0 w-full"><TopNavbar userData={userData} /></div>
             
-            <div style={{ padding: '80px 20px 100px 20px', maxWidth: '800px', margin: '0 auto' }}>
-                
-                <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', borderRadius: '16px', padding: '20px', color: 'white', display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.2)' }}>
-                    <button onClick={() => navigate(-1)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <ChevronLeft size={20} color="white" />
-                    </button>
-                    <div>
-                        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>สร้างข้อมูลหมู่บ้าน และ ผู้ใหญ่บ้าน</h2>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.9 }}>สำหรับผู้นำชุมชน เพื่อใช้ล็อกอินเข้าสู่ระบบ</p>
+            <div className="flex-1 overflow-y-auto px-4 pt-[90px] pb-[100px] w-full">
+                <div className="max-w-3xl mx-auto">
+                    
+                    {/* Header Banner */}
+                    <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 text-white flex items-center gap-4 mb-6 shadow-md">
+                        <button onClick={() => navigate(-1)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors">
+                            <ChevronLeft size={24} className="text-white" />
+                        </button>
+                        <div>
+                            <h2 className="text-xl font-extrabold m-0">สร้างข้อมูลหมู่บ้าน และ ผู้ใหญ่บ้าน</h2>
+                            <p className="text-sm opacity-90 m-0 mt-1">สำหรับผู้นำชุมชน เพื่อใช้ล็อกอินเข้าสู่ระบบ</p>
+                        </div>
                     </div>
-                </div>
 
-                <div style={{ backgroundColor: '#fffbeb', borderLeft: '4px solid #f59e0b', padding: '15px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <AlertTriangle size={24} color="#d97706" style={{ flexShrink: 0 }} />
-                    <div>
-                        <strong style={{ color: '#b45309', display: 'block', fontSize: '14px', marginBottom: '4px' }}>โปรดตรวจสอบตำแหน่งที่ตั้งและที่อยู่ให้ถูกต้อง!</strong>
-                        <p style={{ margin: 0, fontSize: '13px', color: '#92400e', lineHeight: '1.5' }}>
-                            การปักหมุดที่แม่นยำจะช่วยให้ระบบระบุเขตการปกครองของคุณได้อย่างถูกต้อง
-                        </p>
+                    {/* Alert Box */}
+                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-6 flex gap-3 items-start">
+                        <AlertTriangle size={24} className="text-amber-500 flex-shrink-0" />
+                        <div>
+                            <strong className="text-amber-800 block text-sm mb-1">โปรดตรวจสอบตำแหน่งที่ตั้งและที่อยู่ให้ถูกต้อง!</strong>
+                            <p className="text-xs text-amber-700 m-0 leading-relaxed">
+                                การปักหมุดที่แม่นยำจะช่วยให้ระบบระบุเขตการปกครองของคุณได้อย่างถูกต้อง
+                            </p>
+                        </div>
                     </div>
-                </div>
 
-                <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                    <form onSubmit={handleSubmit}>
-                        
-                        {/* 1. ข้อมูลที่ตั้งหมู่บ้าน */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-                            <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
-                                    <Home size={18} className="text-emerald-500"/> <strong style={{fontSize: '15px'}}>ข้อมูลที่ตั้งหมู่บ้าน</strong>
-                                </div>
-                            </div>
-
-                            {/* ===== ส่วนที่แก้ไขเป็น Dropdown ===== */}
-                            <div style={{ gridColumn: '1 / -1' }}>
-                                <label className={labelStyle}>หมู่ที่ และ ชื่อหมู่บ้าน / ชุมชน *</label>
-                               <select 
-    name="village_id" 
-    value={formData.village_id || ''} 
-    onChange={(e) => {
-        // ค้นหาข้อมูลหมู่บ้านที่ถูกเลือก (แปลงเป็น String เพื่อให้เทียบกันได้แม่นยำ 100%)
-        const selected = villagesList.find(v => String(v.village_id) === String(e.target.value));
-        
-        if (selected) {
-            // อัปเดต State รวดเดียว 3 ค่าพร้อมกัน ป้องกัน React บันทึกข้อมูลทับกัน
-            setFormData(prev => ({
-                ...prev,
-                village_id: selected.village_id,
-                village_no: selected.village_no,
-                village_name: selected.village_name
-            }));
-        } else {
-            // กรณีเลือก "-- เลือกหมู่บ้านของคุณ --" ให้เคลียร์ค่าทิ้ง
-            setFormData(prev => ({
-                ...prev,
-                village_id: '',
-                village_no: '',
-                village_name: ''
-            }));
-        }
-    }} 
-    className={inputStyle}
-    disabled={!villagesList || villagesList.length === 0}
-    required
->
-    <option value="">
-        {(!villagesList || villagesList.length === 0) 
-            ? '-- กรุณารอระบบระบุตำบลก่อน หรือ กำลังโหลดข้อมูล... --' 
-            : '-- เลือกหมู่บ้านของคุณ --'}
-    </option>
-    {villagesList && villagesList.map(v => (
-        <option key={v.village_id} value={v.village_id}>
-            หมู่ที่ {v.village_no} {v.village_name}
-        </option>
-    ))}
-</select>
-                            </div>
-                            {/* ================================== */}
-
-                            <div className="col-span-full md:col-span-1">
-                                <label className={labelStyle}>ตำบล/แขวง *</label>
-                                <input required type="text" name="sub_district" value={formData.sub_district} onChange={handleChange} className={inputStyle} />
-                            </div>
-                            <div className="col-span-full md:col-span-1">
-                                <label className={labelStyle}>อำเภอ/เขต *</label>
-                                <input required type="text" name="district" value={formData.district} onChange={handleChange} className={inputStyle} />
-                            </div>
-                            <div style={{ gridColumn: '1 / -1' }}>
-                                <label className={labelStyle}>จังหวัด *</label>
-                                <input required type="text" name="province" value={formData.province} onChange={handleChange} className={inputStyle} />
-                            </div>
-                        </div>
-
-                        {/* แผนที่ */}
-                        <div style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569' }}>
-                                <Navigation size={18} color="#3b82f6" />
-                                <span style={{ fontWeight: 'bold', fontSize: '13px' }}>เลื่อนหมุดเพื่อปรับพิกัดศูนย์กลางหมู่บ้าน</span>
-                            </div>
-                            <button type="button" onClick={fetchCurrentLocation} disabled={isLocating} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 'bold', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', backgroundColor: '#eff6ff' }}>
-                                <RefreshCcw size={14} className={isLocating ? "animate-spin" : ""} /> {isLocating ? 'กำลังดึงพิกัด...' : 'ดึงตำแหน่งใหม่'}
-                            </button>
-                        </div>
-                        <div style={{ border: '2px solid #e2e8f0', borderRadius: '14px', overflow: 'hidden', position: 'relative', marginBottom: '30px' }}>
-                            {userLocation && (
-                                <GoogleMap
-                                    mapContainerStyle={mapContainerStyle}
-                                    center={userLocation}
-                                    zoom={15}
-                                    onLoad={onMapLoad}
-                                    onUnmount={onMapUnmount}
-                                    onClick={handleMapClick}
-                                    options={{ disableDefaultUI: false, zoomControl: true, mapTypeControl: true, mapTypeId: 'hybrid' }}
-                                >
-                                    <Circle center={userLocation} radius={500} options={{ fillColor: "#10b981", fillOpacity: 0.15, strokeColor: "#10b981", strokeOpacity: 0.8, strokeWeight: 2, clickable: false }} />
-                                    <Marker position={userLocation} icon={{ path: window.google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#3b82f6", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 2 }} title="ตำแหน่งปัจจุบัน" />
-                                    {markerPos && <Marker position={markerPos} animation={window.google.maps.Animation.DROP} draggable={true} onDragEnd={(e) => handleMapClick({ latLng: e.latLng })} />}
-                                </GoogleMap>
-                            )}
-                        </div>
-
-                        {/* 2. ข้อมูลบัญชีผู้ใหญ่บ้าน */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                            <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px', marginTop: '10px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
-                                    <User size={18} className="text-blue-500"/> <strong style={{fontSize: '15px'}}>2. บัญชีเข้าใช้งาน (ผู้ใหญ่บ้าน)</strong>
-                                </div>
-                            </div>
+                    {/* Main Form Container */}
+                    <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                             
-                            <div style={{ gridColumn: '1 / -1' }}>
-                                <label className={labelStyle}>เบอร์โทรศัพท์ (ใช้เป็น Username สำหรับเข้าระบบ) *</label>
-                                <input required type="tel" name="phone_number" value={formData.phone_number} onChange={handlePhoneChange} maxLength={10} placeholder="08xxxxxxxx (กรอกเฉพาะตัวเลข 10 หลัก)" className={`${inputStyle} border-blue-400 bg-blue-50`} />
-                            </div>
-
-                            <div style={{ gridColumn: '1 / -1' }}>
-                                <label className={labelStyle}>เลขบัตรประชาชน (ตัวเลือก)</label>
-                                <input type="text" value={formData.citizen_id} onChange={formatCitizenId} maxLength={17} placeholder="x-xxxx-xxxxx-xx-x" className={inputStyle} />
-                            </div>
-                            <div><label className={labelStyle}>ชื่อจริง *</label><input required type="text" name="first_name" onChange={handleChange} className={inputStyle} /></div>
-                            <div><label className={labelStyle}>นามสกุล *</label><input required type="text" name="last_name" onChange={handleChange} className={inputStyle} /></div>
-                            <div style={{ gridColumn: '1 / -1' }}><label className={labelStyle}>ชื่อเรียก / ตำแหน่ง</label><input type="text" name="nickname" onChange={handleChange} placeholder="เช่น ผู้ใหญ่สมชาย" className={inputStyle} /></div>
-                            
-                            <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
-                                <h4 style={{ fontSize: '13px', fontWeight: 'bold', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}><Key size={16}/> ตั้งรหัสผ่าน (ภาษาอังกฤษและตัวเลขเท่านั้น)</h4>
+                            {/* Section 1: ข้อมูลที่ตั้งหมู่บ้าน */}
+                            <div>
+                                <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100">
+                                    <Home size={18} className="text-emerald-500" /> 1. ข้อมูลที่ตั้งหมู่บ้าน
+                                </h3>
                                 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                    <div className="relative">
-                                        <input required type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handlePasswordChange} placeholder="รหัสผ่าน (อย่างน้อย 6 ตัว)" className={inputStyle} />
-                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
-                                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                        </button>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="col-span-full">
+                                        <label className={labelStyle}>หมู่ที่ และ ชื่อหมู่บ้าน / ชุมชน *</label>
+                                        <select 
+                                            name="village_id" 
+                                            value={formData.village_id || ''} 
+                                            onChange={(e) => {
+                                                const selected = villagesList.find(v => String(v.village_id) === String(e.target.value));
+                                                if (selected) {
+                                                    setFormData(prev => ({
+                                                        ...prev, village_id: selected.village_id, village_no: selected.village_no, village_name: selected.village_name
+                                                    }));
+                                                } else {
+                                                    setFormData(prev => ({ ...prev, village_id: '', village_no: '', village_name: '' }));
+                                                }
+                                            }} 
+                                            className={inputStyle}
+                                            disabled={!villagesList || villagesList.length === 0}
+                                            required
+                                        >
+                                            <option value="">
+                                                {(!villagesList || villagesList.length === 0) 
+                                                    ? '-- กรุณารอระบบระบุตำบลก่อน หรือ กำลังโหลดข้อมูล... --' 
+                                                    : '-- เลือกหมู่บ้านของคุณ --'}
+                                            </option>
+                                            {villagesList && villagesList.map(v => (
+                                                <option key={v.village_id} value={v.village_id}>
+                                                    หมู่ที่ {v.village_no} {v.village_name}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                     
-                                    <div className="relative">
-                                        <input required type={showConfirmPassword ? "text" : "password"} name="confirm_password" value={formData.confirm_password} onChange={handlePasswordChange} placeholder="ยืนยันรหัสผ่านอีกครั้ง" className={`${inputStyle} ${formData.confirm_password && formData.password !== formData.confirm_password ? 'border-red-500 bg-red-50' : ''}`} />
-                                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
-                                            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                        </button>
+                                    <div className="col-span-full md:col-span-1">
+                                        <label className={labelStyle}>ตำบล/แขวง *</label>
+                                        <input required type="text" name="sub_district" value={formData.sub_district} onChange={handleChange} className={inputStyle} />
+                                    </div>
+                                    <div className="col-span-full md:col-span-1">
+                                        <label className={labelStyle}>อำเภอ/เขต *</label>
+                                        <input required type="text" name="district" value={formData.district} onChange={handleChange} className={inputStyle} />
+                                    </div>
+                                    <div className="col-span-full">
+                                        <label className={labelStyle}>จังหวัด *</label>
+                                        <input required type="text" name="province" value={formData.province} onChange={handleChange} className={inputStyle} />
                                     </div>
                                 </div>
-                                {formData.confirm_password && formData.password !== formData.confirm_password && (
-                                    <p className="text-red-500 text-xs mt-1 font-bold">รหัสผ่านไม่ตรงกัน</p>
-                                )}
                             </div>
-                        </div>
 
-                        {/* 🌟 3. ระบบผู้แนะนำ (Affiliate) */}
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6 mt-6">
-                          <label className="flex items-center gap-2 text-sm font-bold text-blue-600 mb-2">
-                            <Users size={16} /> 3. ผู้แนะนำการใช้งาน (เพื่อรับสิทธิ์แชร์รายได้ระบบ)
-                          </label>
-                          <p className="text-xs text-slate-500 mb-3">
-                            หากมีผู้ใหญ่บ้านท่านอื่นแนะนำคุณมา กรุณากรอกเบอร์โทรศัพท์ของท่าน เพื่อให้ท่านได้รับสิทธิ์ส่วนแบ่งรายได้
-                          </p>
-                          
-                          <input 
-                            type="text" 
-                            maxLength="10"
-                            className="w-full p-3 border border-slate-200 rounded-xl font-medium outline-none focus:border-blue-500"
-                            placeholder="08xxxxxxxx (กรอกเฉพาะตัวเลข 10 หลัก)"
-                            value={referrerPhone}
-                            onChange={(e) => setReferrerPhone(e.target.value.replace(/\D/g, ''))} 
-                          />
-
-                          {isCheckingReferrer ? (
-                            <p className="text-sm text-slate-500 mt-2">กำลังค้นหาข้อมูล...</p>
-                          ) : referrerInfo && !referrerInfo.notFound ? (
-                            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-xl flex flex-col gap-1">
-                              <span className="text-sm font-bold text-green-700">✓ พบข้อมูลผู้แนะนำ</span>
-                              <span className="text-sm text-green-600">
-                                คุณ {referrerInfo.first_name} {referrerInfo.last_name} 
-                              </span>
-                              <span className="text-xs text-green-600">
-                                (หมู่ {referrerInfo.village_no || '-'} {referrerInfo.village_name || ''})
-                              </span>
+                            {/* Section: แผนที่ (ซูมใกล้ขึ้นเป็น 18) */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2 text-slate-600">
+                                        <Navigation size={16} className="text-blue-500" />
+                                        <span className="font-bold text-xs">เลื่อนหมุดเพื่อปรับพิกัดศูนย์กลางหมู่บ้าน</span>
+                                    </div>
+                                    <button type="button" onClick={fetchCurrentLocation} disabled={isLocating} className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
+                                        <RefreshCcw size={14} className={isLocating ? "animate-spin" : ""} /> {isLocating ? 'กำลังดึงพิกัด...' : 'ดึงตำแหน่งใหม่'}
+                                    </button>
+                                </div>
+                                <div className="border-2 border-slate-200 rounded-2xl overflow-hidden relative shadow-sm">
+                                    {userLocation && (
+                                        <GoogleMap
+                                            mapContainerStyle={mapContainerStyle}
+                                            center={userLocation}
+                                            zoom={18} 
+                                            onLoad={onMapLoad}
+                                            onUnmount={onMapUnmount}
+                                            onClick={handleMapClick}
+                                            options={{ disableDefaultUI: false, zoomControl: true, mapTypeControl: true, mapTypeId: 'hybrid' }}
+                                        >
+                                            <Circle center={userLocation} radius={500} options={{ fillColor: "#10b981", fillOpacity: 0.15, strokeColor: "#10b981", strokeOpacity: 0.8, strokeWeight: 2, clickable: false }} />
+                                            <Marker position={userLocation} icon={{ path: window.google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#3b82f6", fillOpacity: 1, strokeColor: "#ffffff", strokeWeight: 2 }} title="ตำแหน่งปัจจุบัน" />
+                                            {markerPos && <Marker position={markerPos} animation={window.google.maps.Animation.DROP} draggable={true} onDragEnd={(e) => handleMapClick({ latLng: e.latLng })} />}
+                                        </GoogleMap>
+                                    )}
+                                </div>
                             </div>
-                          ) : referrerInfo && referrerInfo.notFound ? (
-                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-                              <span className="text-sm font-bold text-red-600">✗ ไม่พบข้อมูลเบอร์โทรศัพท์นี้ในระบบ</span>
-                            </div>
-                          ) : null}
-                        </div>
 
-                        <button type="submit" disabled={isSubmitting} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '16px', marginTop: '30px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.4)' }}>
-                            <Save size={20} /> {isSubmitting ? 'กำลังบันทึก...' : 'สร้างข้อมูลหมู่บ้านและบัญชี'}
-                        </button>
-                    </form>
+                            {/* Section 2: ข้อมูลบัญชี */}
+                            <div className="mt-4">
+                                <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100">
+                                    <User size={18} className="text-blue-500" /> 2. บัญชีเข้าใช้งาน (ผู้ใหญ่บ้าน)
+                                </h3>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="col-span-full">
+                                        <label className={labelStyle}>เบอร์โทรศัพท์ (ใช้เป็น Username สำหรับเข้าระบบ) *</label>
+                                        <input required type="tel" name="phone_number" value={formData.phone_number} onChange={handlePhoneChange} maxLength={10} placeholder="08xxxxxxxx (กรอกเฉพาะตัวเลข 10 หลัก)" className={`${inputStyle} border-blue-300 bg-blue-50/50 focus:bg-white`} />
+                                    </div>
+                                    <div className="col-span-full">
+                                        <label className={labelStyle}>เลขบัตรประชาชน (ตัวเลือก)</label>
+                                        <input type="text" value={formData.citizen_id} onChange={formatCitizenId} maxLength={17} placeholder="x-xxxx-xxxxx-xx-x" className={inputStyle} />
+                                    </div>
+                                    <div>
+                                        <label className={labelStyle}>ชื่อจริง *</label>
+                                        <input required type="text" name="first_name" onChange={handleChange} className={inputStyle} />
+                                    </div>
+                                    <div>
+                                        <label className={labelStyle}>นามสกุล *</label>
+                                        <input required type="text" name="last_name" onChange={handleChange} className={inputStyle} />
+                                    </div>
+                                    <div className="col-span-full">
+                                        <label className={labelStyle}>ชื่อเรียก / ตำแหน่ง</label>
+                                        <input type="text" name="nickname" onChange={handleChange} placeholder="เช่น ผู้ใหญ่สมชาย" className={inputStyle} />
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 p-4 bg-slate-50/80 rounded-xl border border-slate-100">
+                                    <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-3"><Key size={16} className="text-slate-400"/> ตั้งรหัสผ่าน (อังกฤษ/ตัวเลข)</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="relative">
+                                            <input required type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handlePasswordChange} placeholder="รหัสผ่าน (อย่างน้อย 6 ตัว)" className={inputStyle} />
+                                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
+                                        <div className="relative">
+                                            <input required type={showConfirmPassword ? "text" : "password"} name="confirm_password" value={formData.confirm_password} onChange={handlePasswordChange} placeholder="ยืนยันรหัสผ่านอีกครั้ง" className={`${inputStyle} ${formData.confirm_password && formData.password !== formData.confirm_password ? 'border-red-400 bg-red-50' : ''}`} />
+                                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                                                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {formData.confirm_password && formData.password !== formData.confirm_password && (
+                                        <p className="text-red-500 text-xs mt-2 font-bold flex items-center gap-1"><XCircle size={14}/> รหัสผ่านไม่ตรงกัน</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Section 3: ระบบผู้แนะนำ */}
+                            <div className="bg-blue-50/50 p-5 rounded-xl border border-blue-100 mt-2">
+                                <label className="flex items-center gap-2 text-sm font-bold text-blue-700 mb-1">
+                                    <Users size={18} /> 3. ผู้แนะนำการใช้งาน (เพื่อรับสิทธิ์แชร์รายได้ระบบ)
+                                </label>
+                                <p className="text-xs text-slate-500 mb-4 font-medium">
+                                    หากมีผู้ใหญ่บ้านท่านอื่นแนะนำคุณมา กรุณากรอกเบอร์โทรศัพท์ของท่าน เพื่อให้ท่านได้รับสิทธิ์ส่วนแบ่งรายได้
+                                </p>
+                                
+                                <input 
+                                    type="text" 
+                                    maxLength="10"
+                                    className={`${inputStyle} border-blue-200 bg-white`}
+                                    placeholder="08xxxxxxxx (กรอกเฉพาะตัวเลข 10 หลัก)"
+                                    value={referrerPhone}
+                                    onChange={(e) => setReferrerPhone(e.target.value.replace(/\D/g, ''))} 
+                                />
+
+                                {isCheckingReferrer ? (
+                                    <p className="text-xs text-blue-500 mt-2 font-bold flex items-center gap-1"><RefreshCcw size={12} className="animate-spin"/> กำลังค้นหาข้อมูล...</p>
+                                ) : referrerInfo && !referrerInfo.notFound ? (
+                                    <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex flex-col gap-1">
+                                        <span className="text-xs font-bold text-emerald-700 flex items-center gap-1"><CheckCircle size={14}/> พบข้อมูลผู้แนะนำ</span>
+                                        <span className="text-xs text-emerald-600 font-medium ml-5">คุณ {referrerInfo.first_name} {referrerInfo.last_name} (หมู่ {referrerInfo.village_no || '-'} {referrerInfo.village_name || ''})</span>
+                                    </div>
+                                ) : referrerInfo && referrerInfo.notFound ? (
+                                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                        <span className="text-xs font-bold text-red-600 flex items-center gap-1"><XCircle size={14}/> ไม่พบข้อมูลเบอร์โทรศัพท์นี้ในระบบ</span>
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <button type="submit" disabled={isSubmitting} className="w-full py-4 mt-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                                {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />} 
+                                {isSubmitting ? 'กำลังบันทึกข้อมูล...' : 'สร้างข้อมูลหมู่บ้านและบัญชี'}
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
-            <BottomNavbar />
+            
+            <div className="flex-shrink-0 fixed bottom-0 w-full z-40"><BottomNavbar /></div>
         </div>
     );
 };
