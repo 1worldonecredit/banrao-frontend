@@ -33,9 +33,11 @@ const ManagePopulation = () => {
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // ฟอร์มบ้าน
   const [newHouseholdForm, setNewHouseholdForm] = useState({ house_no: '', expected_member_count: '', owner_name: '' });
   const [isNoHouseNumber, setIsNoHouseNumber] = useState(false);
   
+  // ฟอร์มสมาชิก
   const [memberForm, setMemberForm] = useState({
     is_foreigner: false, citizen_id: '', passport_no: '', nationality: 'ไทย',
     first_name: '', last_name: '', nickname: '', gender: '', 
@@ -210,7 +212,7 @@ const ManagePopulation = () => {
 
   const inputStyle = "w-full p-2.5 border border-slate-200 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm bg-slate-50 hover:bg-white text-slate-700 transition-all";
   const labelStyle = "block text-xs font-bold text-slate-500 mb-1.5";
-  const loc = locationContext || { village_no: '-', village_name: '...', tambon_name_th: '...', amphure_name_th: '...', province_name_th: '...' };
+  const loc = locationContext || { village_no: '-', village_name: 'กำลังโหลด...', tambon_name_th: '-', amphure_name_th: '-', province_name_th: '-' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
