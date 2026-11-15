@@ -43,11 +43,17 @@ const RegisterVillage = () => {
 
     const [villagesList, setVillagesList] = useState([]);
 
-    useEffect(() => {
+ useEffect(() => {
         if (formData.sub_district) {
             fetch(`${API_URL}/api/villages/by-tambon?tambon_name=${formData.sub_district}`)
                 .then(res => res.json())
-                .then(data => setVillagesList(data))
+                .then(data => {
+                    // 🌟 เพิ่มการจัดเรียง (Sort) ให้เป็นตัวเลขแบบคณิตศาสตร์ (1, 2, 3, ..., 10, 11)
+                    const sortedVillages = data.sort((a, b) => {
+                        return parseInt(a.village_no) - parseInt(b.village_no);
+                    });
+                    setVillagesList(sortedVillages);
+                })
                 .catch(err => console.error("Error fetching villages:", err));
         } else {
             setVillagesList([]); 
