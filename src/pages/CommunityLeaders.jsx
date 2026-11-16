@@ -126,7 +126,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 // ==========================================
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-  const villageId = parseInt(userData.village_id, 10) || 1; 
+ const villageId = userData.village_id || '';
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
@@ -294,12 +294,16 @@ const CommunityLeaders = () => {
     }
   };
 
+  // 🌟 ฟังก์ชันเพิ่มคน (อัปเดตให้ดึง ID ถูกต้อง)
   const handleAddNode = (node, direction) => {
     if (!activeTab) return alert("กรุณาสร้างและเลือกคณะทำงาน (Tab) ก่อนเพิ่มบุคคลครับ");
     
+    // ดึง ID ให้ตรงกับฐานข้อมูล
+    const currentId = node.id || node.position_record_id;
+    
     let targetParentId = null;
     if (direction === 'child') {
-      targetParentId = node.position_record_id || null;
+      targetParentId = currentId || null;
     } else {
       targetParentId = node.parent_id || null;
     }
@@ -344,10 +348,19 @@ const CommunityLeaders = () => {
     setIsModalOpen(true);
   };
 
+// 🌟 ฟังก์ชันลบคน (แก้บั๊ก "รหัสรายการไม่ถูกต้อง")
   const handleDeleteNode = async (node) => {
-    if (window.confirm(`คุณต้องการลบ "${node.first_name} ${node.last_name}" ออกจากตำแหน่งนี้ใช่หรือไม่?`)) {
+    // ดึง ID ให้ตรงกับฐานข้อมูล
+    const targetId = node.id || node.position_record_id;
+    
+    if (!targetId) {
+        alert("ไม่สามารถลบได้: ไม่พบรหัสอ้างอิงตำแหน่ง");
+        return;
+    }
+
+    if (window.confirm(`คุณต้องการลบ "${node.first_name || ''} ${node.last_name || ''}" ออกจากตำแหน่งนี้ใช่หรือไม่?`)) {
         try {
-            const res = await fetch(`${API_URL}/api/community-leaders/${node.position_record_id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_URL}/api/community-leaders/${targetId}`, { method: 'DELETE' });
             const result = await res.json();
             if (result.success) { 
               alert(result.message); 
