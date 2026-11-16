@@ -400,29 +400,35 @@ const CommunityLeaders = () => {
     } catch (error) { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
   };
 
-  // 🌟 API บันทึก Tab คณะทำงานใหม่ (ส่ง village_id แบบแปลง Int แล้ว)
-  const handleSaveCommittee = async (e) => {
-    e.preventDefault();
-    if (!committeeForm.name) return;
+// 🌟 ฟังก์ชันบันทึกคณะทำงาน
+  const handleSaveCommittee = async () => {
+    if (!committeeForm.name) return alert("กรุณากรอกชื่อคณะทำงาน");
+
     try {
-      const payload = { 
-        village_id: villageId, 
-        committee_name: committeeForm.name, 
-        description: committeeForm.description 
-      };
       const res = await fetch(`${API_URL}/api/community-committees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          village_id: villageId, // ส่งรหัสหมู่บ้าน (UUID)
+          committee_name: committeeForm.name,
+          description: committeeForm.description
+        })
       });
       const result = await res.json();
+      
       if (result.success) {
         alert('เพิ่มคณะทำงานใหม่สำเร็จ');
+        setIsCommitteeModalOpen(false); // ปิด Modal
+        setCommitteeForm({ name: '', description: '' }); // ล้างค่าในฟอร์ม
+        
+        // 🌟 จุดสำคัญ: ต้องเรียกฟังก์ชันนี้เพื่อให้ระบบรีเฟรชแท็บทันทีโดยไม่ต้องกด F5
         fetchCommittees(); 
-        setIsCommitteeModalOpen(false);
-        setCommitteeForm({ name: '', description: '' });
-      } else alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่ทราบสาเหตุ'));
-    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
+      } else {
+        alert('เกิดข้อผิดพลาด: ' + result.message);
+      }
+    } catch (error) {
+      console.error("Save committee error:", error);
+    }
   };
 
   const openEditCommitteeModal = (committee) => {
