@@ -210,7 +210,7 @@ const CommunityLeaders = () => {
       }
 
       // นำการ์ดผู้ใหญ่บ้านมาตั้งเป็นยอดเสมอ เอาคนจาก DB มาต่อท้าย
-      setOrgTree({ 
+     setOrgTree({ 
           isRoot: true, 
           isMock: true, 
           id: `root-${userData.id || '0'}`, 
@@ -218,7 +218,8 @@ const CommunityLeaders = () => {
           role_name: userData.position_name || 'ผู้นำชุมชน', 
           first_name: userData.firstName || 'ไม่ระบุชื่อ',
           last_name: userData.lastName || '',
-          user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
+          // 🌟 ปรับปรุงการดึงรูปภาพ: เช็คหลายๆ ฟิลด์เผื่อไว้ เพื่อให้แน่ใจว่าดึงรูปล่าสุดมา
+          user_image: userData.profile_image || userData.imageUrl || userData.userImage || userData.headmanImage || '/profile-img.jpg', 
           responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
           children: childrenFromDB 
       });
