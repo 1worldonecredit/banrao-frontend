@@ -8,10 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 // ==========================================
 // 🌟 1. Component ก้อน Node
 // ==========================================
-// ==========================================
-// 🌟 1. Component ก้อน Node (แก้ไขเช็คสิทธิ์ isAuthorized)
-// ==========================================
-const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode, isAuthorized }) => {
+const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   const hasUser = !!node.account_id;
 
   return (
@@ -40,36 +37,30 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode, isAuthorized }) =>
             {node.responsibilities || 'ยังไม่ระบุหน้าที่'}
           </p>
 
-          {/* 🌟 1. ซ่อนกลุ่มปุ่ม Edit/Delete มุมขวาบน */}
-          {isAuthorized && (
-            <div className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
-               <button onClick={() => onEditNode(node)} className="p-1.5 bg-white/80 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-sm" title="แก้ไขข้อมูล">
-                 <Edit size={14} />
+          <div className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+             <button onClick={() => onEditNode(node)} className="p-1.5 bg-white/80 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-sm" title="แก้ไขข้อมูล">
+               <Edit size={14} />
+             </button>
+             {(!node.isRoot && hasUser) && (
+               <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white/80 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-sm" title="ลบบุคลากรออกจากตำแหน่ง">
+                 <Trash2 size={14} />
                </button>
-               {(!node.isRoot && hasUser) && (
-                 <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white/80 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-sm" title="ลบบุคลากรออกจากตำแหน่ง">
-                   <Trash2 size={14} />
-                 </button>
-               )}
-            </div>
-          )}
+             )}
+          </div>
         </div>
 
-        {/* 🌟 2. ซ่อนปุ่มเพิ่มลูกน้อง และปุ่มใส่ข้อมูลคนใหม่ ตรงกลางล่าง */}
-        {isAuthorized && (
-          hasUser ? (
-             <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา (ลูกน้อง)">
-               <Plus size={14} />
-             </button>
-          ) : (
-             <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
-               <Edit size={18} />
-             </button>
-          )
+        {hasUser ? (
+           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา (ลูกน้อง)">
+             <Plus size={14} />
+           </button>
+        ) : (
+           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
+             <Edit size={18} />
+           </button>
         )}
         
-        {/* 🌟 3. ซ่อนปุ่มเพิ่มตำแหน่งระดับเดียวกัน ซ้าย/ขวา */}
-        {isAuthorized && !node.isRoot && (
+        {/* 🌟 ปรับปุ่มซ้าย/ขวา ให้คลิกง่ายขึ้นและเด่นขึ้นเล็กน้อย */}
+        {!node.isRoot && (
            <>
              <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 md:-left-4 transform -translate-y-1/2 bg-white border border-slate-200 text-blue-600 rounded-full p-1.5 shadow-md opacity-40 group-hover:opacity-100 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all z-20" title="เพิ่มตำแหน่งระดับเดียวกัน">
                <Plus size={12} />
@@ -90,8 +81,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode, isAuthorized }) =>
               return (
                 <div key={child.id || index} className="relative flex flex-col items-center">
                   <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
-                  {/* 🌟 4. ส่งค่า isAuthorized ต่อไปให้ลูกๆ ด้วย */}
-                  <OrgNode node={child} onAddNode={onAddNode} onEditNode={onEditNode} onDeleteNode={onDeleteNode} isAuthorized={isAuthorized} />
+                  <OrgNode node={child} onAddNode={onAddNode} onEditNode={onEditNode} onDeleteNode={onDeleteNode} />
                 </div>
               );
             })}
@@ -109,7 +99,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode, isAuthorized }) =>
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   const villageId = userData.village_id || 1; 
-  const isAuthorized = userData.role === 'HEADMAN' || userData.position_level === 'VILLAGE';
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
@@ -144,9 +133,9 @@ const CommunityLeaders = () => {
     let lookup = {};
 
     data.forEach(item => {
-      // 🌟 ใช้ item.id แทน item.position_record_id ทั้งหมด
-      lookup[item.id] = { 
+      lookup[item.position_record_id] = { 
         ...item, 
+        id: item.position_record_id, 
         role_name: item.position_name,
         userName: `${item.first_name || ''} ${item.last_name || ''}`,
         children: [] 
@@ -154,12 +143,11 @@ const CommunityLeaders = () => {
     });
 
     data.forEach(item => {
-      // 🌟 ตรวจสอบ parent_id และใช้ item.id เพื่อหาตำแหน่งใน lookup
       if (item.parent_id && lookup[item.parent_id]) {
-        lookup[item.parent_id].children.push(lookup[item.id]);
+        lookup[item.parent_id].children.push(lookup[item.position_record_id]);
       } else {
-        lookup[item.id].isRoot = true;
-        tree.push(lookup[item.id]);
+        lookup[item.position_record_id].isRoot = true;
+        tree.push(lookup[item.position_record_id]);
       }
     });
 
@@ -167,31 +155,13 @@ const CommunityLeaders = () => {
   };
 
 
- const fetchCommittees = async () => {
+  const fetchCommittees = async () => {
     try {
       const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
       const result = await res.json();
       if (result.success && result.data.length > 0) {
         setCommittees(result.data);
         if (!activeTab) setActiveTab(result.data[0].committee_id);
-      } else {
-        // 🌟 2. เพิ่มเงื่อนไขนี้: ถ้ายังไม่มีแท็บ ให้เช็คว่าเป็นผู้ใหญ่บ้านไหม ถ้าเป็นให้แสดงผังตัวเอง
-        if (isAuthorized) {
-          setOrgTree({
-            isRoot: true,
-            id: `mock-root-${userData.id || 'headman'}`,
-            role_name: userData.position_name || 'ผู้ใหญ่บ้าน',
-            account_id: userData.id,
-            first_name: userData.firstName,
-            last_name: userData.lastName,
-            user_image: userData.userImage || '/profile-img.jpg',
-            responsibilities: 'ผู้นำสูงสุดของหมู่บ้าน',
-            children: []
-          });
-        } else {
-          // ถ้าเป็นประชาชนทั่วไป ให้แสดงแค่ข้อความ
-          setOrgTree({ isRoot: true, role_name: 'ยังไม่มีข้อมูลผังองค์กร', id: 'root-0', children: [] });
-        }
       }
     } catch (error) { console.error("Error fetching committees:", error); }
   };
@@ -235,42 +205,33 @@ const CommunityLeaders = () => {
     const file = e.target.files[0];
     if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
   };
-const handleSearchUser = async () => {
+
+  const handleSearchUser = async () => {
     const rawCitizenId = searchCitizenId.replace(/-/g, ''); 
     if (rawCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
     setIsLoading(true);
     try {
-        // 🌟 เติม ?village_id=${villageId} ต่อท้าย URL เพื่อส่งรหัสหมู่บ้านไปกรองที่ Backend
-        const res = await fetch(`${API_URL}/api/search-citizen/${rawCitizenId}?village_id=${villageId}`);
+        const res = await fetch(`${API_URL}/api/search-citizen/${rawCitizenId}`);
         const result = await res.json();
-        
         if (result.success) {
             setFoundUser(result.data);
             setFormData(prev => ({
-                ...prev, 
-                account_id: result.data.account_id, 
-                previewUrl: result.data.user_image || '/profile-img.jpg', 
-                responsibilities: result.data.responsibilities || prev.responsibilities
+                ...prev, account_id: result.data.account_id, previewUrl: result.data.user_image || '/profile-img.jpg', responsibilities: result.data.responsibilities || prev.responsibilities
             }));
         } else {
-            // แสดงข้อความแจ้งเตือนที่ได้จาก Backend (เช่น 'ไม่พบข้อมูล หรือ บุคคลนี้ไม่ได้อยู่ในหมู่บ้านของคุณ')
-            alert(result.message || 'ไม่พบข้อมูลลูกบ้านในหมู่บ้านของคุณ');
+            alert(result.message || 'ไม่พบข้อมูลลูกบ้าน');
             setFoundUser(null);
         }
-    } catch (error) { 
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); 
-    } finally { 
-        setIsLoading(false); 
-    }
+    } catch (error) { alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); } finally { setIsLoading(false); }
   };
 
-// 🌟 ฟังก์ชันจัดการเพิ่มคน (ฉบับสมบูรณ์ แยกซ้าย/ขวา/ล่าง และใช้ node.id)
+  // 🌟 ฟังก์ชันจัดการเพิ่มคน (แก้ไขลอจิก ซ้าย/ขวา/ล่าง)
   const handleAddNode = (node, direction) => {
     let targetParentId = null;
     
     if (direction === 'child') {
       // เพิ่มลูกน้อง (ลงล่าง) -> ให้กล่องที่ถูกคลิกเป็นหัวหน้า
-      targetParentId = node.id; 
+      targetParentId = node.position_record_id || node.id;
     } else {
       // เพิ่มเพื่อนร่วมงาน (ซ้าย/ขวา) -> ให้หัวหน้าของกล่องที่ถูกคลิก เป็นหัวหน้าของคนใหม่ด้วย
       targetParentId = node.parent_id || null;
@@ -279,15 +240,7 @@ const handleSearchUser = async () => {
     setEditingSlot({ isNew: true, parentId: targetParentId, direction }); 
     
     const today = new Date().toISOString().split('T')[0];
-    setFormData({ 
-        role_name: '', 
-        account_id: '', 
-        start_date: today, 
-        end_date: '', 
-        responsibilities: '', 
-        previewUrl: '/profile-img.jpg', 
-        image_file: null 
-    });
+    setFormData({ role_name: '', account_id: '', start_date: today, end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null });
     setFoundUser(null);
     setSearchCitizenId('');
     setIsModalOpen(true);
@@ -334,18 +287,13 @@ const handleSearchUser = async () => {
         } catch (error) { alert('เกิดข้อผิดพลาดในการลบข้อมูล'); }
     }
   };
-    const handleSave = async (e) => {
+
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.account_id) return alert("กรุณาระบุบุคลากร");
     if (!formData.role_name) return alert("กรุณาระบุชื่อตำแหน่ง");
 
     try {
-      // ดักจับ parent_id ถ้าเป็น Mock Node ให้ปรับเป็น null
-      let finalParentId = editingSlot.parentId;
-      if (finalParentId && typeof finalParentId === 'string' && finalParentId.startsWith('mock-root')) {
-          finalParentId = null;
-      }
-
       const payload = {
         village_id: villageId,
         committee_id: activeTab, 
@@ -354,7 +302,7 @@ const handleSearchUser = async () => {
         start_date: formData.start_date,
         end_date: formData.end_date || null,
         responsibilities: formData.responsibilities,
-        parent_id: finalParentId 
+        parent_id: editingSlot.parentId || null // ส่ง parent_id ไปให้ Backend ด้วยเสมอ
       };
 
       const url = editingSlot.isNew ? `${API_URL}/api/community-leaders` : `${API_URL}/api/community-leaders/${editingSlot.recordId}`;
@@ -367,11 +315,8 @@ const handleSearchUser = async () => {
         setIsModalOpen(false);
         fetchLeaders(selectedDate, activeTab);
       } else alert('บันทึกไม่สำเร็จ: ' + result.message);
-    } catch (error) { 
-        alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); 
-    }
+    } catch (error) { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
   };
-
 
   const handleSaveCommittee = async (e) => {
     e.preventDefault();
@@ -450,9 +395,9 @@ const handleSearchUser = async () => {
               <p className="text-sm text-slate-500 font-medium mt-0.5">หมู่บ้าน: {userData?.villageName || 'ของคุณ'}</p>
             </div>
           </div>
-         </div>
+        </div>
 
-         <div className="flex overflow-x-auto gap-3 mb-6 pb-2 hide-scrollbar items-center px-1">
+        <div className="flex overflow-x-auto gap-3 mb-6 pb-2 hide-scrollbar items-center px-1">
           {committees.map(c => (
             <div key={c.committee_id} className="relative group shrink-0">
               <button
@@ -509,7 +454,7 @@ const handleSearchUser = async () => {
 
         <div className="relative py-12 overflow-x-auto flex justify-center min-w-max md:min-w-full bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] rounded-[2.5rem] border border-slate-200/50">
           {orgTree && orgTree.role_name ? (
-            <OrgNode node={orgTree} onAddNode={handleAddNode} onEditNode={handleEditNode} onDeleteNode={handleDeleteNode} isAuthorized={isAuthorized} />
+            <OrgNode node={orgTree} onAddNode={handleAddNode} onEditNode={handleEditNode} onDeleteNode={handleDeleteNode} />
           ) : (
              <div className="text-slate-400 py-20 flex flex-col items-center gap-4">
                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
