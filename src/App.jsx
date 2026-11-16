@@ -49,9 +49,7 @@ import ApiTracker from './pages/ApiTracker';
 function App() {
   return (
     <BrowserRouter>
-      {/* ใช้ app-container เพื่อคุม Layout ให้เป็นไปตาม CSS ที่ตั้งไว้ */}
-     
-          
+      {/* ใช้ app-container เพื่อคุม Layout ให้เป็นไปตาม CSS ที่ตั้งไว้ */}         
           {/* ========================================== */}
           {/* 2. ส่วนกำหนดเส้นทาง (Routes) */}
           {/* วิธีเพิ่มหน้าใหม่: <Route path="/ชื่อurl" element={<ชื่อComponent />} /> */}
@@ -71,13 +69,11 @@ function App() {
             <Route path="/shop" element={<Shop />} />
             <Route path="/mechanics" element={<Mechanics />} />
             <Route path="/taxis" element={<Taxis />} />
-            
             <Route path="/add-place" element={<AddCommunityPlace />} />
             <Route path="/my-places" element={<MyPlaces />} />
             <Route path="/edit-place/:id" element={<EditPlace />} />
             <Route path="/register-village" element={<RegisterVillage />} />
             <Route path="/village-details" element={<villageDetails />} />
-
             <Route path="/team" element={<Team />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/media" element={<Media />} />
