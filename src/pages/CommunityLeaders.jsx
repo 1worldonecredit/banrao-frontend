@@ -165,10 +165,10 @@ const CommunityLeaders = () => {
       }
     } catch (error) { console.error("Error fetching committees:", error); }
   };
-
-  const fetchLeaders = async (dateQuery = '', committeeId) => {
+const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
+      // 🌟 แก้ไข URL ให้ถูกต้อง ไม่มี backslash ส่วนเกินแล้ว
       const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
@@ -177,9 +177,22 @@ const CommunityLeaders = () => {
         const treeData = buildTree(result.data);
         setOrgTree(treeData);
       } else {
-        setOrgTree({ isRoot: true, role_name: 'ประธาน / หัวหน้าชุด', id: 'root-0', children: [] });
+        // 🌟 ถ้ายกผังยังว่างเปล่า ให้ดึงข้อมูลคนที่ Login (ผู้นำ) มาตั้งเป็นจุดเริ่มต้นอัตโนมัติ
+        setOrgTree({ 
+            isRoot: true, 
+            id: `root-${userData.id || '0'}`, 
+            account_id: userData.id,
+            role_name: userData.position_name || 'ผู้นำชุมชน', 
+            first_name: userData.firstName || 'ไม่ระบุชื่อ',
+            last_name: userData.lastName || '',
+            user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
+            responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''} ต.${userData.tambonName || ''} อ.${userData.amphureName || ''} จ.${userData.provinceName || ''}`,
+            children: [] 
+        });
       }
-    } catch (error) { console.error("Error fetching leaders:", error); }
+    } catch (error) { 
+      console.error("Error fetching leaders:", error); 
+    }
   };
 
   useEffect(() => { fetchCommittees(); }, []);
