@@ -9,7 +9,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 // 🌟 1. Component ก้อน Node (การ์ดบุคคล)
 // ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
-  // 🌟 GUARD: ถ้า node ไม่มีค่า หรือพัง ให้หยุดการเรนเดอร์ทันที เพื่อไม่ให้หน้าเว็บขาว
   if (!node) {
     return null; 
   }
@@ -63,12 +62,10 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
             {node.responsibilities || '-'}
           </p>
 
-          {/* ปุ่มแก้ไข/ลบ มุมขวาบน (โผล่ตอน Hover) */}
           <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
              <button onClick={() => onEditNode(node)} className="p-1.5 bg-white text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-md border border-slate-100" title="แก้ไขข้อมูล">
                <Edit size={12} />
              </button>
-             {/* 🌟 แสดงปุ่มลบ เฉพาะคนที่มี User และไม่ใช่ Card จำลอง */}
              {hasUser && !node.isMock && (
                <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-md border border-slate-100" title="ลบออกจากตำแหน่ง">
                  <Trash2 size={12} />
@@ -77,8 +74,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
           </div>
         </div>
 
-        {/* --- ปุ่ม + ครบทิศทาง --- */}
-        {/* 🌟 ลบ !node.isMock ออก เพื่อให้ Card แรกเริ่ม (Mock) โชว์ปุ่ม + ได้เลย */}
         {hasUser && (
            <>
              <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20 border-2 border-white" title="เพิ่มผู้ใต้บังคับบัญชา">
@@ -93,7 +88,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
            </>
         )}
         
-        {/* 🌟 ถ้าไม่มีข้อมูล User เลย (หน้าว่างเปล่าจริงๆ) ให้แสดงปุ่มบวกใหญ่ๆ ตรงกลาง */}
         {(!hasUser) && (
            <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20 border-2 border-white" title="สร้างตำแหน่งนี้">
              <Plus size={20} />
@@ -126,7 +120,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 // ==========================================
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
- const villageId = userData.village_id || '';
+  const villageId = userData.village_id || '';
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
@@ -173,7 +167,6 @@ const CommunityLeaders = () => {
     
     let targetParentId = null;
     if (direction === 'child') {
-      // 🌟 จุดสำคัญ: ถ้ากด + ใต้ผู้ใหญ่บ้าน (isRoot) ห้ามส่ง id ของผู้ใหญ่บ้านไป เพราะมันเป็น root-xxx
       targetParentId = node.isRoot ? null : node.id;
     } else {
       targetParentId = node.parent_id || null;
@@ -188,7 +181,22 @@ const CommunityLeaders = () => {
     setIsModalOpen(true);
   };
 
-  // 🌟 3. ดึงข้อมูลคน และประกอบเข้ากับผู้ใหญ่บ้าน
+  // 🌟 3. นำ fetchCommittees กลับมาไว้ตรงนี้!
+  const fetchCommittees = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
+      const result = await res.json();
+      if (result.success && result.data.length > 0) {
+        setCommittees(result.data);
+        if (!activeTab) setActiveTab(result.data[0].committee_id);
+      } else {
+        setCommittees([]);
+        setActiveTab(null);
+      }
+    } catch (error) { console.error("Error fetching committees:", error); }
+  };
+
+  // 🌟 4. ดึงข้อมูลคน และประกอบเข้ากับผู้ใหญ่บ้าน
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
@@ -196,10 +204,8 @@ const CommunityLeaders = () => {
       const res = await fetch(url);
       const result = await res.json();
       
-      // ร้อยเรียงลูกน้องให้เป็นผังต้นไม้ (เริ่มจากคนที่ไม่มี parent_id หมายความว่าเขาต้องต่อจากผู้ใหญ่บ้าน)
       const childrenFromDB = result.success ? buildTree(result.data, null) : [];
 
-      // นำการ์ดผู้ใหญ่บ้านมาตั้งเป็นยอดเสมอ เอาคนจาก DB มาต่อท้าย
       setOrgTree({ 
           isRoot: true, 
           isMock: true, 
@@ -210,13 +216,13 @@ const CommunityLeaders = () => {
           last_name: userData.lastName || '',
           user_image: userData.profile_image || userData.imageUrl || userData.userImage || userData.headmanImage || '/profile-img.jpg', 
           responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
-          children: childrenFromDB // 🌟 เอาลูกน้องที่ร้อยเรียงเสร็จแล้ว มาต่อท้ายผู้ใหญ่บ้านตรงนี้!
+          children: childrenFromDB 
       });
       
     } catch (error) { console.error("Error fetching leaders:", error); }
   };
 
-  // 🌟 4. ควบคุมการทำงานเมื่อโหลดหน้าจอ
+  // 🌟 5. ควบคุมการทำงานเมื่อโหลดหน้าจอ
   useEffect(() => { 
     fetchCommittees(); 
   }, []);
@@ -225,7 +231,6 @@ const CommunityLeaders = () => {
     if (activeTab) {
       fetchLeaders(selectedDate, activeTab);
     } else {
-      // โชว์ผู้ใหญ่บ้านรอไว้ก่อน
       setOrgTree({ 
         isRoot: true, 
         isMock: true, 
@@ -240,8 +245,6 @@ const CommunityLeaders = () => {
       });
     }
   }, [activeTab, selectedDate]);
-
-  // ฟังก์ชันต่อไป... (formatCitizenId)
 
   const formatCitizenId = (value) => {
     const numbers = value.replace(/\D/g, '');
@@ -260,7 +263,6 @@ const CommunityLeaders = () => {
     if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
   };
 
-  // 🌟 API ค้นหาลูกบ้าน พร้อมส่ง villageId ไปใน URL 
   const handleSearchUser = async () => {
     const rawCitizenId = searchCitizenId.replace(/-/g, ''); 
     if (rawCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
@@ -283,8 +285,6 @@ const CommunityLeaders = () => {
         setIsLoading(false); 
     }
   };
-
-
 
   const handleEditNode = (node) => {
     if (!activeTab) return alert("กรุณาสร้างคณะทำงาน (Tab) ก่อนครับ");
@@ -317,9 +317,7 @@ const CommunityLeaders = () => {
     setIsModalOpen(true);
   };
 
-// 🌟 ฟังก์ชันลบคน (แก้บั๊ก "รหัสรายการไม่ถูกต้อง")
   const handleDeleteNode = async (node) => {
-    // ดึง ID ให้ตรงกับฐานข้อมูล
     const targetId = node.id || node.position_record_id;
     
     if (!targetId) {
@@ -369,7 +367,6 @@ const CommunityLeaders = () => {
     } catch (error) { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
   };
 
-// 🌟 ฟังก์ชันบันทึกคณะทำงาน
   const handleSaveCommittee = async () => {
     if (!committeeForm.name) return alert("กรุณากรอกชื่อคณะทำงาน");
 
@@ -378,7 +375,7 @@ const CommunityLeaders = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          village_id: villageId, // ส่งรหัสหมู่บ้าน (UUID)
+          village_id: villageId,
           committee_name: committeeForm.name,
           description: committeeForm.description
         })
@@ -387,10 +384,8 @@ const CommunityLeaders = () => {
       
       if (result.success) {
         alert('เพิ่มคณะทำงานใหม่สำเร็จ');
-        setIsCommitteeModalOpen(false); // ปิด Modal
-        setCommitteeForm({ name: '', description: '' }); // ล้างค่าในฟอร์ม
-        
-        // 🌟 จุดสำคัญ: ต้องเรียกฟังก์ชันนี้เพื่อให้ระบบรีเฟรชแท็บทันทีโดยไม่ต้องกด F5
+        setIsCommitteeModalOpen(false); 
+        setCommitteeForm({ name: '', description: '' }); 
         fetchCommittees(); 
       } else {
         alert('เกิดข้อผิดพลาด: ' + result.message);
