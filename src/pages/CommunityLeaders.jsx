@@ -389,7 +389,7 @@ const CommunityLeaders = () => {
 
   const activeCommitteeInfo = committees.find(c => c.committee_id === activeTab);
 
-  return (
+ return (
     <div className="bg-[#f8fafc] min-h-screen pb-24 font-sans">
       <TopNavbar userData={userData} />
       
@@ -461,7 +461,25 @@ const CommunityLeaders = () => {
         )}
 
         <div className="relative py-12 overflow-x-auto flex justify-center min-w-max md:min-w-full bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] rounded-[2.5rem] border border-slate-200/50">
-          {orgTree && orgTree.role_name ? (
+          {/* 🌟 ปรับปรุงการตรวจสอบ ถ้ายังไม่มีคณะทำงาน ให้แสดงข้อความแนะนำ */}
+          {committees.length === 0 ? (
+             <div className="text-slate-500 py-20 flex flex-col items-center gap-4 text-center">
+               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-2">
+                 <FolderPlus size={32} />
+               </div>
+               <h3 className="text-lg font-bold text-slate-700">ยังไม่มีข้อมูลผังคณะทำงาน</h3>
+               <p className="text-sm">กรุณากดปุ่ม "เพิ่มผังคณะทำงาน" ด้านบน เพื่อเริ่มต้นสร้างผังองค์กรของคุณ</p>
+               <button 
+                 onClick={() => {
+                   setCommitteeForm({ name: '', description: '' });
+                   setIsCommitteeModalOpen(true);
+                 }} 
+                 className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md hover:bg-blue-700 transition-colors"
+               >
+                 สร้างผังแรกของคุณเลย
+               </button>
+             </div>
+          ) : orgTree && orgTree.role_name ? (
             <OrgNode node={orgTree} onAddNode={handleAddNode} onEditNode={handleEditNode} onDeleteNode={handleDeleteNode} />
           ) : (
              <div className="text-slate-400 py-20 flex flex-col items-center gap-4">
