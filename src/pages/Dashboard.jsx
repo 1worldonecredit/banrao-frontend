@@ -1,598 +1,610 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import BottomNavbar from '../components/BottomNavbar';
+import React, { useState, useEffect } from 'react';
+import { Users, Calendar, Edit, Camera, Save, X, UserPlus, Search, Plus, Trash2, FolderPlus } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
-import { 
-  Building2, Home,
-  Gift, Clock, 
-  Ticket, Percent, Utensils, MapPin, ClipboardList, CalendarCheck, HardHat, Wrench, CarTaxiFront,
-  Droplets, Activity, ShieldCheck, Pencil, Shield, CalendarClock // 🌟 เพิ่ม CalendarClock ตรงนี้
-} from 'lucide-react';
+import BottomNavbar from '../components/BottomNavbar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
-const Dashboard = () => {
-  const navigate = useNavigate();
-  const fileInputRef = useRef(null);
-  
-  const [userData, setUserData] = useState({});
-  const [userPermissions, setUserPermissions] = useState([]); 
-  const [wallet, setWallet] = useState({ balance: 0, points: 0 });
-  const [isLoading, setIsLoading] = useState(true);
+// ==========================================
+// 🌟 1. Component ก้อน Node
+// ==========================================
+const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
+  const hasUser = !!node.account_id;
 
-  const currencySymbol = userData.currency_code === 'USD' ? '$' : '฿';
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative group m-1 md:m-2 mt-4">
+        <div className="bg-white/60 backdrop-blur-md border border-slate-200/60 shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-4 w-36 sm:w-48 md:w-56 flex flex-col items-center z-10 relative overflow-hidden">
+          
+          <div className={`absolute top-0 left-0 w-full h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-gradient-to-r from-emerald-400 to-teal-400'}`}></div>
+          
+          <div className="relative mt-2 mb-3">
+             <div className="absolute inset-0 bg-blue-100 rounded-full scale-110 -z-10 opacity-50"></div>
+             <img 
+               src={node.user_image || '/profile-img.jpg'} 
+               alt="Profile" 
+               className="w-14 h-14 md:w-16 md:h-16 rounded-full object-cover border-2 border-white shadow-sm relative z-0"
+             />
+          </div>
+          
+          <span className="text-[10px] md:text-xs font-bold text-slate-700 bg-white/80 border border-slate-200 px-3 py-1 rounded-full mb-2 text-center w-full truncate shadow-sm">
+            {node.role_name || 'ตำแหน่งใหม่'}
+          </span>
+          <h3 className="font-bold text-slate-800 text-xs md:text-sm truncate w-full text-center">
+            {hasUser ? `${node.first_name} ${node.last_name}` : 'คลิกระบุบุคลากร'}
+          </h3>
+          <p className="text-[10px] md:text-xs text-slate-500 mt-1 truncate w-full text-center">
+            {node.responsibilities || 'ยังไม่ระบุหน้าที่'}
+          </p>
 
-  // 🌟 1. สร้าง State สำหรับเก็บข้อมูลสถานที่
-  const [communityPlaces, setCommunityPlaces] = useState([]);
+          <div className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+             <button onClick={() => onEditNode(node)} className="p-1.5 bg-white/80 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-sm" title="แก้ไขข้อมูล">
+               <Edit size={14} />
+             </button>
+             {(!node.isRoot && hasUser) && (
+               <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white/80 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-sm" title="ลบบุคลากรออกจากตำแหน่ง">
+                 <Trash2 size={14} />
+               </button>
+             )}
+          </div>
+        </div>
 
-  // 🌟 2. ดึงข้อมูลจาก API เมื่อเปิดหน้าเว็บ
-  useEffect(() => {
-    const fetchPlaces = async () => {
-        try {
-            const response = await axios.get(`${API_URL}/api/community-places`);
-            if (response.data.success) {
-                setCommunityPlaces(response.data.places);
-            }
-        } catch (error) {
-            console.error("Error fetching places", error);
-        }
-    };
-    fetchPlaces();
-  }, []);
+        {hasUser ? (
+           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา (ลูกน้อง)">
+             <Plus size={14} />
+           </button>
+        ) : (
+           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
+             <Edit size={18} />
+           </button>
+        )}
+        
+        {/* 🌟 ปรับปุ่มซ้าย/ขวา ให้คลิกง่ายขึ้นและเด่นขึ้นเล็กน้อย */}
+        {!node.isRoot && (
+           <>
+             <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 md:-left-4 transform -translate-y-1/2 bg-white border border-slate-200 text-blue-600 rounded-full p-1.5 shadow-md opacity-40 group-hover:opacity-100 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all z-20" title="เพิ่มตำแหน่งระดับเดียวกัน">
+               <Plus size={12} />
+             </button>
+             <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-3 md:-right-4 transform -translate-y-1/2 bg-white border border-slate-200 text-blue-600 rounded-full p-1.5 shadow-md opacity-40 group-hover:opacity-100 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all z-20" title="เพิ่มตำแหน่งระดับเดียวกัน">
+               <Plus size={12} />
+             </button>
+           </>
+        )}
+      </div>
 
-  const mainCategories = [
-    { title: 'โรงเรียนในหมู่บ้าน', icon: <Building2 size={40} color="#e11d48" />, bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', action: 'hotels' },
-    { title: 'วัดในหมู่บ้าน', icon: <Utensils size={40} color="#7c3aed" />, bg: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)', action: 'restaurants' },
-    { title: 'ห้องเช่า', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-    { title: 'บ้านเช่า', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-    { title: 'รีสอร์ท', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-    { title: 'โรงแรม', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-    { title: 'ร้านค้า', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
-    { title: 'ร้านอาหาร', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
-    { title: 'ห้างสรรพสินค้า', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
-    { title: 'สถานที่ท่องเที่ยว', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-    { title: 'โรงงานอุตสาหกรรม', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
-    { title: 'โอทอป', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-    { title: 'วิสาหกิจชุมชน', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-    { title: 'สถานีอนามัย ', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-    { title: 'โรงพยาบาล', icon: <MapPin size={40} color="#ea580c" />, bg: 'linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%)', action: 'nearby_hotels' },
-    { title: 'คลีนิก', icon: <Home size={40} color="#16a34a" />, bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', action: 'monthly_rentals' },
-  ];
-
-  const allSubServices = [
-    { title: 'ฌาปนกิจ หมู่บ้าน', icon: <ClipboardList size={24} color="#0284c7" />, action: 'orders', reqPerm: null },
-    { title: 'ธนาคารชุมชน', icon: <CalendarCheck size={24} color="#0284c7" />, action: 'bookings', reqPerm: null },
-    { title: 'เก็บค่าน้ำประปา', icon: <Droplets size={24} color="#0284c7" />, action: 'water-bill', reqPerm: 'MANAGE_WATER_BILL' },
-    { title: 'บันทึกสุขภาพ', icon: <Activity size={24} color="#e11d48" />, action: 'health-data', reqPerm: 'MANAGE_HEALTH_DATA' },
-    { title: 'มอบหมายงาน', icon: <ShieldCheck size={24} color="#ca8a04" />, action: 'assign-role', reqPerm: 'ASSIGN_VILLAGE_ROLE' },
-    { title: 'ต้องการคนทำงาน', icon: <HardHat size={24} color="#0284c7" />, action: 'jobs', reqPerm: null },
-    { title: 'ช่างซ่อมรถใกล้ฉัน', icon: <Wrench size={24} color="#0284c7" />, action: 'mechanics', reqPerm: null },
-    { title: 'รถรับจ้าง', icon: <CarTaxiFront size={24} color="#0284c7" />, action: 'taxis', reqPerm: null },
-  ];
-
-  const filteredSubServices = allSubServices.filter(sub => 
-    !sub.reqPerm || userPermissions.includes(sub.reqPerm)
+      {Array.isArray(node.children) && node.children.length > 0 && (
+        <div className="flex flex-col items-center w-full">
+          <div className="w-px h-6 bg-slate-300"></div>
+          <div className="flex justify-center relative pt-4 border-t border-slate-300 gap-4 md:gap-8 px-4">
+            {node.children.map((child, index) => {
+              if (!child) return null;
+              return (
+                <div key={child.id || index} className="relative flex flex-col items-center">
+                  <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
+                  <OrgNode node={child} onAddNode={onAddNode} onEditNode={onEditNode} onDeleteNode={onDeleteNode} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
+};
 
-  const welcomeGifts = [
-    { title: 'รับส่วนลดสูงสุด 12%', subtitle: 'จองที่พักครั้งแรก', badge: 'รับสิทธิ์', icon: <Gift color="#ca8a04" /> },
-    { title: 'ทดลองเป็นลูกค้า VIP', subtitle: 'รับส่วนลดสูงสุด 15%', badge: 'ใหม่', icon: <Percent color="#000" /> },
-  ];
 
-  const flashSales = [
-    { title: 'อุ่นไอแคมป์ปิ้ง เขาค้อ รีสอร์ท', discount: 'ลด 76%', img: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&q=80' },
-    { title: 'พูลวิลล่า ธรรมชาติ', discount: 'ลด 53%', img: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=500&q=80' },
-  ];
+// ==========================================
+// 🌟 2. Main Component
+// ==========================================
+const CommunityLeaders = () => {
+  const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+  const villageId = userData.village_id || 1; 
+  
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
+  const [orgTree, setOrgTree] = useState(null); 
+  
+  const [committees, setCommittees] = useState([]);
+  const [activeTab, setActiveTab] = useState(null);
+  const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
+  const [committeeForm, setCommitteeForm] = useState({ name: '', description: '' });
 
-  const fetchDashboardData = async (userId) => {
+  // 🌟 เพิ่ม State 2 ตัวนี้ สำหรับแก้ไขแท็บ
+  const [editingCommitteeId, setEditingCommitteeId] = useState(null); 
+  const [isEditCommitteeModalOpen, setIsEditCommitteeModalOpen] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSlot, setEditingSlot] = useState(null); 
+  const [searchCitizenId, setSearchCitizenId] = useState('');
+  const [foundUser, setFoundUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [formData, setFormData] = useState({
+    role_name: '',
+    account_id: '',
+    start_date: '',
+    end_date: '',
+    responsibilities: '',
+    previewUrl: '/profile-img.jpg',
+    image_file: null
+  });
+
+  const buildTree = (data) => {
+    let tree = [];
+    let lookup = {};
+
+    data.forEach(item => {
+      lookup[item.position_record_id] = { 
+        ...item, 
+        id: item.position_record_id, 
+        role_name: item.position_name,
+        userName: `${item.first_name || ''} ${item.last_name || ''}`,
+        children: [] 
+      };
+    });
+
+    data.forEach(item => {
+      if (item.parent_id && lookup[item.parent_id]) {
+        lookup[item.parent_id].children.push(lookup[item.position_record_id]);
+      } else {
+        lookup[item.position_record_id].isRoot = true;
+        tree.push(lookup[item.position_record_id]);
+      }
+    });
+
+    return tree[0] || null; 
+  };
+
+
+  const fetchCommittees = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
+      const result = await res.json();
+      if (result.success && result.data.length > 0) {
+        setCommittees(result.data);
+        if (!activeTab) setActiveTab(result.data[0].committee_id);
+      }
+    } catch (error) { console.error("Error fetching committees:", error); }
+  };
+
+  const fetchLeaders = async (dateQuery = '', committeeId) => {
+    if (!committeeId) return; 
+    try {
+      const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
+      const res = await fetch(url);
+      const result = await res.json();
+      
+      if (result.success && result.data.length > 0) {
+        const treeData = buildTree(result.data);
+        setOrgTree(treeData);
+      } else {
+        setOrgTree({ isRoot: true, role_name: 'ประธาน / หัวหน้าชุด', id: 'root-0', children: [] });
+      }
+    } catch (error) { console.error("Error fetching leaders:", error); }
+  };
+
+  useEffect(() => { fetchCommittees(); }, []);
+  useEffect(() => {
+    if (activeTab) {
+      setOrgTree(null); 
+      fetchLeaders(selectedDate, activeTab);
+    }
+  }, [activeTab, selectedDate]);
+
+  const formatCitizenId = (value) => {
+    const numbers = value.replace(/\D/g, '');
+    let formatted = '';
+    if (numbers.length > 0) formatted += numbers.substring(0, 1);
+    if (numbers.length > 1) formatted += '-' + numbers.substring(1, 5);
+    if (numbers.length > 5) formatted += '-' + numbers.substring(5, 10);
+    if (numbers.length > 10) formatted += '-' + numbers.substring(10, 12);
+    if (numbers.length > 12) formatted += '-' + numbers.substring(12, 13);
+    return formatted;
+  };
+  const handleCitizenIdChange = (e) => setSearchCitizenId(formatCitizenId(e.target.value));
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
+  };
+
+  const handleSearchUser = async () => {
+    const rawCitizenId = searchCitizenId.replace(/-/g, ''); 
+    if (rawCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/dashboard/${userId}?t=${new Date().getTime()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setWallet(data.wallet || { balance: 0, points: 0 });
-      }
-    } catch (error) {
-      console.error("Error fetching dashboard:", error);
-    } finally {
-      setIsLoading(false);
+        const res = await fetch(`${API_URL}/api/search-citizen/${rawCitizenId}`);
+        const result = await res.json();
+        if (result.success) {
+            setFoundUser(result.data);
+            setFormData(prev => ({
+                ...prev, account_id: result.data.account_id, previewUrl: result.data.user_image || '/profile-img.jpg', responsibilities: result.data.responsibilities || prev.responsibilities
+            }));
+        } else {
+            alert(result.message || 'ไม่พบข้อมูลลูกบ้าน');
+            setFoundUser(null);
+        }
+    } catch (error) { alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); } finally { setIsLoading(false); }
+  };
+
+  // 🌟 ฟังก์ชันจัดการเพิ่มคน (แก้ไขลอจิก ซ้าย/ขวา/ล่าง)
+  const handleAddNode = (node, direction) => {
+    let targetParentId = null;
+    
+    if (direction === 'child') {
+      // เพิ่มลูกน้อง (ลงล่าง) -> ให้กล่องที่ถูกคลิกเป็นหัวหน้า
+      targetParentId = node.position_record_id || node.id;
+    } else {
+      // เพิ่มเพื่อนร่วมงาน (ซ้าย/ขวา) -> ให้หัวหน้าของกล่องที่ถูกคลิก เป็นหัวหน้าของคนใหม่ด้วย
+      targetParentId = node.parent_id || null;
+    }
+
+    setEditingSlot({ isNew: true, parentId: targetParentId, direction }); 
+    
+    const today = new Date().toISOString().split('T')[0];
+    setFormData({ role_name: '', account_id: '', start_date: today, end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null });
+    setFoundUser(null);
+    setSearchCitizenId('');
+    setIsModalOpen(true);
+  };
+
+  const handleEditNode = (node) => {
+    const isMockNode = !node.position_record_id || String(node.id).startsWith('root-');
+    
+    setEditingSlot({ 
+      isNew: isMockNode, 
+      recordId: isMockNode ? null : (node.position_record_id || node.id),
+      parentId: node.parent_id || null // ถ่ายทอด parent_id เดิม
+    });
+    
+    const today = new Date().toISOString().split('T')[0];
+    setFormData({
+      role_name: node.role_name, 
+      account_id: node.account_id || '',
+      start_date: node.start_date ? node.start_date.split('T')[0] : today, 
+      end_date: node.end_date ? node.end_date.split('T')[0] : '',
+      responsibilities: node.responsibilities || '', 
+      previewUrl: node.user_image || '/profile-img.jpg', 
+      image_file: null
+    });
+
+    if (node.account_id) {
+        setFoundUser({
+          first_name: node.first_name, last_name: node.last_name,
+          village_name: node.village_name || userData.villageName, tambon_name_th: node.tambon_name_th || userData.tambonName
+        });
+    } else setFoundUser(null); 
+    
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteNode = async (node) => {
+    if (node.isRoot) return alert("ไม่สามารถลบประธาน/หัวหน้าชุดได้ กรุณาใช้ฟังก์ชันแก้ไขแทน");
+    if (window.confirm(`คุณต้องการลบ "${node.first_name} ${node.last_name}" ใช่หรือไม่?`)) {
+        try {
+            const res = await fetch(`${API_URL}/api/community-leaders/${node.position_record_id}`, { method: 'DELETE' });
+            const result = await res.json();
+            if (result.success) { alert(result.message); fetchLeaders(selectedDate, activeTab); } 
+            else alert('ลบข้อมูลไม่สำเร็จ: ' + result.message);
+        } catch (error) { alert('เกิดข้อผิดพลาดในการลบข้อมูล'); }
     }
   };
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('userData');
-    let userId = null;
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUserData(parsedUser);
-      setUserPermissions(parsedUser.permissions || []);
-      userId = parsedUser.id || parsedUser.user_id || parsedUser.account_id; 
-    }
-    if (userId) fetchDashboardData(userId);
-    else setIsLoading(false);
-  }, []);
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
-  };
-
-  const triggerImageSelect = () => {
-    fileInputRef.current.click();
-  };
-
-  const handleImageUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('profileImage', file);
-    formData.append('userId', userData.id || userData.account_id);
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!formData.account_id) return alert("กรุณาระบุบุคลากร");
+    if (!formData.role_name) return alert("กรุณาระบุชื่อตำแหน่ง");
 
     try {
-      console.log('กำลังอัปโหลดรูปภาพ...');
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch(`${API_URL}/api/upload-profile`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
+      const payload = {
+        village_id: villageId,
+        committee_id: activeTab, 
+        position_name: formData.role_name, 
+        account_id: formData.account_id,
+        start_date: formData.start_date,
+        end_date: formData.end_date || null,
+        responsibilities: formData.responsibilities,
+        parent_id: editingSlot.parentId || null // ส่ง parent_id ไปให้ Backend ด้วยเสมอ
+      };
 
-      const data = await response.json();
+      const url = editingSlot.isNew ? `${API_URL}/api/community-leaders` : `${API_URL}/api/community-leaders/${editingSlot.recordId}`;
+      const method = editingSlot.isNew ? 'POST' : 'PUT';
 
-      if (response.ok && data.imageUrl) {
-        setUserData(prev => {
-            const updatedData = { ...prev, userImage: data.imageUrl };
-            localStorage.setItem('userData', JSON.stringify(updatedData));
-            return updatedData;
-        });
-        alert('อัปโหลดรูปลงระบบสำเร็จ!');
-      } else {
-        alert('เกิดข้อผิดพลาด: ' + (data.error || 'ไม่สามารถอัปโหลดได้'));
-      }
-
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
-    }
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const result = await res.json();
+      if (result.success) {
+        alert('บันทึกข้อมูลเรียบร้อยแล้ว!');
+        setIsModalOpen(false);
+        fetchLeaders(selectedDate, activeTab);
+      } else alert('บันทึกไม่สำเร็จ: ' + result.message);
+    } catch (error) { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
   };
 
-return (
-    // 🌟 เปลี่ยนพื้นหลังเป็นธีมแบบ AssignPosition (สมมติใช้รูป bg-hex-pattern)
-  <div className="app-container" style={{ backgroundImage: "url('/hex-background.jpg')", minHeight: '100vh', backgroundAttachment: 'fixed', backgroundSize: 'cover', backgroundPosition: 'center' }}>
-      <TopNavbar />
+  const handleSaveCommittee = async (e) => {
+    e.preventDefault();
+    if (!committeeForm.name) return;
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ village_id: villageId, committee_name: committeeForm.name, description: committeeForm.description })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert('เพิ่มคณะทำงานใหม่สำเร็จ');
+        fetchCommittees(); 
+        setIsCommitteeModalOpen(false);
+        setCommitteeForm({ name: '', description: '' });
+      } else alert('เกิดข้อผิดพลาด: ' + result.message);
+    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
+  };
+
+// ==========================================
+  // 🌟 ฟังก์ชันจัดการแท็บ (ลบ / แก้ไข)
+  // ==========================================
+  const openEditCommitteeModal = (committee) => {
+    setCommitteeForm({ name: committee.committee_name, description: committee.description || '' });
+    setEditingCommitteeId(committee.committee_id);
+    setIsEditCommitteeModalOpen(true);
+  };
+
+  const handleUpdateCommittee = async (e) => {
+    e.preventDefault();
+    if (!committeeForm.name || !editingCommitteeId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees/${editingCommitteeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ committee_name: committeeForm.name, description: committeeForm.description })
+      });
+      const result = await res.json();
+      if (result.success || res.ok) {
+        alert('แก้ไขข้อมูลคณะทำงานสำเร็จ');
+        fetchCommittees();
+        setIsEditCommitteeModalOpen(false);
+        setEditingCommitteeId(null);
+        setCommitteeForm({ name: '', description: '' });
+      } else alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถแก้ไขได้'));
+    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
+  };
+
+  const handleDeleteCommittee = async (id, name) => {
+    if (!window.confirm(`คุณต้องการลบ "${name}" ใช่หรือไม่?\n\n⚠️ คำเตือน: บุคลากรที่อยู่ในผังนี้จะถูกลบไปด้วยทั้งหมด!`)) return;
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees/${id}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (result.success || res.ok) {
+        alert('ลบคณะทำงานเรียบร้อยแล้ว');
+        if (activeTab === id) setActiveTab(null);
+        fetchCommittees(); 
+      } else alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถลบได้'));
+    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
+  };
+
+  const activeCommitteeInfo = committees.find(c => c.committee_id === activeTab);
+
+  return (
+    <div className="bg-[#f8fafc] min-h-screen pb-24 font-sans">
+      <TopNavbar userData={userData} />
       
-      <div className="main-content" style={{ padding: '15px 20px 90px 20px', maxWidth: '1000px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
+      <div className="max-w-7xl mx-auto p-4 pt-20">
         
-        <div style={{ marginBottom: '25px' }}>
-          
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-              หมู่บ้าน<span style={{color: '#e11d48'}}>.</span>
-            </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(10px)', padding: '6px 12px', borderRadius: '20px', color: '#fff', fontWeight: 'bold', border: '1px solid rgba(255,255,255,0.3)' }}>
-              <Ticket size={16} color="#4ade80" /> 
-              <span>{currencySymbol} {isLoading ? '...' : formatCurrency(wallet.balance)}</span>
+        <div className="flex flex-col md:flex-row justify-between items-center bg-white p-5 rounded-2xl shadow-sm mb-6 border border-slate-100">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-50 rounded-xl text-blue-600"><Users size={28} strokeWidth={1.5} /></div>
+            <div>
+              <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">ทำเนียบผู้นำและคณะทำงาน</h1>
+              <p className="text-sm text-slate-500 font-medium mt-0.5">หมู่บ้าน: {userData?.villageName || 'ของคุณ'}</p>
             </div>
           </div>
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px' }}>
-            
-            {/* --- Card 1: ข้อมูลผู้ใช้งาน (ปรับเป็น Glassmorphism) --- */}
-            <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(12px)', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.4)', borderTop: '4px solid #3b82f6' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b' }}>👤 ข้อมูลผู้ใช้งาน</div>
-                
-                {userData.position_name ? (
-                  <div style={{ 
-                    backgroundColor: userData.position_level === 'AMPHURE' ? 'rgba(253, 230, 138, 0.7)' : 'rgba(224, 231, 255, 0.7)',
-                    color: userData.position_level === 'AMPHURE' ? '#d97706' : '#4338ca', 
-                    padding: '4px 10px', 
-                    borderRadius: '20px', 
-                    fontSize: '11px', 
-                    fontWeight: 'bold',
-                    border: `1px solid ${userData.position_level === 'AMPHURE' ? '#fde68a' : '#c7d2fe'}`,
-                    display: 'flex', alignItems: 'center', gap: '4px'
-                  }}>
-                    <Shield size={12} /> {userData.position_name}
-                  </div>
-                ) : (
-                  <div style={{ backgroundColor: 'rgba(241, 245, 249, 0.7)', color: '#64748b', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', border: '1px solid rgba(0,0,0,0.05)' }}>
-                    ประชาชน
-                  </div>
-                )}
-              </div>
+        <div className="flex overflow-x-auto gap-3 mb-6 pb-2 hide-scrollbar items-center px-1">
+          {committees.map(c => (
+            <div key={c.committee_id} className="relative group shrink-0">
+              <button
+                onClick={() => setActiveTab(c.committee_id)}
+                className={`px-6 py-3 rounded-xl whitespace-nowrap text-sm font-bold transition-all duration-300 ${
+                  activeTab === c.committee_id 
+                  ? 'bg-slate-800 text-white shadow-md -translate-y-0.5' 
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300'
+                }`}
+              >
+                {c.committee_name}
+              </button>
               
-              <div style={{ display: 'flex', gap: '15px' }}>
-                <input 
-                  type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImageUpload} 
-                />
-                <div onClick={triggerImageSelect} style={{ cursor: 'pointer', position: 'relative', width: '65px', height: '65px', flexShrink: 0 }}>
-                  <img 
-                    src={userData.userImage || '/profile-img.jpg'} 
-                    alt="User Profile" 
-                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.8)' }} 
-                  />
-                  <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#ffffff', borderRadius: '50%', padding: '4px', border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                    <Pencil size={12} color="#475569" />
-                  </div>
-                </div>
-
-                <div style={{ fontSize: '13px', color: '#334155', lineHeight: '1.8', flex: 1 }}>
-                  <div><strong>ชื่อ-สกุล:</strong> {userData.firstName || '-'} {userData.lastName || ''}</div>
-                  <div><strong>เกิดวัน:</strong> {userData.birthDayName || '-'} | <strong> เพศ:</strong> {userData.gender || '-'} </div>
-                  <div><strong>อายุ:</strong> {userData.age_years || '0'} ปี {userData.age_months || '0'} เดือน {userData.age_days || '0'} วัน</div>
-                  <div><strong>เบอร์:</strong> {userData.username || '-'}</div>
-                  <div><strong>บ้านเลขที่:</strong> {userData.house_no || '-'} | <strong>ผู้อาศัย:</strong> {userData.household_member_count || '0'} คน</div>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>ID: {userData.id || '-'}</div>
-                </div>
-              </div>
-            </div>
-
-            
-            {/* --- Card 2: ข้อมูลพื้นที่รับผิดชอบ (ปรับให้ฉลาดขึ้น แยกผู้บริหาร กับ ประชาชน) --- */}
-         
-                  {/* --- Card 2: ข้อมูลพื้นที่รับผิดชอบ (ปรับให้ฉลาดขึ้น แยกผู้บริหาร กับ ประชาชน) --- */}
-            <div 
-              style={{ 
-                backgroundColor: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(12px)', borderRadius: '16px', padding: '16px', 
-                boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.4)',
-                borderTop: `4px solid ${
-                  userData.position_level === 'NATIONAL' ? '#8b5cf6' : 
-                  userData.position_level === 'PROVINCE' ? '#f59e0b' : 
-                  userData.position_level === 'AMPHURE'  ? '#3b82f6' : 
-                  userData.position_level === 'TAMBON'   ? '#ec4899' : 
-                  userData.position_level === 'VILLAGE'  ? '#10b981' : 
-                  '#94a3b8' 
-                }`,
-                cursor: 'pointer', transition: 'transform 0.2s ease-in-out'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-              onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {userData.position_level === 'NATIONAL' && <><Building2 size={16} color="#8b5cf6"/> ส่วนกลาง (กระทรวง)</>}
-                  {userData.position_level === 'PROVINCE' && <><MapPin size={16} color="#f59e0b"/> ศูนย์บัญชาการจังหวัด</>}
-                  {userData.position_level === 'AMPHURE' && <><Building2 size={16} color="#3b82f6"/> ที่ว่าการอำเภอ</>}
-                  {userData.position_level === 'TAMBON' && <><Home size={16} color="#ec4899"/> องค์การบริหารส่วนตำบล</>}
-                  {userData.position_level === 'VILLAGE' && <><ShieldCheck size={16} color="#10b981"/> หมู่บ้านในการดูแล</>}
-                  {!userData.position_level && <><MapPin size={16} color="#64748b"/> หมู่บ้านของฉัน</>}
-                </div>
-                <div style={{ 
-                  backgroundColor: userData.position_level ? 'rgba(220, 252, 231, 0.8)' : 'rgba(241, 245, 249, 0.8)', 
-                  color: userData.position_level ? '#166534' : '#64748b', 
-                  padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', 
-                  border: `1px solid ${userData.position_level ? 'rgba(134,239,172,0.5)' : 'rgba(203,213,225,0.5)'}`
-                }}>
-                  {userData.position_level ? 'ผู้บริหารพื้นที่' : 'ลูกบ้าน'}
-                </div>
-              </div>
-              
-              {(!userData.position_level || userData.position_level === 'VILLAGE') && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  
-                  {/* 🌟 ถ้าเป็นผู้นำชุมชนระดับหมู่บ้าน (VILLAGE) ให้แสดงรูปโปรไฟล์ตัวเองแทนรูปไอคอนบ้าน */}
-                  {userData.position_level === 'VILLAGE' ? (
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <img 
-                        src={userData.userImage || '/profile-img.jpg'} 
-                        alt="Leader Profile" 
-                        style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #10b981', flexShrink: 0 }} 
-                      />
-                      <div style={{ fontSize: '13px', color: '#334155', lineHeight: '1.4', flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <strong style={{ color: '#0f172a' }}>{userData.position_name || 'ผู้นำชุมชน'}:</strong> 
-                          <span style={{ fontWeight: 'bold', color: '#10b981' }}>{userData.firstName} {userData.lastName}</span>
-                        </div>
-                        {userData.nickname && (
-                          <div style={{ color: '#64748b', fontSize: '12px', marginTop: '2px' }}>
-                             ชื่อเรียก: {userData.nickname}
-                          </div>
-                        )}
-                        <div style={{ color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
-                          <span style={{ marginTop: '1px' }}>📍</span>
-                          <span style={{ fontSize: '11px' }}>
-                             หมู่ที่ {userData.village_no || '-'} {userData.villageName || '-'} {userData.tambonName ? `ต.${userData.tambonName}` : '-'} {userData.amphureName ? `อ.${userData.amphureName}` : '-'} {userData.provinceName ? `จ.${userData.provinceName}` : '-'}
-                          </span>
-                        </div>
-                        {/* แสดงวาระการดำรงตำแหน่งถ้ามีข้อมูล */}
-                        {userData.start_date && (
-                           <div style={{ color: '#64748b', fontSize: '11px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <CalendarClock size={12}/> วาระ: {new Date(userData.start_date).toLocaleDateString('th-TH')} - {userData.end_date ? new Date(userData.end_date).toLocaleDateString('th-TH') : 'ปัจจุบัน'}
-                           </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    /* 🌟 ถ้าเป็นลูกบ้านทั่วไป (!userData.position_level) ให้แสดงรูปผู้ใหญ่บ้าน */
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <img 
-                        src={userData.headmanImage || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&q=80'} 
-                        alt="Headman Profile" 
-                        style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.8)', flexShrink: 0 }} 
-                      />
-                      <div style={{ fontSize: '13px', color: '#334155', lineHeight: '1.4', flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <strong style={{ color: '#0f172a' }}>ผู้ใหญ่บ้าน:</strong> 
-                          <span style={{ fontWeight: 'bold', color: '#3b82f6' }}>{userData.headmanName || 'ยังไม่ระบุ'}</span>
-                        </div>
-                        <div style={{ color: '#475569', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px' }}>
-                          <span style={{ marginTop: '1px' }}>📍</span>
-                          <span style={{ fontSize: '11px' }}>
-                              หมู่บ้าน{userData.villageName || '-'} {userData.tambonName ? `ต.${userData.tambonName}` : '-'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* สถิติประชากร (ดึงจากตัวแปร ถ้าไม่มีให้เป็น 0) */}
-                  <div style={{ borderTop: '1px dashed rgba(203,213,225,0.6)', paddingTop: '12px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>📊 สถิติประชากรในพื้นที่</span>
-                      <span style={{ color: userData.position_level ? '#10b981' : '#3b82f6', cursor: 'pointer', fontSize: '11px' }} onClick={() => navigate('/population-details')}>ดูรายละเอียด ➔</span>
-                    </div>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                       <div style={{ backgroundColor: 'rgba(248, 250, 252, 0.6)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(226,232,240,0.5)' }}>
-                          <div style={{ fontSize: '10px', color: '#64748b' }}>ตามทะเบียนบ้าน</div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>{userData.target_household_count || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>ครัวเรือน</span></span>
-                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>{userData.target_population_count || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></span>
-                          </div>
-                       </div>
-                       <div style={{ backgroundColor: 'rgba(240, 253, 244, 0.6)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(187,247,208,0.5)' }}>
-                          <div style={{ fontSize: '10px', color: '#166534' }}>อาศัยอยู่จริง (ลงทะเบียน)</div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>{userData.actual_household_count || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>ครัวเรือน</span></span>
-                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>{userData.actual_population_count || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></span>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
+              {/* ปุ่มแก้ไข/ลบ จะโผล่มาเฉพาะแท็บที่ถูกเลือกและเอาเมาส์ไปชี้ */}
+              {activeTab === c.committee_id && (
+                <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <button 
+                    onClick={() => openEditCommitteeModal(c)}
+                    className="p-1.5 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white shadow-sm transition-colors" title="แก้ไข"
+                  >
+                    <Edit size={12} />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteCommittee(c.committee_id, c.committee_name)}
+                    className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white shadow-sm transition-colors" title="ลบ"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               )}
             </div>
-
-            
-          </div> 
-        </div> 
-
-        {/* ================= ส่วนอื่นๆ ด้านล่าง คงโค้ดเดิมของคุณไว้ได้เลยครับ ================= */}
-        <div className="services-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '25px' }}>
-          {mainCategories.map((cat, idx) => (
-            <div 
-              key={idx} 
-              onClick={() => {
-                if (cat.action === 'hotels') navigate('/hotels');
-                else if (cat.action === 'restaurants') navigate('/restaurants');
-                else if (cat.action === 'nearby_hotels') navigate('/nearby-hotels');
-                else if (cat.action === 'monthly_rentals') navigate('/monthly-rentals');
-                else alert(`กำลังพัฒนาระบบ: ${cat.title}`);
-              }}
-              style={{ 
-                background: cat.bg, borderRadius: '16px', padding: '15px', 
-                position: 'relative', height: '95px', cursor: 'pointer',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.02)'
-              }}
-            >
-              <h4 style={{ margin: 0, color: '#333', fontSize: '14px', fontWeight: 'bold', position: 'relative', zIndex: 2 }}>
-                {cat.title}
-              </h4>
-              <div style={{ position: 'absolute', bottom: '10px', right: '10px', opacity: 0.8, zIndex: 1 }}>
-                {cat.icon}
-              </div>
-            </div>
           ))}
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', overflowX: 'auto', paddingBottom: '15px', marginBottom: '15px', gap: '10px', scrollbarWidth: 'none' }}>
-          {filteredSubServices.map((sub, idx) => (
-            <div 
-              key={idx} 
-              onClick={() => {
-                if (sub.action) navigate(`/${sub.action}`);
-              }}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '65px', cursor: 'pointer' }}
-            >
-              <div style={{ padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '12px', marginBottom: '8px' }}>
-                {sub.icon}
-              </div>
-              <span style={{ fontSize: '10px', color: '#475569', textAlign: 'center', whiteSpace: 'pre-line', lineHeight: '1.2' }}>
-                {sub.title}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '0 0 20px 0' }} />
-
-        <div style={{ marginBottom: '25px' }}>
-          <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>ของขวัญต้อนรับลูกค้าใหม่ ^^</h3>
-          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
-            {welcomeGifts.map((gift, idx) => (
-              <div key={idx} style={{ 
-                minWidth: '220px', border: '1px solid #e2e8f0', borderRadius: '12px', 
-                padding: '12px', display: 'flex', alignItems: 'center', gap: '12px',
-                backgroundColor: '#fff', position: 'relative'
-              }}>
-                <div style={{ padding: '8px', backgroundColor: '#fef9c3', borderRadius: '8px' }}>
-                  {gift.icon}
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontSize: '12px', fontWeight: 'bold', color: '#333' }}>{gift.title}</p>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#64748b' }}>{gift.subtitle}</p>
-                </div>
-                <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#2563eb', fontSize: '11px', fontWeight: 'bold' }}>
-                  {gift.badge}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>
-              ลดราคาเวลาจำกัด - ที่พักใน<br/>เขาค้อ
-            </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#e11d48', fontSize: '12px', fontWeight: 'bold' }}>
-              <Clock size={14} /> หมดอายุ 11:11:57
-            </div>
-          </div>
           
-          <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' }}>
-            {flashSales.map((sale, idx) => (
-              <div key={idx} style={{ minWidth: '160px', borderRadius: '12px', overflow: 'hidden', position: 'relative', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                <img src={sale.img} alt={sale.title} style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }} />
-                <div style={{ position: 'absolute', top: '10px', left: '0', backgroundColor: '#e11d48', color: '#fff', padding: '4px 10px', fontSize: '12px', fontWeight: 'bold', borderTopRightRadius: '4px', borderBottomRightRadius: '4px' }}>
-                  {sale.discount}
-                </div>
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px 10px 10px 10px', background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
-                   <p style={{ margin: 0, color: '#fff', fontSize: '12px', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                     {sale.title}
-                   </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <button 
+            onClick={() => {
+              setCommitteeForm({ name: '', description: '' });
+              setIsCommitteeModalOpen(true);
+            }} 
+            className="px-5 py-3 rounded-xl whitespace-nowrap text-sm font-bold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 flex items-center gap-2 transition-colors ml-2 shrink-0"
+          >
+            <FolderPlus size={18} /> เพิ่มผังคณะทำงาน
+          </button>
         </div>
-            {/* ================= ส่วนแสดงสถานที่ในชุมชน (Community Places) ================= */}
-          {/* ================= ส่วนแสดงสถานที่ในชุมชน (Community Places - Responsive Grid) ================= */}
-        {/* ================= ส่วนแสดงสถานที่ในชุมชน (Community Places - Responsive Grid & API) ================= */}
-        <div style={{ marginTop: '30px', marginBottom: '25px', width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>
-              สถานที่และบริการในพื้นที่
-            </h3>
-            <span 
-              onClick={() => navigate('/community-places')}
-              style={{ color: '#3b82f6', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              ดูทั้งหมด <span style={{fontSize: '14px'}}>➔</span>
-            </span>
+
+        {activeCommitteeInfo && (
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-800 mt-2 tracking-tight">{activeCommitteeInfo.committee_name}</h2>
+            <p className="text-sm md:text-base text-slate-500 mt-3 max-w-2xl mx-auto leading-relaxed font-medium">
+              {activeCommitteeInfo.description || 'ยังไม่มีคำอธิบายหน้าที่ของคณะทำงานนี้'}
+            </p>
           </div>
+        )}
 
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-            gap: '15px',
-            width: '100%'
-          }}>
-            
-            {/* 🌟 ดึงข้อมูลจาก State `communityPlaces` มาลูปแสดงผล */}
-            {communityPlaces && communityPlaces.length > 0 ? (
-              communityPlaces.slice(0, 2).map((place) => (
-                
-                /* --- ดีไซน์ Card สถานที่ --- */
-                <div key={place.id} style={{ 
-                  backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', 
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9',
-                  cursor: 'pointer', display: 'flex', flexDirection: 'column'
-                }}>
-                  {/* ส่วนรูปภาพปก */}
-                  <div style={{ position: 'relative', height: '150px', width: '100%' }}>
-                    <img src={place.img} alt={place.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    
-                    {/* ป้ายสถานะ เปิด/ปิด */}
-                    <div style={{ 
-                      position: 'absolute', top: '12px', right: '12px', 
-                      backgroundColor: place.isOpen ? '#10b981' : '#ef4444', 
-                      color: '#fff', padding: '4px 10px', borderRadius: '20px', 
-                      fontSize: '11px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}>
-                      {place.isOpen ? '🟢 เปิดให้บริการ' : '🔴 ปิดแล้ว'}
-                    </div>
-
-                    {/* ป้ายหมวดหมู่ */}
-                    <div style={{ 
-                      position: 'absolute', top: '12px', left: '12px', 
-                      backgroundColor: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)',
-                      color: '#fff', padding: '4px 10px', borderRadius: '8px', 
-                      fontSize: '11px', fontWeight: 'bold'
-                    }}>
-                      {place.category}
-                    </div>
-
-                    {/* 🌟 ป้ายสถานะการอนุมัติ (ถ้ายังไม่ผ่านการอนุมัติ) */}
-                    {!place.isVerified && (
-                      <div style={{ 
-                        position: 'absolute', bottom: '12px', left: '12px', 
-                        backgroundColor: '#f59e0b', color: '#fff', padding: '3px 8px', 
-                        borderRadius: '6px', fontSize: '10px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}>
-                        ⏳ รอผู้นำชุมชนอนุมัติ
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ส่วนเนื้อหาและโปรไฟล์ผู้โพสต์ */}
-                  <div style={{ padding: '15px', position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    
-                    {/* โปรไฟล์ผู้โพสต์ */}
-                    <div style={{ position: 'absolute', top: '-25px', right: '15px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', zIndex: 10 }}>
-                      <img 
-                        src={place.owner.img} 
-                        alt={place.owner.name} 
-                        style={{ width: '48px', height: '48px', borderRadius: '50%', border: '3px solid #fff', objectFit: 'cover', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} 
-                      />
-                      <div style={{ backgroundColor: '#fff', padding: '2px 6px', borderRadius: '6px', fontSize: '9px', fontWeight: 'bold', color: '#64748b', marginTop: '2px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                        เพิ่มโดย: {place.owner.name}
-                      </div>
-                    </div>
-
-                    <h4 style={{ margin: '0 0 6px 0', fontSize: '15px', color: '#0f172a', fontWeight: 'bold', paddingRight: '50px', lineHeight: '1.4' }}>
-                      {place.name}
-                    </h4>
-                    <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#64748b', lineHeight: '1.5', flex: 1 }}>
-                      {place.desc}
-                    </p>
-
-                    {/* บริการเสริม (Services Badges) */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '15px' }}>
-                      {place.services && place.services.map((srv, idx) => (
-                        <span key={idx} style={{ 
-                          backgroundColor: srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#fee2e2' : '#eff6ff', 
-                          color: srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#b91c1c' : '#2563eb', 
-                          padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold',
-                          border: `1px solid ${srv.includes('ด่วน') || srv.includes('รับสมัคร') ? '#fca5a5' : '#bfdbfe'}`
-                        }}>
-                          {srv.includes('ส่ง') ? '🛵' : srv.includes('สมัคร') || srv.includes('งาน') ? '💼' : '✨'} {srv}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '12px', marginTop: 'auto' }}>
-                       {/* Footer: สิทธิ์การมองเห็น */}
-                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94a3b8' }}>
-                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                           <ShieldCheck size={14} color="#64748b" /> 
-                           <span>มองเห็น: <strong style={{ color: '#475569' }}>{place.visibility}</strong></span>
-                         </div>
-                         <strong style={{ color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '4px' }}>ดูรายละเอียด <span style={{fontSize: '14px'}}>➔</span></strong>
-                       </div>
-                    </div>
-
-                  </div>
-                </div>
-              ))
-            ) : (
-              /* --- กรณีอยู่ระหว่างรอโหลดข้อมูล API หรือยังไม่มีข้อมูล --- */
-              <div style={{ padding: '30px 20px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '12px', width: '100%', gridColumn: '1 / -1', border: '1px dashed #cbd5e1' }}>
-                <span style={{ color: '#64748b', fontSize: '14px' }}>กำลังโหลดข้อมูลสถานที่...</span>
-              </div>
-            )}
-            
-          </div>
+        <div className="relative py-12 overflow-x-auto flex justify-center min-w-max md:min-w-full bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] rounded-[2.5rem] border border-slate-200/50">
+          {orgTree && orgTree.role_name ? (
+            <OrgNode node={orgTree} onAddNode={handleAddNode} onEditNode={handleEditNode} onDeleteNode={handleDeleteNode} />
+          ) : (
+             <div className="text-slate-400 py-20 flex flex-col items-center gap-4">
+               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+               <span className="font-medium text-sm">กำลังจัดเตรียมผังองค์กร...</span>
+             </div>
+          )}
         </div>
       </div>
+
+      {isCommitteeModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all">
+            <div className="p-6 pb-0 flex justify-between items-center">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                <FolderPlus size={24} />
+              </div>
+              <button onClick={() => setIsCommitteeModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-full transition-colors"><X size={18} /></button>
+            </div>
+            <div className="px-6 pt-4 pb-2">
+              <h2 className="text-xl font-black text-slate-800">เพิ่มคณะทำงานใหม่</h2>
+              <p className="text-sm text-slate-500 mt-1">สร้างกลุ่มคณะทำงานหรือโครงการใหม่ในชุมชน</p>
+            </div>
+            <form onSubmit={handleSaveCommittee} className="p-6 pt-4">
+              <div className="mb-5">
+                <label className="block text-sm font-bold text-slate-700 mb-2">ชื่อคณะทำงาน / กลุ่ม *</label>
+                <input 
+                  type="text" required value={committeeForm.name} 
+                  onChange={e => setCommitteeForm({...committeeForm, name: e.target.value})}
+                  placeholder="เช่น คณะกรรมการหมู่บ้าน, กองทุนประชารัฐ" 
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                />
+              </div>
+              <div className="mb-8">
+                <label className="block text-sm font-bold text-slate-700 mb-2">หน้าที่รับผิดชอบ (ย่อ)</label>
+                <textarea 
+                  rows="3" value={committeeForm.description} 
+                  onChange={e => setCommitteeForm({...committeeForm, description: e.target.value})}
+                  placeholder="อธิบายหน้าที่หลักของคณะทำงานนี้..." 
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                ></textarea>
+              </div>
+              <button type="submit" className="w-full py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-md transition-colors flex justify-center items-center gap-2">
+                <Plus size={18} /> สร้างผังคณะทำงาน
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
+            <div className="p-5 flex justify-between items-center border-b border-slate-100">
+              <h2 className="text-lg font-black text-slate-800 flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                  {editingSlot?.isNew ? <UserPlus size={20} /> : <Edit size={20} />} 
+                </div>
+                {editingSlot?.isNew ? 'ระบุบุคลากรลงในผัง' : 'จัดการข้อมูลตำแหน่ง'}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-full transition-colors"><X size={18} /></button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+              <div className="mb-6">
+                 <label className="text-sm font-bold text-slate-700 block mb-2 text-center">ชื่อตำแหน่งย่อยในผัง *</label>
+                 <input 
+                   type="text" required value={formData.role_name} 
+                   onChange={e => setFormData({...formData, role_name: e.target.value})}
+                   placeholder="เช่น รองประธาน, เหรัญญิก..." 
+                   className="w-full text-center p-3.5 bg-blue-50/50 border-2 border-blue-100 text-blue-700 font-black text-lg outline-none rounded-2xl focus:border-blue-500 transition-colors"
+                 />
+              </div>
+
+              {!foundUser && (
+                <div className="mb-6 p-5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                    <Search size={16} className="text-slate-400"/> ค้นหาจากเลขบัตรประชาชน
+                  </label>
+                  <div className="flex gap-2 flex-col sm:flex-row">
+                    <input 
+                      type="text" maxLength="17" value={searchCitizenId} onChange={handleCitizenIdChange} 
+                      placeholder="X-XXXX-XXXXX-XX-X" 
+                      className="flex-1 p-3.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono tracking-wider font-bold" 
+                    />
+                    <button type="button" onClick={handleSearchUser} disabled={isLoading} className="bg-slate-900 text-white px-5 py-3.5 rounded-xl font-bold hover:bg-slate-800 disabled:bg-slate-300 transition-colors shrink-0">
+                      {isLoading ? 'กำลังค้น...' : 'ค้นหา'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {foundUser && (
+                <form id="leaderForm" onSubmit={handleSave} className="animate-fade-in-up">
+                  <div className="flex flex-col items-center mb-8 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                    <div className="relative w-28 h-28 rounded-full p-1 bg-white shadow-sm border border-slate-200 group cursor-pointer" onClick={() => document.getElementById('leader-img-upload').click()}>
+                      <img src={formData.previewUrl} alt="Preview" className="w-full h-full rounded-full object-cover" />
+                      <div className="absolute inset-1 rounded-full bg-slate-900/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Camera size={24} className="text-white" /></div>
+                    </div>
+                    
+                    <h3 className="mt-4 font-black text-slate-800 text-xl">{foundUser.first_name} {foundUser.last_name}</h3>
+                    
+                    <button 
+                      type="button" 
+                      onClick={() => { setFoundUser(null); setFormData({...formData, account_id: '', previewUrl: '/profile-img.jpg'}); setSearchCitizenId(''); }} 
+                      className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 rounded-full text-slate-500 hover:text-slate-800 hover:border-slate-300 mt-2 mb-3 transition-colors shadow-sm"
+                    >
+                      เปลี่ยนบุคลากร
+                    </button>
+                    
+                    <div className="text-xs font-medium text-slate-500 text-center bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm w-full">
+                      {foundUser.village_name || foundUser.tambon_name_th ? (<>หมู่บ้าน: {foundUser.village_name || '-'} • ตำบล: {foundUser.tambon_name_th || '-'}</>) : (<span className="text-red-400">ไม่มีข้อมูลที่อยู่</span>)}
+                    </div>
+                    
+                    <input type="file" id="leader-img-upload" accept="image/*" onChange={handleImageChange} className="hidden" />
+                  </div>
+
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">วันที่รับตำแหน่ง *</label>
+                        <input type="date" required value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-blue-500 font-medium transition-colors" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">วันหมดวาระ</label>
+                        <input type="date" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-blue-500 font-medium transition-colors" />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-2">หน้าที่รับผิดชอบเพิ่มเติม</label>
+                      <textarea rows="3" value={formData.responsibilities} onChange={e => setFormData({...formData, responsibilities: e.target.value})} placeholder="ระบุหน้าที่เฉพาะของบุคคลนี้..." className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none resize-none focus:bg-white focus:border-blue-500 font-medium transition-colors"></textarea>
+                    </div>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            <div className="p-5 border-t border-slate-100 flex gap-3 bg-white">
+              <button type="button" onClick={() => { setIsModalOpen(false); setFoundUser(null); setSearchCitizenId(''); }} className="w-1/3 py-3.5 rounded-xl bg-slate-100 font-bold text-slate-600 hover:bg-slate-200 transition-colors">ยกเลิก</button>
+              <button type="submit" form="leaderForm" disabled={!foundUser} className={`w-2/3 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${(!foundUser) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:-translate-y-0.5'}`}>
+                <Save size={18} /> บันทึกข้อมูลผัง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <BottomNavbar />
     </div>
   );
 };
 
-export default Dashboard;
+export default CommunityLeaders;
