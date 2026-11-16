@@ -155,34 +155,37 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
-  // 🌟 1. ฟังก์ชันสร้างโครงสร้างผังต้นไม้ (ร้อยเรียงแม่-ลูก) ให้ถูกต้อง
+  // 🌟 ฟังก์ชันที่ 1: แก้ไขการร้อยเรียงต้นไม้ ให้ใช้คำว่า id แทน position_record_id
   const buildTree = (data, rootParentId = null) => {
-    // กรองหาเฉพาะลูกที่ parent_id ตรงกับรหัสที่ระบุ
     const children = data.filter(item => item.parent_id === rootParentId);
-    
     if (children.length === 0) return [];
     
     return children.map(child => ({
       ...child,
-      // ระบุ id ให้ชัดเจน (เผื่อ Backend ส่งมาเป็น position_record_id หรือ id)
-      id: child.id || child.position_record_id, 
-      children: buildTree(data, child.id || child.position_record_id)
+      id: child.id, // ใช้ชื่อคอลัมน์ id ตรงๆ ตามฐานข้อมูล
+      children: buildTree(data, child.id)
     }));
   };
 
-  // 🌟 2. ดึงข้อมูลแท็บ (คณะทำงาน)
-  const fetchCommittees = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
-      const result = await res.json();
-      if (result.success && result.data.length > 0) {
-        setCommittees(result.data);
-        if (!activeTab) setActiveTab(result.data[0].committee_id);
-      } else {
-        setCommittees([]);
-        setActiveTab(null);
-      }
-    } catch (error) { console.error("Error fetching committees:", error); }
+  // 🌟 ฟังก์ชันที่ 2: แก้ไขตอนกดเพิ่มคน ให้แยกแยะยอดพีระมิดถูกต้อง
+  const handleAddNode = (node, direction) => {
+    if (!activeTab) return alert("กรุณาสร้างและเลือกคณะทำงาน (Tab) ก่อนเพิ่มบุคคลครับ");
+    
+    let targetParentId = null;
+    if (direction === 'child') {
+      // 🌟 จุดสำคัญ: ถ้ากด + ใต้ผู้ใหญ่บ้าน (isRoot) ห้ามส่ง id ของผู้ใหญ่บ้านไป เพราะมันเป็น root-xxx
+      targetParentId = node.isRoot ? null : node.id;
+    } else {
+      targetParentId = node.parent_id || null;
+    }
+
+    setEditingSlot({ isNew: true, parentId: targetParentId, direction }); 
+    
+    const today = new Date().toISOString().split('T')[0];
+    setFormData({ role_name: '', account_id: '', start_date: today, end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null });
+    setFoundUser(null);
+    setSearchCitizenId('');
+    setIsModalOpen(true);
   };
 
   // 🌟 3. ดึงข้อมูลคน และประกอบเข้ากับผู้ใหญ่บ้าน
@@ -281,28 +284,7 @@ const CommunityLeaders = () => {
     }
   };
 
-  // 🌟 ฟังก์ชันเพิ่มคน (อัปเดตให้ดึง ID ถูกต้อง)
-  const handleAddNode = (node, direction) => {
-    if (!activeTab) return alert("กรุณาสร้างและเลือกคณะทำงาน (Tab) ก่อนเพิ่มบุคคลครับ");
-    
-    // ดึง ID ให้ตรงกับฐานข้อมูล
-    const currentId = node.id || node.position_record_id;
-    
-    let targetParentId = null;
-    if (direction === 'child') {
-      targetParentId = currentId || null;
-    } else {
-      targetParentId = node.parent_id || null;
-    }
 
-    setEditingSlot({ isNew: true, parentId: targetParentId, direction }); 
-    
-    const today = new Date().toISOString().split('T')[0];
-    setFormData({ role_name: '', account_id: '', start_date: today, end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null });
-    setFoundUser(null);
-    setSearchCitizenId('');
-    setIsModalOpen(true);
-  };
 
   const handleEditNode = (node) => {
     if (!activeTab) return alert("กรุณาสร้างคณะทำงาน (Tab) ก่อนครับ");
