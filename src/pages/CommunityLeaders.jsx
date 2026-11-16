@@ -121,7 +121,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   );
 };
 
-
 // ==========================================
 // 🌟 2. Main Component
 // ==========================================
@@ -156,7 +155,7 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
-  // 🌟 ฟังก์ชันสร้าง Tree อัจฉริยะ (รองรับประธานหลายคน)
+  // 🌟 1. ฟังก์ชันจัดเรียงผัง
   const buildTree = (data) => {
     let lookup = {};
     data.forEach(item => {
@@ -168,7 +167,6 @@ const CommunityLeaders = () => {
       if (item.parent_id && lookup[item.parent_id]) {
         lookup[item.parent_id].children.push(lookup[item.position_record_id]);
       } else {
-        lookup[item.position_record_id].isRoot = true;
         roots.push(lookup[item.position_record_id]);
       }
     });
@@ -176,13 +174,13 @@ const CommunityLeaders = () => {
     if (roots.length === 0) return null;
     if (roots.length === 1) return roots[0]; 
     
-    // ถ้ามีประธาน/ยอดพีระมิด มากกว่า 1 คน ให้ครอบด้วย Virtual Root แบบเนียนๆ
     return {
       isVirtual: true,
       children: roots
     };
   };
 
+  // 🌟 2. ดึงข้อมูลแท็บ (คณะทำงาน)
   const fetchCommittees = async () => {
     try {
       const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
@@ -191,92 +189,69 @@ const CommunityLeaders = () => {
         setCommittees(result.data);
         if (!activeTab) setActiveTab(result.data[0].committee_id);
       } else {
-        // กรณีไม่มีคณะทำงานใดๆ เลย ให้เคลียร์ค่า
         setCommittees([]);
         setActiveTab(null);
       }
     } catch (error) { console.error("Error fetching committees:", error); }
   };
 
- // ... (โค้ดก่อนหน้านี้เหมือนเดิม) ...
-
-const fetchLeaders = async (dateQuery = '', committeeId) => {
+  // 🌟 3. ดึงข้อมูลคน และประกอบเข้ากับผู้ใหญ่บ้าน
+  const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-      // 🌟 แก้ไขเอาเครื่องหมาย \ ออกจาก URL แล้ว
       const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
       
+      let childrenFromDB = [];
       if (result.success && result.data.length > 0) {
-        setOrgTree(buildTree(result.data));
-      } else {
-        // 🌟 ถ้ายกผังยังว่างเปล่า ให้ดึงข้อมูลคนที่ Login มาตั้งเป็นประธานเสมอ
-        setOrgTree({ 
-            isRoot: true, 
-            isMock: true, 
-            id: `root-${userData.id || '0'}`, 
-            account_id: userData.id,
-            role_name: userData.position_name || 'ผู้นำชุมชน', 
-            first_name: userData.firstName || 'ไม่ระบุชื่อ',
-            last_name: userData.lastName || '',
-            user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
-            responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
-            children: [] 
-        });
+        const dbTree = buildTree(result.data);
+        childrenFromDB = dbTree.isVirtual ? dbTree.children : [dbTree];
       }
-    } catch (error) { 
-      console.error("Error fetching leaders:", error); 
-    }
-  };
-// ... (โค้ดก่อนหน้านี้เหมือนเดิม) ...
 
-  useEffect(() => { fetchCommittees(); }, []);
+      // นำการ์ดผู้ใหญ่บ้านมาตั้งเป็นยอดเสมอ เอาคนจาก DB มาต่อท้าย
+      setOrgTree({ 
+          isRoot: true, 
+          isMock: true, 
+          id: `root-${userData.id || '0'}`, 
+          account_id: userData.id,
+          role_name: userData.position_name || 'ผู้นำชุมชน', 
+          first_name: userData.firstName || 'ไม่ระบุชื่อ',
+          last_name: userData.lastName || '',
+          user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
+          responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
+          children: childrenFromDB 
+      });
+      
+    } catch (error) { console.error("Error fetching leaders:", error); }
+  };
+
+  // 🌟 4. ควบคุมการทำงานเมื่อโหลดหน้าจอ
+  useEffect(() => { 
+    fetchCommittees(); 
+  }, []);
   
   useEffect(() => {
     if (activeTab) {
-      // 🌟 นำ setOrgTree(null) ออก เพื่อไม่ให้การ์ดผู้ใหญ่บ้านหายไปตอนเปลี่ยนแท็บ
       fetchLeaders(selectedDate, activeTab);
     } else {
-      // 🌟 ถ้ายังไม่มี activeTab (เพิ่งโหลดหน้าจอ หรือไม่มีแท็บเลย) ให้สร้าง Card ผู้ใหญ่บ้านรอไว้
+      // โชว์ผู้ใหญ่บ้านรอไว้ก่อน
       setOrgTree({ 
         isRoot: true, 
         isMock: true, 
-        id: `mock-0`, 
+        id: `root-mock`, 
         account_id: userData.id,
         role_name: userData.position_name || 'ผู้นำชุมชน', 
-        first_name: userData.firstName || 'ไม่ระบุชื่อ',
+        first_name: userData.firstName || 'ผู้ใหญ่บ้าน',
         last_name: userData.lastName || '',
         user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
         responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
         children: [] 
       });
     }
-  }, [activeTab, selectedDate]); // 🌟 นำ committees.length ออกจาก dependency เพื่อลดการทำงานซ้ำซ้อน
+  }, [activeTab, selectedDate]);
 
-
-
-  useEffect(() => { fetchCommittees(); }, []);
-  useEffect(() => {
-    if (activeTab) {
-      setOrgTree(null); 
-      fetchLeaders(selectedDate, activeTab);
-    } else if (committees.length === 0) {
-      // 🌟 สร้าง Card รอไว้เลยถึงแม้จะยังไม่มี Tab
-      setOrgTree({ 
-        isRoot: true, 
-        isMock: true, 
-        id: `mock-0`, 
-        account_id: userData.id,
-        role_name: userData.position_name || 'ผู้นำชุมชน', 
-        first_name: userData.firstName || 'โปรดสร้างคณะทำงาน',
-        last_name: userData.lastName || 'ก่อนเริ่มจัดผัง',
-        user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
-        responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
-        children: [] 
-      });
-    }
-  }, [activeTab, selectedDate, committees.length]);
+  // ฟังก์ชันต่อไป... (formatCitizenId)
 
   const formatCitizenId = (value) => {
     const numbers = value.replace(/\D/g, '');
