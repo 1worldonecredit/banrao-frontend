@@ -196,32 +196,61 @@ const CommunityLeaders = () => {
     } catch (error) { console.error("Error fetching committees:", error); }
   };
 
+ // ... (โค้ดก่อนหน้านี้เหมือนเดิม) ...
+
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-      const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
+      const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? \`&term_date=\${dateQuery}\` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
       
       if (result.success && result.data.length > 0) {
         setOrgTree(buildTree(result.data));
       } else {
-        // 🌟 ดึงข้อมูลคนที่ Login (ผู้นำ) มาตั้งเป็นจุดเริ่มต้นอัตโนมัติ 1 Card เสมอ
+        // 🌟 ถ้ายกผังยังว่างเปล่า (พึ่งสร้าง Tab) ให้ดึงข้อมูลคนที่ Login มาตั้งเป็นประธานเสมอ
         setOrgTree({ 
             isRoot: true, 
-            isMock: true, // ระบุว่าเป็น Card หลอกที่ยังไม่บันทึกลง DB
+            isMock: true, 
             id: `root-${userData.id || '0'}`, 
             account_id: userData.id,
             role_name: userData.position_name || 'ผู้นำชุมชน', 
-            first_name: userData.firstName || 'คลิกที่นี่',
-            last_name: userData.lastName || 'เพื่อบันทึกข้อมูล',
+            first_name: userData.firstName || 'ไม่ระบุชื่อ',
+            last_name: userData.lastName || '',
             user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
             responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
             children: [] 
         });
       }
-    } catch (error) { console.error("Error fetching leaders:", error); }
+    } catch (error) { 
+      console.error("Error fetching leaders:", error); 
+    }
   };
+
+  useEffect(() => { fetchCommittees(); }, []);
+  useEffect(() => {
+    if (activeTab) {
+      // 🌟 ใส่ Loading state สั้นๆ เพื่อไม่ให้หน้ากระพริบขาว
+      setOrgTree(null); 
+      fetchLeaders(selectedDate, activeTab);
+    } else if (committees.length === 0) {
+      // 🌟 สร้าง Card รอไว้เลยในกรณีที่ยังไม่มี Tab ใดๆ ถูกสร้าง
+      setOrgTree({ 
+        isRoot: true, 
+        isMock: true, 
+        id: `mock-0`, 
+        account_id: userData.id,
+        role_name: userData.position_name || 'ผู้นำชุมชน', 
+        first_name: userData.firstName || 'โปรดสร้างคณะทำงาน',
+        last_name: userData.lastName || 'ก่อนเริ่มจัดผัง',
+        user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
+        responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
+        children: [] 
+      });
+    }
+  }, [activeTab, selectedDate, committees.length]);
+
+  // ... (โค้ดส่วนที่เหลือเหมือนเดิม) ...
 
   useEffect(() => { fetchCommittees(); }, []);
   useEffect(() => {
