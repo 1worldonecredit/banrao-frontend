@@ -342,20 +342,42 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
   const handleSaveCommittee = async (e) => {
     e.preventDefault();
     if (!committeeForm.name) return;
+
+    // 🌟 1. ตรวจสอบให้แน่ใจว่าเรามี villageId ที่เป็นตัวเลขพร้อมส่ง
+    const currentVillageId = userData.village_id || 1; 
+
     try {
+      // 🌟 2. ดูข้อมูลที่จะส่งไปให้ Backend (สามารถดูได้ที่ F12 -> Console)
+      console.log("กำลังส่งข้อมูลไปสร้างคณะทำงาน:", { 
+          village_id: currentVillageId, 
+          committee_name: committeeForm.name, 
+          description: committeeForm.description 
+      });
+
       const res = await fetch(`${API_URL}/api/community-committees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ village_id: villageId, committee_name: committeeForm.name, description: committeeForm.description })
+        // 🌟 3. ส่ง village_id เข้าไปให้ถูกต้อง
+        body: JSON.stringify({ 
+            village_id: currentVillageId, 
+            committee_name: committeeForm.name, 
+            description: committeeForm.description 
+        })
       });
       const result = await res.json();
+      
       if (result.success) {
         alert('เพิ่มคณะทำงานใหม่สำเร็จ');
         fetchCommittees(); 
         setIsCommitteeModalOpen(false);
         setCommitteeForm({ name: '', description: '' });
-      } else alert('เกิดข้อผิดพลาด: ' + result.message);
-    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
+      } else {
+        alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่ทราบสาเหตุ'));
+      }
+    } catch (error) { 
+        alert('เชื่อมต่อระบบล้มเหลว'); 
+        console.error("Error in handleSaveCommittee:", error);
+    }
   };
 
 // ==========================================
