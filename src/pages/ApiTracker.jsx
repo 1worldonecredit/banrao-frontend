@@ -42,7 +42,35 @@ const apiData = [
       { name: 'household_members', action: 'INSERT', columns: ['household_id', 'citizen_id', 'passport_no', 'first_name', 'resident_type', 'status'] },
       { name: 'household_members', action: 'READ', columns: ['citizen_id', 'passport_no', 'household_id'] }
     ]
+  },
+
+
+  // 👇 เพิ่มอันนี้เข้าไปสำหรับการค้นหา app.get('/api/users')
+  {
+    id: 4,
+    group: 'Users',
+    method: 'GET',
+    endpoint: '/api/users',
+    description: 'ดึงข้อมูลผู้ใช้งานทั้งหมดในระบบ',
+    tables: [
+      { name: 'user_accounts', action: 'READ', columns: ['account_id', 'username_phone', 'role'] }
+    ]
+  },
+  
+  // 👇 เพิ่มอันนี้เข้าไปสำหรับการค้นหา app.put('/api/community-places/:id')
+  {
+    id: 5,
+    group: 'Community',
+    method: 'PUT',
+    endpoint: '/api/community-places/:id',
+    description: 'แก้ไขข้อมูลสถานที่สำคัญในชุมชน',
+    tables: [
+      { name: 'community_places', action: 'UPDATE', columns: ['place_name', 'latitude', 'longitude'] }
+    ]
   }
+
+
+  
 ];
 
 const getMethodColor = (method) => {
