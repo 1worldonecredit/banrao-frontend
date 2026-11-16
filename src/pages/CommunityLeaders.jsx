@@ -6,10 +6,10 @@ import BottomNavbar from '../components/BottomNavbar';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 // ==========================================
-// 🌟 1. Component ก้อน Node (การ์ดบุคคล) - เพิ่มระบบดักจับ (Guard) ป้องกันหน้าขาว
+// 🌟 1. Component ก้อน Node (การ์ดบุคคล)
 // ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
-  // 🌟 GUARD 1: ถ้า node ไม่มีค่า หรือพัง ให้หยุดการเรนเดอร์ทันที เพื่อไม่ให้หน้าเว็บขาว
+  // 🌟 GUARD: ถ้า node ไม่มีค่า หรือพัง ให้หยุดการเรนเดอร์ทันที เพื่อไม่ให้หน้าเว็บขาว
   if (!node) {
     return null; 
   }
@@ -21,9 +21,8 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
     return (
       <div className="flex flex-col items-center w-full mt-4">
         <div className="flex justify-center relative pt-4 gap-6 md:gap-10 px-4">
-          {/* 🌟 GUARD 2: เช็คให้แน่ใจว่า node.children เป็น Array และมีค่า ก่อนลูป */}
           {Array.isArray(node.children) && node.children.map((child, index) => {
-            if (!child) return null; // ดักลูกที่อาจเป็น null
+            if (!child) return null; 
             return (
               <div key={child.id || index} className="relative flex flex-col items-center">
                 <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
@@ -69,6 +68,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
              <button onClick={() => onEditNode(node)} className="p-1.5 bg-white text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-md border border-slate-100" title="แก้ไขข้อมูล">
                <Edit size={12} />
              </button>
+             {/* 🌟 แสดงปุ่มลบ เฉพาะคนที่มี User และไม่ใช่ Card จำลอง */}
              {hasUser && !node.isMock && (
                <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-md border border-slate-100" title="ลบออกจากตำแหน่ง">
                  <Trash2 size={12} />
@@ -78,7 +78,8 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
         </div>
 
         {/* --- ปุ่ม + ครบทิศทาง --- */}
-        {hasUser && !node.isMock && (
+        {/* 🌟 ลบ !node.isMock ออก เพื่อให้ Card แรกเริ่ม (Mock) โชว์ปุ่ม + ได้เลย */}
+        {hasUser && (
            <>
              <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20 border-2 border-white" title="เพิ่มผู้ใต้บังคับบัญชา">
                <Plus size={14} />
@@ -92,7 +93,8 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
            </>
         )}
         
-        {(!hasUser || node.isMock) && (
+        {/* 🌟 ถ้าไม่มีข้อมูล User เลย (หน้าว่างเปล่าจริงๆ) ให้แสดงปุ่มบวกใหญ่ๆ ตรงกลาง */}
+        {(!hasUser) && (
            <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20 border-2 border-white" title="สร้างตำแหน่งนี้">
              <Plus size={20} />
            </button>
@@ -104,7 +106,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
           <div className="w-px h-6 bg-slate-300"></div>
           <div className="flex justify-center relative pt-4 border-t border-slate-300 gap-4 md:gap-8 px-4">
             {node.children.map((child, index) => {
-              if (!child) return null; // 🌟 ดักเผื่อลูปเจอของว่าง
+              if (!child) return null; 
               return (
                 <div key={child.id || index} className="relative flex flex-col items-center">
                   <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
@@ -198,17 +200,18 @@ const CommunityLeaders = () => {
 
  // ... (โค้ดก่อนหน้านี้เหมือนเดิม) ...
 
-  const fetchLeaders = async (dateQuery = '', committeeId) => {
+const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-      const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? \`&term_date=\${dateQuery}\` : ''}`;
+      // 🌟 แก้ไขเอาเครื่องหมาย \ ออกจาก URL แล้ว
+      const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
       
       if (result.success && result.data.length > 0) {
         setOrgTree(buildTree(result.data));
       } else {
-        // 🌟 ถ้ายกผังยังว่างเปล่า (พึ่งสร้าง Tab) ให้ดึงข้อมูลคนที่ Login มาตั้งเป็นประธานเสมอ
+        // 🌟 ถ้ายกผังยังว่างเปล่า ให้ดึงข้อมูลคนที่ Login มาตั้งเป็นประธานเสมอ
         setOrgTree({ 
             isRoot: true, 
             isMock: true, 
