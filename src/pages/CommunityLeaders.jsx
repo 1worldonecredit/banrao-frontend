@@ -155,29 +155,19 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
-  // 🌟 1. ฟังก์ชันจัดเรียงผัง
-  const buildTree = (data) => {
-    let lookup = {};
-    data.forEach(item => {
-      lookup[item.position_record_id] = { ...item, id: item.position_record_id, children: [] };
-    });
-
-    let roots = [];
-    data.forEach(item => {
-      if (item.parent_id && lookup[item.parent_id]) {
-        lookup[item.parent_id].children.push(lookup[item.position_record_id]);
-      } else {
-        roots.push(lookup[item.position_record_id]);
-      }
-    });
-
-    if (roots.length === 0) return null;
-    if (roots.length === 1) return roots[0]; 
+  // 🌟 1. ฟังก์ชันสร้างโครงสร้างผังต้นไม้ (ร้อยเรียงแม่-ลูก) ให้ถูกต้อง
+  const buildTree = (data, rootParentId = null) => {
+    // กรองหาเฉพาะลูกที่ parent_id ตรงกับรหัสที่ระบุ
+    const children = data.filter(item => item.parent_id === rootParentId);
     
-    return {
-      isVirtual: true,
-      children: roots
-    };
+    if (children.length === 0) return [];
+    
+    return children.map(child => ({
+      ...child,
+      // ระบุ id ให้ชัดเจน (เผื่อ Backend ส่งมาเป็น position_record_id หรือ id)
+      id: child.id || child.position_record_id, 
+      children: buildTree(data, child.id || child.position_record_id)
+    }));
   };
 
   // 🌟 2. ดึงข้อมูลแท็บ (คณะทำงาน)
@@ -203,14 +193,11 @@ const CommunityLeaders = () => {
       const res = await fetch(url);
       const result = await res.json();
       
-      let childrenFromDB = [];
-      if (result.success && result.data.length > 0) {
-        const dbTree = buildTree(result.data);
-        childrenFromDB = dbTree.isVirtual ? dbTree.children : [dbTree];
-      }
+      // ร้อยเรียงลูกน้องให้เป็นผังต้นไม้ (เริ่มจากคนที่ไม่มี parent_id หมายความว่าเขาต้องต่อจากผู้ใหญ่บ้าน)
+      const childrenFromDB = result.success ? buildTree(result.data, null) : [];
 
       // นำการ์ดผู้ใหญ่บ้านมาตั้งเป็นยอดเสมอ เอาคนจาก DB มาต่อท้าย
-     setOrgTree({ 
+      setOrgTree({ 
           isRoot: true, 
           isMock: true, 
           id: `root-${userData.id || '0'}`, 
@@ -218,10 +205,9 @@ const CommunityLeaders = () => {
           role_name: userData.position_name || 'ผู้นำชุมชน', 
           first_name: userData.firstName || 'ไม่ระบุชื่อ',
           last_name: userData.lastName || '',
-          // 🌟 ปรับปรุงการดึงรูปภาพ: เช็คหลายๆ ฟิลด์เผื่อไว้ เพื่อให้แน่ใจว่าดึงรูปล่าสุดมา
           user_image: userData.profile_image || userData.imageUrl || userData.userImage || userData.headmanImage || '/profile-img.jpg', 
           responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
-          children: childrenFromDB 
+          children: childrenFromDB // 🌟 เอาลูกน้องที่ร้อยเรียงเสร็จแล้ว มาต่อท้ายผู้ใหญ่บ้านตรงนี้!
       });
       
     } catch (error) { console.error("Error fetching leaders:", error); }
