@@ -200,18 +200,22 @@ const CommunityLeaders = () => {
     if (numbers.length > 12) formatted += '-' + numbers.substring(12, 13);
     return formatted;
   };
+  
   const handleCitizenIdChange = (e) => setSearchCitizenId(formatCitizenId(e.target.value));
+  
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
   };
 
+  // 🌟 ฟังก์ชันค้นหาลูกบ้าน (อัปเดตใหม่ให้ส่ง villageId ไปด้วย)
   const handleSearchUser = async () => {
     const rawCitizenId = searchCitizenId.replace(/-/g, ''); 
     if (rawCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
     setIsLoading(true);
     try {
-        const res = await fetch(`${API_URL}/api/search-citizen/${rawCitizenId}`);
+        // เพิ่ม ${villageId} เข้าไปใน URL
+        const res = await fetch(`${API_URL}/api/search-citizen/${villageId}/${rawCitizenId}`);
         const result = await res.json();
         if (result.success) {
             setFoundUser(result.data);
@@ -222,7 +226,11 @@ const CommunityLeaders = () => {
             alert(result.message || 'ไม่พบข้อมูลลูกบ้าน');
             setFoundUser(null);
         }
-    } catch (error) { alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); } finally { setIsLoading(false); }
+    } catch (error) { 
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); 
+    } finally { 
+        setIsLoading(false); 
+    }
   };
 
   // 🌟 ฟังก์ชันจัดการเพิ่มคน (แก้ไขลอจิก ซ้าย/ขวา/ล่าง)
@@ -504,6 +512,44 @@ const CommunityLeaders = () => {
         </div>
       )}
 
+      {/* 🌟 Modal สำหรับแก้ไขคณะทำงาน */}
+      {isEditCommitteeModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all">
+            <div className="p-6 pb-0 flex justify-between items-center">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                <Edit size={24} />
+              </div>
+              <button onClick={() => { setIsEditCommitteeModalOpen(false); setEditingCommitteeId(null); }} className="w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-full transition-colors"><X size={18} /></button>
+            </div>
+            <div className="px-6 pt-4 pb-2">
+              <h2 className="text-xl font-black text-slate-800">แก้ไขคณะทำงาน</h2>
+            </div>
+            <form onSubmit={handleUpdateCommittee} className="p-6 pt-4">
+              <div className="mb-5">
+                <label className="block text-sm font-bold text-slate-700 mb-2">ชื่อคณะทำงาน / กลุ่ม *</label>
+                <input 
+                  type="text" required value={committeeForm.name} 
+                  onChange={e => setCommitteeForm({...committeeForm, name: e.target.value})}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                />
+              </div>
+              <div className="mb-8">
+                <label className="block text-sm font-bold text-slate-700 mb-2">หน้าที่รับผิดชอบ (ย่อ)</label>
+                <textarea 
+                  rows="3" value={committeeForm.description} 
+                  onChange={e => setCommitteeForm({...committeeForm, description: e.target.value})}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                ></textarea>
+              </div>
+              <button type="submit" className="w-full py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-md transition-colors flex justify-center items-center gap-2">
+                <Save size={18} /> บันทึกการแก้ไข
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
@@ -565,7 +611,7 @@ const CommunityLeaders = () => {
                     </button>
                     
                     <div className="text-xs font-medium text-slate-500 text-center bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm w-full">
-                      {foundUser.village_name || foundUser.tambon_name_th ? (<>หมู่บ้าน: {foundUser.village_name || '-'} • ตำบล: {foundUser.tambon_name_th || '-'}</>) : (<span className="text-red-400">ไม่มีข้อมูลที่อยู่</span>)}
+                      {foundUser.village_name || foundUser.tambon_name_th ? (<>หมู่บ้าน: {foundUser.village_name || '-'} ตำบล: {foundUser.tambon_name_th || '-'}</>) : (<span className="text-red-400">ไม่มีข้อมูลที่อยู่</span>)}
                     </div>
                     
                     <input type="file" id="leader-img-upload" accept="image/*" onChange={handleImageChange} className="hidden" />
