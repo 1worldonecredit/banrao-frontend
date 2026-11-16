@@ -229,31 +229,32 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
       console.error("Error fetching leaders:", error); 
     }
   };
+// ... (โค้ดก่อนหน้านี้เหมือนเดิม) ...
 
   useEffect(() => { fetchCommittees(); }, []);
+  
   useEffect(() => {
     if (activeTab) {
-      // 🌟 ใส่ Loading state สั้นๆ เพื่อไม่ให้หน้ากระพริบขาว
-      setOrgTree(null); 
+      // 🌟 นำ setOrgTree(null) ออก เพื่อไม่ให้การ์ดผู้ใหญ่บ้านหายไปตอนเปลี่ยนแท็บ
       fetchLeaders(selectedDate, activeTab);
-    } else if (committees.length === 0) {
-      // 🌟 สร้าง Card รอไว้เลยในกรณีที่ยังไม่มี Tab ใดๆ ถูกสร้าง
+    } else {
+      // 🌟 ถ้ายังไม่มี activeTab (เพิ่งโหลดหน้าจอ หรือไม่มีแท็บเลย) ให้สร้าง Card ผู้ใหญ่บ้านรอไว้
       setOrgTree({ 
         isRoot: true, 
         isMock: true, 
         id: `mock-0`, 
         account_id: userData.id,
         role_name: userData.position_name || 'ผู้นำชุมชน', 
-        first_name: userData.firstName || 'โปรดสร้างคณะทำงาน',
-        last_name: userData.lastName || 'ก่อนเริ่มจัดผัง',
+        first_name: userData.firstName || 'ไม่ระบุชื่อ',
+        last_name: userData.lastName || '',
         user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
         responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
         children: [] 
       });
     }
-  }, [activeTab, selectedDate, committees.length]);
+  }, [activeTab, selectedDate]); // 🌟 นำ committees.length ออกจาก dependency เพื่อลดการทำงานซ้ำซ้อน
 
-  // ... (โค้ดส่วนที่เหลือเหมือนเดิม) ...
+
 
   useEffect(() => { fetchCommittees(); }, []);
   useEffect(() => {
