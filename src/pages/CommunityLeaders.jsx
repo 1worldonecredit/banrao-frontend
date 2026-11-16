@@ -6,23 +6,31 @@ import BottomNavbar from '../components/BottomNavbar';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 // ==========================================
-// 🌟 1. Component ก้อน Node (การ์ดบุคคล)
+// 🌟 1. Component ก้อน Node (การ์ดบุคคล) - เพิ่มระบบดักจับ (Guard) ป้องกันหน้าขาว
 // ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
-  const hasUser = !!node.account_id;
-  const isVirtual = node.isVirtual; // สำหรับกรณีมีประธานหลายคนในผังเดียว
+  // 🌟 GUARD 1: ถ้า node ไม่มีค่า หรือพัง ให้หยุดการเรนเดอร์ทันที เพื่อไม่ให้หน้าเว็บขาว
+  if (!node) {
+    return null; 
+  }
 
-  // ถ้าเป็น Node เสมือน (มีประธานหลายคน) จะแสดงแค่เส้นเชื่อมและข้ามการวาดการ์ดไป
+  const hasUser = !!node.account_id;
+  const isVirtual = node.isVirtual;
+
   if (isVirtual) {
     return (
       <div className="flex flex-col items-center w-full mt-4">
         <div className="flex justify-center relative pt-4 gap-6 md:gap-10 px-4">
-          {node.children.map((child, index) => (
-            <div key={child.id || index} className="relative flex flex-col items-center">
-              <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
-              <OrgNode node={child} onAddNode={onAddNode} onEditNode={onEditNode} onDeleteNode={onDeleteNode} />
-            </div>
-          ))}
+          {/* 🌟 GUARD 2: เช็คให้แน่ใจว่า node.children เป็น Array และมีค่า ก่อนลูป */}
+          {Array.isArray(node.children) && node.children.map((child, index) => {
+            if (!child) return null; // ดักลูกที่อาจเป็น null
+            return (
+              <div key={child.id || index} className="relative flex flex-col items-center">
+                <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
+                <OrgNode node={child} onAddNode={onAddNode} onEditNode={onEditNode} onDeleteNode={onDeleteNode} />
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -50,7 +58,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
             {node.role_name || 'ตำแหน่งใหม่'}
           </span>
           <h3 className="font-bold text-slate-800 text-xs md:text-sm truncate w-full text-center">
-            {hasUser ? `${node.first_name} ${node.last_name}` : 'คลิกระบุบุคคล'}
+            {hasUser ? `${node.first_name || ''} ${node.last_name || ''}` : 'คลิกระบุบุคคล'}
           </h3>
           <p className="text-[9px] md:text-[11px] text-slate-500 mt-1 truncate w-full text-center">
             {node.responsibilities || '-'}
@@ -72,24 +80,18 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
         {/* --- ปุ่ม + ครบทิศทาง --- */}
         {hasUser && !node.isMock && (
            <>
-             {/* ปุ้ม + ด้านล่าง (เพิ่มลูกน้อง) */}
              <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20 border-2 border-white" title="เพิ่มผู้ใต้บังคับบัญชา">
                <Plus size={14} />
              </button>
-             
-             {/* ปุ้ม + ด้านซ้าย (เพิ่มระดับเดียวกัน) */}
              <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-white text-blue-600 rounded-full p-1 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:text-white transition-all z-20 border-2 border-slate-100" title="เพิ่มเพื่อนร่วมงาน (ซ้าย)">
                <Plus size={12} />
              </button>
-
-             {/* ปุ้ม + ด้านขวา (เพิ่มระดับเดียวกัน) */}
              <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-white text-blue-600 rounded-full p-1 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:text-white transition-all z-20 border-2 border-slate-100" title="เพิ่มเพื่อนร่วมงาน (ขวา)">
                <Plus size={12} />
              </button>
            </>
         )}
         
-        {/* กรณีเป็น Node จำลอง หรือยังไม่มี User ให้มีปุ่ม Edit ใหญ่ๆ แทน */}
         {(!hasUser || node.isMock) && (
            <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20 border-2 border-white" title="สร้างตำแหน่งนี้">
              <Plus size={20} />
@@ -97,13 +99,12 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
         )}
       </div>
 
-      {/* --- วาดสายงานลูกน้อง --- */}
       {Array.isArray(node.children) && node.children.length > 0 && (
         <div className="flex flex-col items-center w-full">
           <div className="w-px h-6 bg-slate-300"></div>
           <div className="flex justify-center relative pt-4 border-t border-slate-300 gap-4 md:gap-8 px-4">
             {node.children.map((child, index) => {
-              if (!child) return null;
+              if (!child) return null; // 🌟 ดักเผื่อลูปเจอของว่าง
               return (
                 <div key={child.id || index} className="relative flex flex-col items-center">
                   <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
