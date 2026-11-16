@@ -71,9 +71,18 @@ const ApiTracker = () => {
 
   const groups = ['All', ...new Set(apiData.map(api => api.group))];
 
-  const filteredApi = apiData.filter(api => {
-    const matchesSearch = api.endpoint.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          api.description.toLowerCase().includes(searchTerm.toLowerCase());
+const filteredApi = apiData.filter(api => {
+    // 🌟 ทำความสะอาดคำค้นหา (ให้รองรับการก๊อปปี้ app.post('...') มาวางได้เลย)
+    const cleanSearch = searchTerm
+      .toLowerCase()
+      .replace(/app\.(post|get|put|delete|patch)\(/g, '') // ตัดคำว่า app.post(, app.get( ออก
+      .replace(/['"`)]/g, '') // ตัดเครื่องหมายคำพูด ' " และวงเล็บปิด ) ออก
+      .trim();
+
+    const matchesSearch = api.endpoint.toLowerCase().includes(cleanSearch) || 
+                          cleanSearch.includes(api.endpoint.toLowerCase()) ||
+                          api.description.toLowerCase().includes(cleanSearch);
+                          
     const matchesGroup = filterGroup === 'All' || api.group === filterGroup;
     return matchesSearch && matchesGroup;
   });
