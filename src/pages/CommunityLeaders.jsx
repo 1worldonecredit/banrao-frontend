@@ -1,77 +1,103 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Edit, Camera, Save, X, UserPlus, Search, Plus, Trash2, FolderPlus } from 'lucide-react';
+import { Users, Calendar, Edit, Camera, Save, X, UserPlus, Search, Plus, Trash2, FolderPlus, MapPin } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 // ==========================================
-// 🌟 1. Component ก้อน Node
+// 🌟 1. Component ก้อน Node (การ์ดบุคคล)
 // ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   const hasUser = !!node.account_id;
+  const isVirtual = node.isVirtual; // สำหรับกรณีมีประธานหลายคนในผังเดียว
+
+  // ถ้าเป็น Node เสมือน (มีประธานหลายคน) จะแสดงแค่เส้นเชื่อมและข้ามการวาดการ์ดไป
+  if (isVirtual) {
+    return (
+      <div className="flex flex-col items-center w-full mt-4">
+        <div className="flex justify-center relative pt-4 gap-6 md:gap-10 px-4">
+          {node.children.map((child, index) => (
+            <div key={child.id || index} className="relative flex flex-col items-center">
+              <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
+              <OrgNode node={child} onAddNode={onAddNode} onEditNode={onEditNode} onDeleteNode={onDeleteNode} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative group m-1 md:m-2 mt-4">
-        <div className="bg-white/60 backdrop-blur-md border border-slate-200/60 shadow-[0_4px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-4 w-36 sm:w-48 md:w-56 flex flex-col items-center z-10 relative overflow-hidden">
+      <div className="relative group m-2 md:m-3 mt-4">
+        
+        {/* --- ตัวการ์ด --- */}
+        <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 shadow-[0_4px_15px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_25px_rgba(0,0,0,0.1)] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-4 w-40 md:w-52 flex flex-col items-center z-10 relative overflow-hidden">
           
-          <div className={`absolute top-0 left-0 w-full h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-gradient-to-r from-emerald-400 to-teal-400'}`}></div>
+          <div className={`absolute top-0 left-0 w-full h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
           
           <div className="relative mt-2 mb-3">
-             <div className="absolute inset-0 bg-blue-100 rounded-full scale-110 -z-10 opacity-50"></div>
+             <div className={`absolute inset-0 rounded-full scale-110 -z-10 opacity-50 ${node.isRoot ? 'bg-blue-100' : 'bg-emerald-100'}`}></div>
              <img 
                src={node.user_image || '/profile-img.jpg'} 
                alt="Profile" 
-               className="w-14 h-14 md:w-16 md:h-16 rounded-full object-cover border-2 border-white shadow-sm relative z-0"
+               className="w-14 h-14 md:w-16 md:h-16 rounded-full object-cover border-[3px] border-white shadow-sm relative z-0"
              />
           </div>
           
-          <span className="text-[10px] md:text-xs font-bold text-slate-700 bg-white/80 border border-slate-200 px-3 py-1 rounded-full mb-2 text-center w-full truncate shadow-sm">
+          <span className="text-[10px] md:text-xs font-bold text-slate-700 bg-white border border-slate-200 px-3 py-1 rounded-full mb-2 text-center w-full truncate shadow-sm">
             {node.role_name || 'ตำแหน่งใหม่'}
           </span>
           <h3 className="font-bold text-slate-800 text-xs md:text-sm truncate w-full text-center">
-            {hasUser ? `${node.first_name} ${node.last_name}` : 'คลิกระบุบุคลากร'}
+            {hasUser ? `${node.first_name} ${node.last_name}` : 'คลิกระบุบุคคล'}
           </h3>
-          <p className="text-[10px] md:text-xs text-slate-500 mt-1 truncate w-full text-center">
-            {node.responsibilities || 'ยังไม่ระบุหน้าที่'}
+          <p className="text-[9px] md:text-[11px] text-slate-500 mt-1 truncate w-full text-center">
+            {node.responsibilities || '-'}
           </p>
 
-          <div className="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
-             <button onClick={() => onEditNode(node)} className="p-1.5 bg-white/80 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-sm" title="แก้ไขข้อมูล">
-               <Edit size={14} />
+          {/* ปุ่มแก้ไข/ลบ มุมขวาบน (โผล่ตอน Hover) */}
+          <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+             <button onClick={() => onEditNode(node)} className="p-1.5 bg-white text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-md border border-slate-100" title="แก้ไขข้อมูล">
+               <Edit size={12} />
              </button>
-             {(!node.isRoot && hasUser) && (
-               <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white/80 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-sm" title="ลบบุคลากรออกจากตำแหน่ง">
-                 <Trash2 size={14} />
+             {hasUser && !node.isMock && (
+               <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-md border border-slate-100" title="ลบออกจากตำแหน่ง">
+                 <Trash2 size={12} />
                </button>
              )}
           </div>
         </div>
 
-        {hasUser ? (
-           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา (ลูกน้อง)">
-             <Plus size={14} />
-           </button>
-        ) : (
-           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
-             <Edit size={18} />
-           </button>
-        )}
-        
-        {/* 🌟 ปรับปุ่มซ้าย/ขวา ให้คลิกง่ายขึ้นและเด่นขึ้นเล็กน้อย */}
-        {!node.isRoot && (
+        {/* --- ปุ่ม + ครบทิศทาง --- */}
+        {hasUser && !node.isMock && (
            <>
-             <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 md:-left-4 transform -translate-y-1/2 bg-white border border-slate-200 text-blue-600 rounded-full p-1.5 shadow-md opacity-40 group-hover:opacity-100 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all z-20" title="เพิ่มตำแหน่งระดับเดียวกัน">
+             {/* ปุ้ม + ด้านล่าง (เพิ่มลูกน้อง) */}
+             <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20 border-2 border-white" title="เพิ่มผู้ใต้บังคับบัญชา">
+               <Plus size={14} />
+             </button>
+             
+             {/* ปุ้ม + ด้านซ้าย (เพิ่มระดับเดียวกัน) */}
+             <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-white text-blue-600 rounded-full p-1 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:text-white transition-all z-20 border-2 border-slate-100" title="เพิ่มเพื่อนร่วมงาน (ซ้าย)">
                <Plus size={12} />
              </button>
-             <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-3 md:-right-4 transform -translate-y-1/2 bg-white border border-slate-200 text-blue-600 rounded-full p-1.5 shadow-md opacity-40 group-hover:opacity-100 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all z-20" title="เพิ่มตำแหน่งระดับเดียวกัน">
+
+             {/* ปุ้ม + ด้านขวา (เพิ่มระดับเดียวกัน) */}
+             <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-white text-blue-600 rounded-full p-1 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:text-white transition-all z-20 border-2 border-slate-100" title="เพิ่มเพื่อนร่วมงาน (ขวา)">
                <Plus size={12} />
              </button>
            </>
         )}
+        
+        {/* กรณีเป็น Node จำลอง หรือยังไม่มี User ให้มีปุ่ม Edit ใหญ่ๆ แทน */}
+        {(!hasUser || node.isMock) && (
+           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20 border-2 border-white" title="สร้างตำแหน่งนี้">
+             <Plus size={20} />
+           </button>
+        )}
       </div>
 
+      {/* --- วาดสายงานลูกน้อง --- */}
       {Array.isArray(node.children) && node.children.length > 0 && (
         <div className="flex flex-col items-center w-full">
           <div className="w-px h-6 bg-slate-300"></div>
@@ -98,17 +124,16 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 // ==========================================
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-  const villageId = userData.village_id || 1; 
+  const villageId = parseInt(userData.village_id, 10) || 1; 
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
   
   const [committees, setCommittees] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
+  
   const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
   const [committeeForm, setCommitteeForm] = useState({ name: '', description: '' });
-
-  // 🌟 เพิ่ม State 2 ตัวนี้ สำหรับแก้ไขแท็บ
   const [editingCommitteeId, setEditingCommitteeId] = useState(null); 
   const [isEditCommitteeModalOpen, setIsEditCommitteeModalOpen] = useState(false);
 
@@ -128,32 +153,32 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
+  // 🌟 ฟังก์ชันสร้าง Tree อัจฉริยะ (รองรับประธานหลายคน)
   const buildTree = (data) => {
-    let tree = [];
     let lookup = {};
-
     data.forEach(item => {
-      lookup[item.position_record_id] = { 
-        ...item, 
-        id: item.position_record_id, 
-        role_name: item.position_name,
-        userName: `${item.first_name || ''} ${item.last_name || ''}`,
-        children: [] 
-      };
+      lookup[item.position_record_id] = { ...item, id: item.position_record_id, children: [] };
     });
 
+    let roots = [];
     data.forEach(item => {
       if (item.parent_id && lookup[item.parent_id]) {
         lookup[item.parent_id].children.push(lookup[item.position_record_id]);
       } else {
         lookup[item.position_record_id].isRoot = true;
-        tree.push(lookup[item.position_record_id]);
+        roots.push(lookup[item.position_record_id]);
       }
     });
 
-    return tree[0] || null; 
+    if (roots.length === 0) return null;
+    if (roots.length === 1) return roots[0]; 
+    
+    // ถ้ามีประธาน/ยอดพีระมิด มากกว่า 1 คน ให้ครอบด้วย Virtual Root แบบเนียนๆ
+    return {
+      isVirtual: true,
+      children: roots
+    };
   };
-
 
   const fetchCommittees = async () => {
     try {
@@ -162,37 +187,39 @@ const CommunityLeaders = () => {
       if (result.success && result.data.length > 0) {
         setCommittees(result.data);
         if (!activeTab) setActiveTab(result.data[0].committee_id);
+      } else {
+        // กรณีไม่มีคณะทำงานใดๆ เลย ให้เคลียร์ค่า
+        setCommittees([]);
+        setActiveTab(null);
       }
     } catch (error) { console.error("Error fetching committees:", error); }
   };
-const fetchLeaders = async (dateQuery = '', committeeId) => {
+
+  const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-      // 🌟 แก้ไข URL ให้ถูกต้อง ไม่มี backslash ส่วนเกินแล้ว
       const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
       
       if (result.success && result.data.length > 0) {
-        const treeData = buildTree(result.data);
-        setOrgTree(treeData);
+        setOrgTree(buildTree(result.data));
       } else {
-        // 🌟 ถ้ายกผังยังว่างเปล่า ให้ดึงข้อมูลคนที่ Login (ผู้นำ) มาตั้งเป็นจุดเริ่มต้นอัตโนมัติ
+        // 🌟 ดึงข้อมูลคนที่ Login (ผู้นำ) มาตั้งเป็นจุดเริ่มต้นอัตโนมัติ 1 Card เสมอ
         setOrgTree({ 
             isRoot: true, 
+            isMock: true, // ระบุว่าเป็น Card หลอกที่ยังไม่บันทึกลง DB
             id: `root-${userData.id || '0'}`, 
             account_id: userData.id,
             role_name: userData.position_name || 'ผู้นำชุมชน', 
-            first_name: userData.firstName || 'ไม่ระบุชื่อ',
-            last_name: userData.lastName || '',
+            first_name: userData.firstName || 'คลิกที่นี่',
+            last_name: userData.lastName || 'เพื่อบันทึกข้อมูล',
             user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
-            responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''} ต.${userData.tambonName || ''} อ.${userData.amphureName || ''} จ.${userData.provinceName || ''}`,
+            responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
             children: [] 
         });
       }
-    } catch (error) { 
-      console.error("Error fetching leaders:", error); 
-    }
+    } catch (error) { console.error("Error fetching leaders:", error); }
   };
 
   useEffect(() => { fetchCommittees(); }, []);
@@ -200,8 +227,22 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (activeTab) {
       setOrgTree(null); 
       fetchLeaders(selectedDate, activeTab);
+    } else if (committees.length === 0) {
+      // 🌟 สร้าง Card รอไว้เลยถึงแม้จะยังไม่มี Tab
+      setOrgTree({ 
+        isRoot: true, 
+        isMock: true, 
+        id: `mock-0`, 
+        account_id: userData.id,
+        role_name: userData.position_name || 'ผู้นำชุมชน', 
+        first_name: userData.firstName || 'โปรดสร้างคณะทำงาน',
+        last_name: userData.lastName || 'ก่อนเริ่มจัดผัง',
+        user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
+        responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
+        children: [] 
+      });
     }
-  }, [activeTab, selectedDate]);
+  }, [activeTab, selectedDate, committees.length]);
 
   const formatCitizenId = (value) => {
     const numbers = value.replace(/\D/g, '');
@@ -215,19 +256,17 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
   };
   
   const handleCitizenIdChange = (e) => setSearchCitizenId(formatCitizenId(e.target.value));
-  
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) setFormData({ ...formData, image_file: file, previewUrl: URL.createObjectURL(file) });
   };
 
-  // 🌟 ฟังก์ชันค้นหาลูกบ้าน (อัปเดตใหม่ให้ส่ง villageId ไปด้วย)
+  // 🌟 API ค้นหาลูกบ้าน พร้อมส่ง villageId ไปใน URL 
   const handleSearchUser = async () => {
     const rawCitizenId = searchCitizenId.replace(/-/g, ''); 
     if (rawCitizenId.length !== 13) return alert("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
     setIsLoading(true);
     try {
-        // เพิ่ม ${villageId} เข้าไปใน URL
         const res = await fetch(`${API_URL}/api/search-citizen/${villageId}/${rawCitizenId}`);
         const result = await res.json();
         if (result.success) {
@@ -246,15 +285,13 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
     }
   };
 
-  // 🌟 ฟังก์ชันจัดการเพิ่มคน (แก้ไขลอจิก ซ้าย/ขวา/ล่าง)
   const handleAddNode = (node, direction) => {
-    let targetParentId = null;
+    if (!activeTab) return alert("กรุณาสร้างและเลือกคณะทำงาน (Tab) ก่อนเพิ่มบุคคลครับ");
     
+    let targetParentId = null;
     if (direction === 'child') {
-      // เพิ่มลูกน้อง (ลงล่าง) -> ให้กล่องที่ถูกคลิกเป็นหัวหน้า
-      targetParentId = node.position_record_id || node.id;
+      targetParentId = node.position_record_id || null;
     } else {
-      // เพิ่มเพื่อนร่วมงาน (ซ้าย/ขวา) -> ให้หัวหน้าของกล่องที่ถูกคลิก เป็นหัวหน้าของคนใหม่ด้วย
       targetParentId = node.parent_id || null;
     }
 
@@ -268,12 +305,13 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
   };
 
   const handleEditNode = (node) => {
-    const isMockNode = !node.position_record_id || String(node.id).startsWith('root-');
-    
+    if (!activeTab) return alert("กรุณาสร้างคณะทำงาน (Tab) ก่อนครับ");
+
+    const isMockNode = node.isMock;
     setEditingSlot({ 
       isNew: isMockNode, 
       recordId: isMockNode ? null : (node.position_record_id || node.id),
-      parentId: node.parent_id || null // ถ่ายทอด parent_id เดิม
+      parentId: node.parent_id || null 
     });
     
     const today = new Date().toISOString().split('T')[0];
@@ -290,7 +328,7 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (node.account_id) {
         setFoundUser({
           first_name: node.first_name, last_name: node.last_name,
-          village_name: node.village_name || userData.villageName, tambon_name_th: node.tambon_name_th || userData.tambonName
+          village_name: userData.villageName, tambon_name_th: userData.tambonName
         });
     } else setFoundUser(null); 
     
@@ -298,13 +336,14 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
   };
 
   const handleDeleteNode = async (node) => {
-    if (node.isRoot) return alert("ไม่สามารถลบประธาน/หัวหน้าชุดได้ กรุณาใช้ฟังก์ชันแก้ไขแทน");
-    if (window.confirm(`คุณต้องการลบ "${node.first_name} ${node.last_name}" ใช่หรือไม่?`)) {
+    if (window.confirm(`คุณต้องการลบ "${node.first_name} ${node.last_name}" ออกจากตำแหน่งนี้ใช่หรือไม่?`)) {
         try {
             const res = await fetch(`${API_URL}/api/community-leaders/${node.position_record_id}`, { method: 'DELETE' });
             const result = await res.json();
-            if (result.success) { alert(result.message); fetchLeaders(selectedDate, activeTab); } 
-            else alert('ลบข้อมูลไม่สำเร็จ: ' + result.message);
+            if (result.success) { 
+              alert(result.message); 
+              fetchLeaders(selectedDate, activeTab); 
+            } else alert('ลบข้อมูลไม่สำเร็จ: ' + result.message);
         } catch (error) { alert('เกิดข้อผิดพลาดในการลบข้อมูล'); }
     }
   };
@@ -323,7 +362,7 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
         start_date: formData.start_date,
         end_date: formData.end_date || null,
         responsibilities: formData.responsibilities,
-        parent_id: editingSlot.parentId || null // ส่ง parent_id ไปให้ Backend ด้วยเสมอ
+        parent_id: editingSlot.parentId || null 
       };
 
       const url = editingSlot.isNew ? `${API_URL}/api/community-leaders` : `${API_URL}/api/community-leaders/${editingSlot.recordId}`;
@@ -332,57 +371,38 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const result = await res.json();
       if (result.success) {
-        alert('บันทึกข้อมูลเรียบร้อยแล้ว!');
+        alert('บันทึกข้อมูลผังองค์กรเรียบร้อยแล้ว!');
         setIsModalOpen(false);
         fetchLeaders(selectedDate, activeTab);
       } else alert('บันทึกไม่สำเร็จ: ' + result.message);
     } catch (error) { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
   };
 
+  // 🌟 API บันทึก Tab คณะทำงานใหม่ (ส่ง village_id แบบแปลง Int แล้ว)
   const handleSaveCommittee = async (e) => {
     e.preventDefault();
     if (!committeeForm.name) return;
-
-    // 🌟 1. ตรวจสอบให้แน่ใจว่าเรามี villageId ที่เป็นตัวเลขพร้อมส่ง
-    const currentVillageId = userData.village_id || 1; 
-
     try {
-      // 🌟 2. ดูข้อมูลที่จะส่งไปให้ Backend (สามารถดูได้ที่ F12 -> Console)
-      console.log("กำลังส่งข้อมูลไปสร้างคณะทำงาน:", { 
-          village_id: currentVillageId, 
-          committee_name: committeeForm.name, 
-          description: committeeForm.description 
-      });
-
+      const payload = { 
+        village_id: villageId, 
+        committee_name: committeeForm.name, 
+        description: committeeForm.description 
+      };
       const res = await fetch(`${API_URL}/api/community-committees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // 🌟 3. ส่ง village_id เข้าไปให้ถูกต้อง
-        body: JSON.stringify({ 
-            village_id: currentVillageId, 
-            committee_name: committeeForm.name, 
-            description: committeeForm.description 
-        })
+        body: JSON.stringify(payload)
       });
       const result = await res.json();
-      
       if (result.success) {
         alert('เพิ่มคณะทำงานใหม่สำเร็จ');
         fetchCommittees(); 
         setIsCommitteeModalOpen(false);
         setCommitteeForm({ name: '', description: '' });
-      } else {
-        alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่ทราบสาเหตุ'));
-      }
-    } catch (error) { 
-        alert('เชื่อมต่อระบบล้มเหลว'); 
-        console.error("Error in handleSaveCommittee:", error);
-    }
+      } else alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่ทราบสาเหตุ'));
+    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
   };
 
-// ==========================================
-  // 🌟 ฟังก์ชันจัดการแท็บ (ลบ / แก้ไข)
-  // ==========================================
   const openEditCommitteeModal = (committee) => {
     setCommitteeForm({ name: committee.committee_name, description: committee.description || '' });
     setEditingCommitteeId(committee.committee_id);
@@ -424,22 +444,29 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
 
   const activeCommitteeInfo = committees.find(c => c.committee_id === activeTab);
 
- return (
+  return (
     <div className="bg-[#f8fafc] min-h-screen pb-24 font-sans">
       <TopNavbar userData={userData} />
       
       <div className="max-w-7xl mx-auto p-4 pt-20">
         
-        <div className="flex flex-col md:flex-row justify-between items-center bg-white p-5 rounded-2xl shadow-sm mb-6 border border-slate-100">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 rounded-xl text-blue-600"><Users size={28} strokeWidth={1.5} /></div>
-            <div>
+        {/* 🌟 Header แสดงข้อมูลหมู่บ้านชัดเจน */}
+        <div className="flex flex-col md:flex-row justify-between items-center bg-white p-5 md:p-6 rounded-2xl shadow-sm mb-6 border border-slate-200">
+          <div className="flex items-center gap-4 w-full">
+            <div className="p-3.5 bg-blue-50 rounded-xl text-blue-600 border border-blue-100"><Users size={32} strokeWidth={1.5} /></div>
+            <div className="flex-1">
               <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">ทำเนียบผู้นำและคณะทำงาน</h1>
-              <p className="text-sm text-slate-500 font-medium mt-0.5">หมู่บ้าน: {userData?.villageName || 'ของคุณ'}</p>
+              <div className="flex flex-wrap items-center gap-2 mt-1.5 text-sm font-medium text-slate-500">
+                <span className="flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-md text-slate-600"><MapPin size={14}/> กำลังจัดการผัง:</span>
+                <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">บ้าน{userData.villageName || '-'}</span>
+                <span className="text-slate-600">หมู่ที่ {userData.village_no || '-'}</span>
+                <span className="text-slate-600">ต.{userData.tambonName || '-'}</span>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* 🌟 โซน Tabs */}
         <div className="flex overflow-x-auto gap-3 mb-6 pb-2 hide-scrollbar items-center px-1">
           {committees.map(c => (
             <div key={c.committee_id} className="relative group shrink-0">
@@ -454,19 +481,12 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
                 {c.committee_name}
               </button>
               
-              {/* ปุ่มแก้ไข/ลบ จะโผล่มาเฉพาะแท็บที่ถูกเลือกและเอาเมาส์ไปชี้ */}
               {activeTab === c.committee_id && (
                 <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  <button 
-                    onClick={() => openEditCommitteeModal(c)}
-                    className="p-1.5 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white shadow-sm transition-colors" title="แก้ไข"
-                  >
+                  <button onClick={() => openEditCommitteeModal(c)} className="p-1.5 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white shadow-sm transition-colors" title="แก้ไข">
                     <Edit size={12} />
                   </button>
-                  <button 
-                    onClick={() => handleDeleteCommittee(c.committee_id, c.committee_name)}
-                    className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white shadow-sm transition-colors" title="ลบ"
-                  >
+                  <button onClick={() => handleDeleteCommittee(c.committee_id, c.committee_name)} className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white shadow-sm transition-colors" title="ลบ">
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -474,17 +494,16 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
             </div>
           ))}
           
+          {/* ปุ่ม + Tab สีโดดเด่น */}
           <button 
-            onClick={() => {
-              setCommitteeForm({ name: '', description: '' });
-              setIsCommitteeModalOpen(true);
-            }} 
-            className="px-5 py-3 rounded-xl whitespace-nowrap text-sm font-bold bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 flex items-center gap-2 transition-colors ml-2 shrink-0"
+            onClick={() => { setCommitteeForm({ name: '', description: '' }); setIsCommitteeModalOpen(true); }} 
+            className="px-5 py-3 rounded-xl whitespace-nowrap text-sm font-bold bg-blue-50 text-blue-600 border-2 border-blue-100 hover:bg-blue-100 hover:border-blue-200 flex items-center gap-2 transition-all ml-1 shrink-0"
           >
-            <FolderPlus size={18} /> เพิ่มผังคณะทำงาน
+            <FolderPlus size={18} /> เพิ่มคณะทำงาน
           </button>
         </div>
 
+        {/* 🌟 Header ย่อยของคณะทำงานที่เลือก */}
         {activeCommitteeInfo && (
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8 text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
@@ -495,26 +514,19 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
           </div>
         )}
 
+        {/* 🌟 โซนแสดงผังองค์กร */}
         <div className="relative py-12 overflow-x-auto flex justify-center min-w-max md:min-w-full bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] rounded-[2.5rem] border border-slate-200/50">
-          {/* 🌟 ปรับปรุงการตรวจสอบ ถ้ายังไม่มีคณะทำงาน ให้แสดงข้อความแนะนำ */}
+          
           {committees.length === 0 ? (
-             <div className="text-slate-500 py-20 flex flex-col items-center gap-4 text-center">
-               <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mb-2">
-                 <FolderPlus size={32} />
-               </div>
-               <h3 className="text-lg font-bold text-slate-700">ยังไม่มีข้อมูลผังคณะทำงาน</h3>
-               <p className="text-sm">กรุณากดปุ่ม "เพิ่มผังคณะทำงาน" ด้านบน เพื่อเริ่มต้นสร้างผังองค์กรของคุณ</p>
-               <button 
-                 onClick={() => {
-                   setCommitteeForm({ name: '', description: '' });
-                   setIsCommitteeModalOpen(true);
-                 }} 
-                 className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md hover:bg-blue-700 transition-colors"
-               >
-                 สร้างผังแรกของคุณเลย
-               </button>
-             </div>
-          ) : orgTree && orgTree.role_name ? (
+            // ถ้ายังไม่สร้างคณะทำงานเลย ให้โชว์ Card 1 ใบ (Headman) + คำเชิญชวน
+            <div className="flex flex-col items-center">
+              <div className="bg-amber-50 border border-amber-200 text-amber-700 px-6 py-3 rounded-xl font-bold text-sm mb-6 flex items-center gap-2 shadow-sm">
+                <FolderPlus size={18}/> กรุณากด "เพิ่มคณะทำงาน" ด้านบน เพื่อเริ่มจัดผังองค์กร
+              </div>
+              <OrgNode node={orgTree} onAddNode={() => alert('กรุณาสร้างคณะทำงานก่อนครับ')} onEditNode={() => alert('กรุณาสร้างคณะทำงานก่อนครับ')} onDeleteNode={() => {}} />
+            </div>
+          ) : orgTree ? (
+            // แสดงผังองค์กรตามปกติ
             <OrgNode node={orgTree} onAddNode={handleAddNode} onEditNode={handleEditNode} onDeleteNode={handleDeleteNode} />
           ) : (
              <div className="text-slate-400 py-20 flex flex-col items-center gap-4">
@@ -522,9 +534,13 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
                <span className="font-medium text-sm">กำลังจัดเตรียมผังองค์กร...</span>
              </div>
           )}
+
         </div>
       </div>
 
+      {/* ==================================== MODALS ==================================== */}
+
+      {/* Modal: เพิ่มคณะทำงาน */}
       {isCommitteeModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all">
@@ -536,7 +552,7 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
             </div>
             <div className="px-6 pt-4 pb-2">
               <h2 className="text-xl font-black text-slate-800">เพิ่มคณะทำงานใหม่</h2>
-              <p className="text-sm text-slate-500 mt-1">สร้างกลุ่มคณะทำงานหรือโครงการใหม่ในชุมชน</p>
+              <p className="text-sm text-slate-500 mt-1">สร้างแท็บคณะทำงานหรือโครงการใหม่ในชุมชน</p>
             </div>
             <form onSubmit={handleSaveCommittee} className="p-6 pt-4">
               <div className="mb-5">
@@ -565,7 +581,7 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
         </div>
       )}
 
-      {/* 🌟 Modal สำหรับแก้ไขคณะทำงาน */}
+      {/* Modal: แก้ไขคณะทำงาน */}
       {isEditCommitteeModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all">
@@ -603,6 +619,7 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
         </div>
       )}
 
+      {/* Modal: เพิ่ม/แก้ไข ข้อมูลบุคคลในผัง */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
@@ -647,7 +664,8 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
 
               {foundUser && (
                 <form id="leaderForm" onSubmit={handleSave} className="animate-fade-in-up">
-                  <div className="flex flex-col items-center mb-8 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="flex flex-col items-center mb-8 p-6 bg-slate-50 rounded-3xl border border-slate-100 relative overflow-hidden">
+                    
                     <div className="relative w-28 h-28 rounded-full p-1 bg-white shadow-sm border border-slate-200 group cursor-pointer" onClick={() => document.getElementById('leader-img-upload').click()}>
                       <img src={formData.previewUrl} alt="Preview" className="w-full h-full rounded-full object-cover" />
                       <div className="absolute inset-1 rounded-full bg-slate-900/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Camera size={24} className="text-white" /></div>
@@ -655,16 +673,12 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
                     
                     <h3 className="mt-4 font-black text-slate-800 text-xl">{foundUser.first_name} {foundUser.last_name}</h3>
                     
-                    <button 
-                      type="button" 
-                      onClick={() => { setFoundUser(null); setFormData({...formData, account_id: '', previewUrl: '/profile-img.jpg'}); setSearchCitizenId(''); }} 
-                      className="text-xs font-bold px-3 py-1.5 bg-white border border-slate-200 rounded-full text-slate-500 hover:text-slate-800 hover:border-slate-300 mt-2 mb-3 transition-colors shadow-sm"
-                    >
+                    <button type="button" onClick={() => { setFoundUser(null); setFormData({...formData, account_id: '', previewUrl: '/profile-img.jpg'}); setSearchCitizenId(''); }} className="text-xs font-bold px-4 py-1.5 bg-white border border-slate-200 rounded-full text-slate-500 hover:text-slate-800 hover:border-slate-300 mt-2 mb-3 transition-colors shadow-sm">
                       เปลี่ยนบุคลากร
                     </button>
                     
                     <div className="text-xs font-medium text-slate-500 text-center bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm w-full">
-                      {foundUser.village_name || foundUser.tambon_name_th ? (<>หมู่บ้าน: {foundUser.village_name || '-'} ตำบล: {foundUser.tambon_name_th || '-'}</>) : (<span className="text-red-400">ไม่มีข้อมูลที่อยู่</span>)}
+                      {foundUser.village_name || foundUser.tambon_name_th ? (<>บ้าน{foundUser.village_name || '-'} ต.{foundUser.tambon_name_th || '-'}</>) : (<span className="text-red-400">ไม่มีข้อมูลที่อยู่</span>)}
                     </div>
                     
                     <input type="file" id="leader-img-upload" accept="image/*" onChange={handleImageChange} className="hidden" />
@@ -694,7 +708,7 @@ const fetchLeaders = async (dateQuery = '', committeeId) => {
             <div className="p-5 border-t border-slate-100 flex gap-3 bg-white">
               <button type="button" onClick={() => { setIsModalOpen(false); setFoundUser(null); setSearchCitizenId(''); }} className="w-1/3 py-3.5 rounded-xl bg-slate-100 font-bold text-slate-600 hover:bg-slate-200 transition-colors">ยกเลิก</button>
               <button type="submit" form="leaderForm" disabled={!foundUser} className={`w-2/3 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${(!foundUser) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:-translate-y-0.5'}`}>
-                <Save size={18} /> บันทึกข้อมูลผัง
+                <Save size={18} /> บันทึกผัง
               </button>
             </div>
           </div>
