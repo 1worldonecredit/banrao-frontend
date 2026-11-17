@@ -98,7 +98,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 // ==========================================
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-  const villageId = userData.village_id || ''; 
+const villageId = userData.village_id || 1;
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
@@ -144,13 +144,20 @@ const CommunityLeaders = () => {
     return rootNodes;
   };
 
-  // 🌟 ฟังก์ชันดึงและเรียงแท็บ (ผังผู้นำชุมชนอยู่ซ้ายสุด ตามด้วยแท็บใหม่สุด)
+// 🌟 จุดที่ 2: ฟังก์ชันดึงและเรียงแท็บ (อัปเกรดกันเหนียว)
   const fetchCommittees = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
+      // บังคับใช้ villageId เพื่อไม่ให้ URL แหว่ง
+      const currentVillageId = villageId || 1; 
+      const res = await fetch(`${API_URL}/api/community-committees/${currentVillageId}`);
+      
+      if (!res.ok) {
+         alert(`❌ ดึงข้อมูลแท็บไม่สำเร็จ (Error ${res.status})\nลองเช็ก API ฝั่ง GET ใน server.js ดูครับว่าเผลอลบไปไหม`);
+         return;
+      }
+
       const result = await res.json();
-      if (result.success && result.data.length > 0) {
-        
+      if (result.success && result.data && result.data.length > 0) {
         const sortedCommittees = result.data.sort((a, b) => {
           if (a.committee_name === 'ผังผู้นำชุมชน') return -1;
           if (b.committee_name === 'ผังผู้นำชุมชน') return 1;
@@ -163,7 +170,9 @@ const CommunityLeaders = () => {
       } else { 
         setCommittees([]); setActiveTab(null); 
       }
-    } catch (error) { console.error("Error fetching committees:", error); }
+    } catch (error) { 
+        console.error("Error fetching committees:", error); 
+    }
   };
 
   const fetchLeaders = async (dateQuery = '', committeeId) => {
