@@ -123,25 +123,34 @@ const CommunityLeaders = () => {
     role_name: '', account_id: '', start_date: '', end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null
   });
 
-  // 🌟 ฟังก์ชันประกอบร่างผัง
-  const buildTree = (data) => {
+  // 🌟 1. ฟังก์ชันประกอบร่างผัง (อัปเดตให้บังคับต่อกับผู้ใหญ่บ้านเสมอ)
+  const buildTree = (data, rootId) => {
     let lookup = {};
+    
+    // สร้าง Lookup Table สำหรับทุกโหนด
     data.forEach(item => {
       const realId = item.id || item.position_record_id;
       lookup[realId] = { ...item, id: realId, children: [] };
     });
 
     let rootNodes = [];
+    
     data.forEach(item => {
       const realId = item.id || item.position_record_id;
-      const parentId = (item.parent_id === 'null' || item.parent_id === '') ? null : item.parent_id;
+      const parentId = item.parent_id;
 
-      if (parentId && lookup[parentId]) {
+      // ตรวจสอบว่ามีหัวหน้า และหัวหน้ามีตัวตนอยู่ใน Lookup หรือไม่
+      // หมายเหตุ: ป้องกันกรณี parentId เป็นคำว่า 'null' (String) ด้วย
+      if (parentId && parentId !== 'null' && lookup[parentId]) {
         lookup[parentId].children.push(lookup[realId]);
       } else {
+        // 🌟 ถ้าระบุหัวหน้าไม่ได้ ให้ถือว่าเป็นลูกน้องสายตรงของผู้ใหญ่บ้าน (rootNodes)
+        // และเพื่อป้องกัน Error เราจะเพิ่ม field isRoot_Child เข้าไป
+        lookup[realId].isRoot_Child = true; 
         rootNodes.push(lookup[realId]);
       }
     });
+
     return rootNodes;
   };
 
@@ -212,27 +221,43 @@ const CommunityLeaders = () => {
     } catch (error) { console.error("Error fetching committees:", error); }
   };
 
+  // 🌟 2. ดึงข้อมูลคน และประกอบเข้ากับยอดพีระมิด
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-      const url = `${API_URL}/api/community-leaders/by-committee/${committeeId}${dateQuery ? `?term_date=${dateQuery}` : ''}`;
+      const url = `${API_URL}/api/community-leaders/by-committee/${committeeId}${dateQuery ? \`?term_date=\${dateQuery}\` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
       
       console.log("🔥 ข้อมูลดิบจาก DB:", result.data);
-      const childrenFromDB = (result.success && result.data && result.data.length > 0) ? buildTree(result.data) : [];
+
+      const rootNodeId = `root-${userData.id || '0'}`;
+
+      // ส่ง rootNodeId เข้าไปใน buildTree ด้วย
+      const childrenFromDB = (result.success && result.data && result.data.length > 0) 
+        ? buildTree(result.data, rootNodeId) 
+        : [];
+
       console.log("🌳 ข้อมูลที่จัดผังแล้ว:", childrenFromDB);
 
+      // สร้างโหนดผู้ใหญ่บ้าน และนำ childrenFromDB มาต่อท้าย
       setOrgTree({ 
-          isRoot: true, isMock: true, id: `root-${userData.id || '0'}`, account_id: userData.id,
-          role_name: userData.position_name || 'ผู้นำชุมชน', first_name: userData.firstName || 'ไม่ระบุชื่อ', last_name: userData.lastName || '',
+          isRoot: true, 
+          isMock: true, 
+          id: rootNodeId, // ID นี้สำคัญมาก ต้องเป็นค่าเดียวกับที่เช็กใน buildTree
+          account_id: userData.id,
+          role_name: userData.position_name || 'ผู้นำชุมชน', 
+          first_name: userData.firstName || 'ไม่ระบุชื่อ',
+          last_name: userData.lastName || '',
           user_image: userData.profile_image || userData.imageUrl || userData.userImage || userData.headmanImage || '/profile-img.jpg', 
           responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
           children: childrenFromDB 
       });
-    } catch (error) { console.error("Error fetching leaders:", error); }
+      
+    } catch (error) { 
+      console.error("Error fetching leaders:", error); 
+    }
   };
-
   useEffect(() => { fetchCommittees(); }, []);
   useEffect(() => {
     if (activeTab) fetchLeaders(selectedDate, activeTab);
