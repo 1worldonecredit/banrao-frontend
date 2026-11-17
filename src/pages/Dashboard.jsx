@@ -20,7 +20,8 @@ const Dashboard = () => {
   const [userPermissions, setUserPermissions] = useState([]); 
   const [wallet, setWallet] = useState({ balance: 0, points: 0 });
   const [isLoading, setIsLoading] = useState(true);
-
+// 🌟 เพิ่ม State นี้เข้าไปเพื่อรับค่าตัวเลขสถิติ
+  const [dashboardStats, setDashboardStats] = useState({ total_houses: 0, total_population: 0 });
   const currencySymbol = userData.currency_code === 'USD' ? '$' : '฿';
 
   // 🌟 1. สร้าง State สำหรับเก็บข้อมูลสถานที่
@@ -84,14 +85,18 @@ const Dashboard = () => {
     { title: 'อุ่นไอแคมป์ปิ้ง เขาค้อ รีสอร์ท', discount: 'ลด 76%', img: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&q=80' },
     { title: 'พูลวิลล่า ธรรมชาติ', discount: 'ลด 53%', img: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=500&q=80' },
   ];
-
-  const fetchDashboardData = async (userId) => {
+const fetchDashboardData = async (userId) => {
     setIsLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/dashboard/${userId}?t=${new Date().getTime()}`);
       if (response.ok) {
         const data = await response.json();
         setWallet(data.wallet || { balance: 0, points: 0 });
+        
+        // 🌟 เพิ่มส่วนนี้: เอาตัวเลขสถิติที่ได้จาก Backend มาเก็บลง State
+        if (data.success && data.stats) {
+          setDashboardStats(data.stats);
+        }
       }
     } catch (error) {
       console.error("Error fetching dashboard:", error);
