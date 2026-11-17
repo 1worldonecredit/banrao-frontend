@@ -6,7 +6,7 @@ import BottomNavbar from '../components/BottomNavbar';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 // ==========================================
-// 🌟 1. Component ก้อน Node (สำหรับวาดผัง)
+// 🌟 1. Component ก้อน Node (ใช้ UI สวยๆ ของคุณวิทยา)
 // ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   if (!node) return null; 
@@ -109,21 +109,23 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 };
 
 // ==========================================
-// 🌟 2. Main Component
+// 🌟 2. Main Component (ใส่สมอง Logic ที่ถูกต้องเข้าไป)
 // ==========================================
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-  const villageId = userData.village_id || 1; 
+  const villageId = userData.village_id || ''; 
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
   
+  // 🌟 ใช้ State คณะทำงานแบบไดนามิก (ดึงจาก DB)
   const [committees, setCommittees] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
   
   const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
   const [committeeForm, setCommitteeForm] = useState({ name: '', description: '' });
-
+  
+  // State สำหรับ Modal บุคลากร
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null); 
   const [searchCitizenId, setSearchCitizenId] = useState('');
@@ -134,6 +136,7 @@ const CommunityLeaders = () => {
     role_name: '', account_id: '', start_date: '', end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null
   });
 
+// 🌟 สมองที่ 1: ร้อยเรียงต้นไม้ (แบบกันเหนียว 100%)
   const buildTree = (data) => {
     let lookup = {};
     data.forEach(item => {
@@ -146,15 +149,18 @@ const CommunityLeaders = () => {
       const realId = item.id || item.position_record_id;
       const parentId = item.parent_id;
 
+      // ถ้ามีหัวหน้า และหัวหน้ามีตัวตนอยู่ในแท็บนี้ ให้ไปต่อท้าย
       if (parentId && parentId !== 'null' && lookup[parentId]) {
         lookup[parentId].children.push(lookup[realId]);
       } else {
+        // 🌟 จุดสำคัญ: ถ้าหาหัวหน้าไม่เจอ (หรือหัวหน้าไม่ได้อยู่ในแท็บนี้) ให้ดึงมาเป็นลูกน้องสายตรงทันที!
         rootNodes.push(lookup[realId]);
       }
     });
     return rootNodes;
   };
 
+  // 🌟 สมองที่ 2: ดึงข้อมูลคณะทำงานจากฐานข้อมูล
   const fetchCommittees = async () => {
     try {
       const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
@@ -165,27 +171,57 @@ const CommunityLeaders = () => {
       } else { setCommittees([]); setActiveTab(null); }
     } catch (error) { console.error("Error fetching committees:", error); }
   };
-
+  
+// 🌟 สมองที่ 3: ดึงข้อมูล (เวอร์ชันติดเครื่องจับเท็จ เด้งแจ้งเตือนหน้าจอทันที)
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
       const url = `${API_URL}/api/v2/committee-leaders/${committeeId}` + (dateQuery ? `?term_date=${dateQuery}` : '');
       const res = await fetch(url);
+      
+      // 🚨 จับเท็จที่ 1: ถ้า Backend หา API เส้นนี้ไม่เจอ (404) เพราะยังไม่ได้อัปเดต server.js
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+         alert(`❌ ปัญหาอยู่ที่ Backend ครับ!\nหน้าเว็บเรียกหา API V2 ไม่เจอ (อาจจะลืม Push โค้ด server.js ขึ้น Railway หรือเซิร์ฟเวอร์ยัง Build ไม่เสร็จ)\n\nระบบตอบกลับมาเป็น: ${contentType}`);
+         return;
+      }
+
       const result = await res.json();
       
+      // 🚨 จับเท็จที่ 2: ถ้า Database คาย Error ออกมา (เช่น ชื่อคอลัมน์ผิด)
+      if (!result.success) {
+         alert(`❌ ฐานข้อมูลแจ้ง Error ว่า:\n${result.message}\n${result.error || ''}`);
+         return;
+      }
+
+      // 🚨 จับเท็จที่ 3: แอบดูว่าดึงข้อมูลลูกน้องมาได้กี่คน
+      console.log(`✅ โหลดสำเร็จ! พบลูกน้องในแท็บนี้: ${result.data.length} คน`, result.data);
+      if (result.data.length === 0) {
+          console.warn("⚠️ แจ้งเตือน: ฐานข้อมูลบอกว่าไม่มีใครอยู่ในแท็บนี้เลยครับ");
+      }
+
       let childrenFromDB = [];
-      if (result.success && result.data && result.data.length > 0) {
+      if (result.data && result.data.length > 0) {
         childrenFromDB = buildTree(result.data);
       }
 
       setOrgTree({ 
-          isRoot: true, isMock: true, id: userData.id || 'root-0', account_id: userData.id,
-          role_name: userData.position_name || 'ผู้นำชุมชน', first_name: userData.firstName || 'ผู้ใหญ่บ้าน', last_name: userData.lastName || '',
+          isRoot: true, 
+          isMock: true, 
+          id: userData.id || 'root-0',
+          account_id: userData.id,
+          role_name: userData.position_name || 'ผู้นำชุมชน', 
+          first_name: userData.firstName || 'ผู้ใหญ่บ้าน', 
+          last_name: userData.lastName || '',
           user_image: userData.profile_image || userData.imageUrl || userData.userImage || userData.headmanImage || '/profile-img.jpg', 
           responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
           children: childrenFromDB 
       });
-    } catch (error) { console.error("Error fetching leaders:", error); }
+      
+    } catch (error) { 
+        alert(`❌ เกิดข้อผิดพลาดรุนแรงในการดึงข้อมูล:\n${error.message}`);
+        console.error("Error fetching leaders:", error); 
+    }
   };
 
   useEffect(() => { fetchCommittees(); }, []);
@@ -200,6 +236,7 @@ const CommunityLeaders = () => {
     }
   }, [activeTab, selectedDate]);
 
+  // ฟังก์ชันจัดการฟอร์ม
   const formatCitizenId = (value) => {
     const numbers = value.replace(/\D/g, '');
     let formatted = '';
@@ -270,6 +307,7 @@ const CommunityLeaders = () => {
     }
   };
 
+  // 🌟 สมองที่ 4: บันทึกคน พร้อมแนบ parent_id
   const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.account_id) return alert("กรุณาระบุบุคลากร");
@@ -294,6 +332,7 @@ const CommunityLeaders = () => {
     } catch (error) { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
   };
 
+  // 🌟 สมองที่ 5: บันทึกแท็บลงฐานข้อมูล
   const handleSaveCommittee = async (e) => {
     e.preventDefault();
     if (!committeeForm.name) return alert("กรุณากรอกชื่อคณะทำงาน");
