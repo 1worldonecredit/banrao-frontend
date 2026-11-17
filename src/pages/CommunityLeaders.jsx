@@ -136,32 +136,27 @@ const CommunityLeaders = () => {
     role_name: '', account_id: '', start_date: '', end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null
   });
 
-  // 🌟 สมองที่ 1: ร้อยเรียงต้นไม้ (แก้ให้ยืดหยุ่นที่สุด ไม่สนใจ root-xx แล้ว)
+// 🌟 สมองที่ 1: ร้อยเรียงต้นไม้ (แบบกันเหนียว 100%)
   const buildTree = (data) => {
     let lookup = {};
-    
-    // 1. สร้างตะกร้าเก็บคนทุกคนก่อน (ใช้ id จาก DB ตรงๆ)
     data.forEach(item => {
       const realId = item.id || item.position_record_id;
       lookup[realId] = { ...item, id: realId, children: [] };
     });
 
     let rootNodes = [];
-    
-    // 2. จับคู่ลูกน้องกับหัวหน้า
     data.forEach(item => {
       const realId = item.id || item.position_record_id;
       const parentId = item.parent_id;
 
-      // ถ้าคนนี้มีหัวหน้า และหัวหน้านั้นมีตัวตนอยู่ในตะกร้า
+      // ถ้ามีหัวหน้า และหัวหน้ามีตัวตนอยู่ในแท็บนี้ ให้ไปต่อท้าย
       if (parentId && parentId !== 'null' && lookup[parentId]) {
         lookup[parentId].children.push(lookup[realId]);
       } else {
-        // ถ้าคนนี้ไม่มีหัวหน้า (หรือเป็นหัวหน้าใหญ่สุด) ให้โผล่เป็นก้อนหลัก
+        // 🌟 จุดสำคัญ: ถ้าหาหัวหน้าไม่เจอ (หรือหัวหน้าไม่ได้อยู่ในแท็บนี้) ให้ดึงมาเป็นลูกน้องสายตรงทันที!
         rootNodes.push(lookup[realId]);
       }
     });
-    
     return rootNodes;
   };
 
@@ -176,38 +171,36 @@ const CommunityLeaders = () => {
       } else { setCommittees([]); setActiveTab(null); }
     } catch (error) { console.error("Error fetching committees:", error); }
   };
-// 🌟 สมองที่ 3: ดึงข้อมูล (ลบการสร้างโหนดผู้ใหญ่บ้านปลอมทิ้ง ดึงของจริงมาโชว์เลย)
+// 🌟 สมองที่ 3: ดึงข้อมูล (ตั้งการ์ดผู้ใหญ่บ้านเป็น "เสาหลัก" เสมอ)
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-     const url = `${API_URL}/api/community-leaders/by-committee/${committeeId}${dateQuery ? `?term_date=${dateQuery}` : ''}`;
+      const url = `${API_URL}/api/community-leaders/by-committee/${committeeId}` + (dateQuery ? `?term_date=${dateQuery}` : '');
       const res = await fetch(url);
       const result = await res.json();
       
+      let childrenFromDB = [];
       if (result.success && result.data && result.data.length > 0) {
-        // ให้ฟังก์ชัน buildTree จัดการประกอบร่างของจริงทั้งหมด
-        const treeData = buildTree(result.data);
-        
-        // ถ้ามีข้อมูลก้อนหลัก (คนที่ไม่มี parent_id) ให้เอาคนแรกมาเป็นยอดผัง
-        if (treeData.length > 0) {
-            // เติม isRoot ให้ก้อนบนสุด เพื่อให้ UI มันรู้ว่าเป็นประธาน
-            const rootNode = { ...treeData[0], isRoot: true };
-            setOrgTree(rootNode);
-        } else {
-            // ถ้าแปลกๆ ไม่มีก้อนหลักเลย ให้ใช้ข้อมูลจำลองรอไว้ก่อน
-            setOrgTree({ 
-                isRoot: true, isMock: true, id: `mock-1`, 
-                role_name: 'ผู้นำชุมชน', first_name: 'กรุณาเพิ่มตำแหน่งหลัก', children: [] 
-            });
-        }
-      } else {
-        // ถ้าแท็บนี้ยังไม่มีคนเลย ค่อยโชว์ก้อนเปล่าๆ รอให้กดปุ่ม +
-        setOrgTree({ 
-          isRoot: true, isMock: true, id: `mock-1`, account_id: userData.id,
-          role_name: userData.position_name || 'ผู้นำชุมชน', first_name: userData.firstName || 'ผู้ใหญ่บ้าน', last_name: userData.lastName || '',
-          user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg', children: [] 
-        });
+        // ส่งข้อมูลให้ buildTree เรียงลำดับลูกน้องให้เสร็จ
+        childrenFromDB = buildTree(result.data);
       }
+
+      // 🌟 สร้างการ์ดผู้ใหญ่บ้านรอไว้เสมอ แล้วเอาลูกน้อง (childrenFromDB) มาเสียบต่อท้าย!
+      setOrgTree({ 
+          isRoot: true, 
+          isMock: true, 
+          id: userData.id || 'root-0', // ใช้ ID จริงของผู้ใหญ่บ้าน
+          account_id: userData.id,
+          role_name: userData.position_name || 'ผู้นำชุมชน', 
+          first_name: userData.firstName || 'ผู้ใหญ่บ้าน', 
+          last_name: userData.lastName || '',
+          user_image: userData.profile_image || userData.imageUrl || userData.userImage || userData.headmanImage || '/profile-img.jpg', 
+          responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
+          
+          // เอาทุกคนที่ดึงมาได้ ไปต่อท้ายผู้ใหญ่บ้านตรงนี้ครับ!
+          children: childrenFromDB 
+      });
+      
     } catch (error) { 
         console.error("Error fetching leaders:", error); 
     }
