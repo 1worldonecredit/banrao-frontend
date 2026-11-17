@@ -225,7 +225,7 @@ const CommunityLeaders = () => {
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-      const url = `${API_URL}/api/community-leaders/by-committee/${committeeId}${dateQuery ? \`?term_date=\${dateQuery}\` : ''}`;
+      const url = `${API_URL}/api/community-leaders/by-committee/${committeeId}${dateQuery ? `?term_date=${dateQuery}` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
       
