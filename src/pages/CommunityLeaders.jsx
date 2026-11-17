@@ -136,27 +136,32 @@ const CommunityLeaders = () => {
     role_name: '', account_id: '', start_date: '', end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null
   });
 
-// 🌟 สมองที่ 1: ร้อยเรียงต้นไม้ (แบบกันเหนียว 100%)
+  // 🌟 สมองที่ 1: ร้อยเรียงต้นไม้ (แก้ให้ยืดหยุ่นที่สุด ไม่สนใจ root-xx แล้ว)
   const buildTree = (data) => {
     let lookup = {};
+    
+    // 1. สร้างตะกร้าเก็บคนทุกคนก่อน (ใช้ id จาก DB ตรงๆ)
     data.forEach(item => {
       const realId = item.id || item.position_record_id;
       lookup[realId] = { ...item, id: realId, children: [] };
     });
 
     let rootNodes = [];
+    
+    // 2. จับคู่ลูกน้องกับหัวหน้า
     data.forEach(item => {
       const realId = item.id || item.position_record_id;
       const parentId = item.parent_id;
 
-      // ถ้ามีหัวหน้า และหัวหน้ามีตัวตนอยู่ในแท็บนี้ ให้ไปต่อท้าย
+      // ถ้าคนนี้มีหัวหน้า และหัวหน้านั้นมีตัวตนอยู่ในตะกร้า
       if (parentId && parentId !== 'null' && lookup[parentId]) {
         lookup[parentId].children.push(lookup[realId]);
       } else {
-        // 🌟 จุดสำคัญ: ถ้าหาหัวหน้าไม่เจอ (หรือหัวหน้าไม่ได้อยู่ในแท็บนี้) ให้ดึงมาเป็นลูกน้องสายตรงทันที!
+        // ถ้าคนนี้ไม่มีหัวหน้า (หรือเป็นหัวหน้าใหญ่สุด) ให้โผล่เป็นก้อนหลัก
         rootNodes.push(lookup[realId]);
       }
     });
+    
     return rootNodes;
   };
 
