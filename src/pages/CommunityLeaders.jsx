@@ -149,19 +149,26 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
-  // 🌟 ฟังก์ชันที่ 1: แก้ไขการร้อยเรียงต้นไม้ ให้ใช้คำว่า id แทน position_record_id
-  const buildTree = (data, rootParentId = null) => {
-    const children = data.filter(item => item.parent_id === rootParentId);
-    if (children.length === 0) return [];
-    
-    return children.map(child => ({
-      ...child,
-      id: child.id, // ใช้ชื่อคอลัมน์ id ตรงๆ ตามฐานข้อมูล
-      children: buildTree(data, child.id)
-    }));
+  // 🌟 1. ฟังก์ชันประกอบร่างผัง (แบบใหม่: กันข้อมูลล่องหน 100%)
+  const buildTree = (data) => {
+    let lookup = {};
+    data.forEach(item => {
+      lookup[item.id] = { ...item, children: [] };
+    });
+
+    let rootNodes = [];
+    data.forEach(item => {
+      if (item.parent_id && lookup[item.parent_id]) {
+        lookup[item.parent_id].children.push(lookup[item.id]);
+      } else {
+        rootNodes.push(lookup[item.id]);
+      }
+    });
+
+    return rootNodes;
   };
 
-  // 🌟 ฟังก์ชันที่ 2: แก้ไขตอนกดเพิ่มคน ให้แยกแยะยอดพีระมิดถูกต้อง
+  // 🌟 2. แก้ไขตอนกดเพิ่มคน ให้แยกแยะยอดพีระมิดถูกต้อง
   const handleAddNode = (node, direction) => {
     if (!activeTab) return alert("กรุณาสร้างและเลือกคณะทำงาน (Tab) ก่อนเพิ่มบุคคลครับ");
     
@@ -181,7 +188,7 @@ const CommunityLeaders = () => {
     setIsModalOpen(true);
   };
 
-  // 🌟 3. นำ fetchCommittees กลับมาไว้ตรงนี้!
+// 🌟 3. ดึงข้อมูลแท็บคณะทำงาน
   const fetchCommittees = async () => {
     try {
       const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
@@ -196,16 +203,19 @@ const CommunityLeaders = () => {
     } catch (error) { console.error("Error fetching committees:", error); }
   };
 
-  // 🌟 4. ดึงข้อมูลคน และประกอบเข้ากับผู้ใหญ่บ้าน
+  // 🌟 4. ดึงข้อมูลคน และประกอบเข้ากับผู้ใหญ่บ้าน       const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
+// 🌟 4. ดึงข้อมูลคน และประกอบเข้ากับผู้ใหญ่บ้าน (อัปเดตให้ใช้ buildTree ตัวใหม่)
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-      const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
+       const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
       
-      const childrenFromDB = result.success ? buildTree(result.data, null) : [];
+      // ใช้ buildTree ตัวใหม่ จัดการให้ลูกน้องมารวมกัน
+      const childrenFromDB = (result.success && result.data) ? buildTree(result.data) : [];
 
+      // นำการ์ดผู้ใหญ่บ้านมาตั้งเป็นยอดพีระมิดเสมอ เอาลูกน้องทั้งหมดมาต่อท้าย
       setOrgTree({ 
           isRoot: true, 
           isMock: true, 
