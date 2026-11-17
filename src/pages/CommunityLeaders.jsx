@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Edit, Camera, Save, X, UserPlus, Search, Plus, Trash2, FolderPlus, MapPin } from 'lucide-react';
+import { Users, Calendar, Edit, Camera, Save, X, UserPlus, Search, Plus, Trash2, FolderPlus } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
 // ==========================================
-// 🌟 1. Component ก้อน Node (การ์ดบุคคล)
+// 🌟 1. Component ก้อน Node (ใช้ UI สวยๆ ของคุณวิทยา)
 // ==========================================
 const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
   if (!node) return null; 
-
   const hasUser = !!node.account_id;
   const isVirtual = node.isVirtual;
 
@@ -34,54 +33,67 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative group m-2 md:m-3 mt-4">
-        <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 shadow-[0_4px_15px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_25px_rgba(0,0,0,0.1)] hover:-translate-y-1 transition-all duration-300 rounded-2xl p-4 w-40 md:w-52 flex flex-col items-center z-10 relative overflow-hidden">
-          <div className={`absolute top-0 left-0 w-full h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
-          <div className="relative mt-2 mb-3">
-             <div className={`absolute inset-0 rounded-full scale-110 -z-10 opacity-50 ${node.isRoot ? 'bg-blue-100' : 'bg-emerald-100'}`}></div>
-             <img src={node.user_image || '/profile-img.jpg'} alt="Profile" className="w-14 h-14 md:w-16 md:h-16 rounded-full object-cover border-[3px] border-white shadow-sm relative z-0" />
-          </div>
-          <span className="text-[10px] md:text-xs font-bold text-slate-700 bg-white border border-slate-200 px-3 py-1 rounded-full mb-2 text-center w-full truncate shadow-sm">
+      <div className="relative group m-1 md:m-2 mt-4">
+        <div className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all rounded-xl p-3 md:p-4 w-36 sm:w-48 md:w-56 flex flex-col items-center z-10 relative overflow-hidden">
+          
+          <div className={`absolute top-0 left-0 w-full h-1 md:h-1.5 ${node.isRoot ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}></div>
+          
+          <img 
+            src={node.user_image || '/profile-img.jpg'} 
+            alt="Profile" 
+            className="w-12 h-12 md:w-16 md:h-16 rounded-xl object-cover border-2 border-slate-100 shadow-sm mt-1 md:mt-2 mb-2 md:mb-3"
+          />
+          
+          <span className="text-[9px] md:text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 md:px-3 md:py-1 rounded-full mb-1 text-center w-full truncate">
             {node.role_name || 'ตำแหน่งใหม่'}
           </span>
-          <h3 className="font-bold text-slate-800 text-xs md:text-sm truncate w-full text-center">
-            {hasUser ? `${node.first_name || ''} ${node.last_name || ''}` : 'คลิกระบุบุคคล'}
+          <h3 className="font-bold text-slate-800 text-[11px] md:text-sm truncate w-full text-center">
+            {hasUser ? `${node.first_name || ''} ${node.last_name || ''}` : 'คลิกระบุบุคลากร'}
           </h3>
-          <p className="text-[9px] md:text-[11px] text-slate-500 mt-1 truncate w-full text-center">
-            {node.responsibilities || '-'}
+          <p className="text-[9px] md:text-xs text-slate-500 mt-0.5 md:mt-1 truncate w-full text-center">
+            {node.responsibilities || 'ยังไม่ระบุหน้าที่'}
           </p>
 
-          <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-             <button onClick={() => onEditNode(node)} className="p-1.5 bg-white text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors shadow-md border border-slate-100" title="แก้ไขข้อมูล">
-               <Edit size={12} />
+          <div className="absolute top-0 right-0 p-1.5 md:p-2 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+             <button onClick={() => onEditNode(node)} className="p-1 md:p-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors" title="แก้ไขข้อมูล">
+               <Edit size={12} className="md:w-3.5 md:h-3.5" />
              </button>
-             {hasUser && !node.isMock && (
-               <button onClick={() => onDeleteNode(node)} className="p-1.5 bg-white text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors shadow-md border border-slate-100" title="ลบออกจากตำแหน่ง">
-                 <Trash2 size={12} />
+             {(!node.isRoot && hasUser) && (
+               <button onClick={() => onDeleteNode(node)} className="p-1 md:p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-colors mt-1" title="ลบบุคลากรออกจากตำแหน่ง">
+                 <Trash2 size={12} className="md:w-3.5 md:h-3.5" />
                </button>
              )}
           </div>
         </div>
 
-        {hasUser && (
-           <>
-             <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-600 hover:scale-110 transition-all z-20 border-2 border-white" title="เพิ่มผู้ใต้บังคับบัญชา"><Plus size={14} /></button>
-             <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-white text-blue-600 rounded-full p-1 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:text-white transition-all z-20 border-2 border-slate-100" title="เพิ่มเพื่อนร่วมงาน (ซ้าย)"><Plus size={12} /></button>
-             <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-white text-blue-600 rounded-full p-1 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:text-white transition-all z-20 border-2 border-slate-100" title="เพิ่มเพื่อนร่วมงาน (ขวา)"><Plus size={12} /></button>
-           </>
+        {hasUser ? (
+           <button onClick={() => onAddNode(node, 'child')} className="absolute -bottom-2.5 md:-bottom-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white rounded-full p-1 md:p-1.5 shadow-md opacity-0 group-hover:opacity-100 hover:bg-emerald-600 transition-all z-20" title="เพิ่มผู้ใต้บังคับบัญชา / ทีมย่อย">
+             <Plus size={12} className="md:w-3.5 md:h-3.5" />
+           </button>
+        ) : (
+           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-2.5 md:p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 transition-all z-20" title="เพิ่มข้อมูลบุคลากร">
+             <Edit size={16} className="md:w-5 md:h-5" />
+           </button>
         )}
         
-        {(!hasUser) && (
-           <button onClick={() => onEditNode(node)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 hover:bg-blue-600 hover:scale-110 transition-all z-20 border-2 border-white" title="สร้างตำแหน่งนี้"><Plus size={20} /></button>
+        {!node.isRoot && hasUser && (
+           <>
+             <button onClick={() => onAddNode(node, 'left')} className="absolute top-1/2 -left-2 md:-left-3 transform -translate-y-1/2 bg-slate-400 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
+               <Plus size={10} className="md:w-3 md:h-3" />
+             </button>
+             <button onClick={() => onAddNode(node, 'right')} className="absolute top-1/2 -right-2 md:-right-3 transform -translate-y-1/2 bg-slate-400 text-white rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 hover:bg-blue-500 transition-all z-20" title="เพิ่มทีมงานระดับเดียวกัน">
+               <Plus size={10} className="md:w-3 md:h-3" />
+             </button>
+           </>
         )}
       </div>
 
       {Array.isArray(node.children) && node.children.length > 0 && (
         <div className="flex flex-col items-center w-full">
-          <div className="w-px h-6 bg-slate-300"></div>
-          <div className="flex justify-center relative pt-4 border-t border-slate-300 gap-4 md:gap-8 px-4">
+          <div className="w-px h-4 md:h-6 bg-slate-300"></div>
+          <div className="flex justify-center relative pt-4 border-t-2 border-slate-300 gap-2 sm:gap-4 md:gap-8 px-2 md:px-4">
             {node.children.map((child, index) => {
-              if (!child) return null; 
+              if (!child) return null;
               return (
                 <div key={child.id || index} className="relative flex flex-col items-center">
                   <div className="absolute top-0 w-px h-4 bg-slate-300 -mt-4"></div>
@@ -97,22 +109,23 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 };
 
 // ==========================================
-// 🌟 2. Main Component
+// 🌟 2. Main Component (ใส่สมอง Logic ที่ถูกต้องเข้าไป)
 // ==========================================
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-  const villageId = userData.village_id || '';
+  const villageId = userData.village_id || ''; 
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
+  
+  // 🌟 ใช้ State คณะทำงานแบบไดนามิก (ดึงจาก DB)
   const [committees, setCommittees] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
   
   const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
   const [committeeForm, setCommitteeForm] = useState({ name: '', description: '' });
-  const [editingCommitteeId, setEditingCommitteeId] = useState(null); 
-  const [isEditCommitteeModalOpen, setIsEditCommitteeModalOpen] = useState(false);
-
+  
+  // State สำหรับ Modal บุคลากร
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null); 
   const [searchCitizenId, setSearchCitizenId] = useState('');
@@ -123,93 +136,30 @@ const CommunityLeaders = () => {
     role_name: '', account_id: '', start_date: '', end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null
   });
 
-  // 🌟 1. ฟังก์ชันประกอบร่างผัง (อัปเดตให้บังคับต่อกับผู้ใหญ่บ้านเสมอ)
+  // 🌟 สมองที่ 1: ร้อยเรียงต้นไม้ของจริง (ใครเป็นหัวหน้าใคร)
   const buildTree = (data, rootId) => {
     let lookup = {};
-    
-    // สร้าง Lookup Table สำหรับทุกโหนด
     data.forEach(item => {
       const realId = item.id || item.position_record_id;
       lookup[realId] = { ...item, id: realId, children: [] };
     });
 
     let rootNodes = [];
-    
     data.forEach(item => {
       const realId = item.id || item.position_record_id;
       const parentId = item.parent_id;
 
-      // ตรวจสอบว่ามีหัวหน้า และหัวหน้ามีตัวตนอยู่ใน Lookup หรือไม่
-      // หมายเหตุ: ป้องกันกรณี parentId เป็นคำว่า 'null' (String) ด้วย
       if (parentId && parentId !== 'null' && lookup[parentId]) {
         lookup[parentId].children.push(lookup[realId]);
       } else {
-        // 🌟 ถ้าระบุหัวหน้าไม่ได้ ให้ถือว่าเป็นลูกน้องสายตรงของผู้ใหญ่บ้าน (rootNodes)
-        // และเพื่อป้องกัน Error เราจะเพิ่ม field isRoot_Child เข้าไป
         lookup[realId].isRoot_Child = true; 
         rootNodes.push(lookup[realId]);
       }
     });
-
     return rootNodes;
   };
 
-  // 🌟 ฟังก์ชันจัดการเพิ่ม/แก้ไข/ลบ ผังองค์กร
-  const handleAddNode = (node, direction) => {
-    if (!activeTab) return alert("กรุณาสร้างและเลือกคณะทำงาน (Tab) ก่อนเพิ่มบุคคลครับ");
-    
-    let targetParentId = null;
-    if (direction === 'child') {
-      targetParentId = node.isRoot ? null : node.id;
-    } else {
-      targetParentId = node.parent_id || null;
-    }
-
-    setEditingSlot({ isNew: true, parentId: targetParentId, direction }); 
-    const today = new Date().toISOString().split('T')[0];
-    setFormData({ role_name: '', account_id: '', start_date: today, end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null });
-    setFoundUser(null);
-    setSearchCitizenId('');
-    setIsModalOpen(true);
-  };
-
-  const handleEditNode = (node) => {
-    if (!activeTab) return alert("กรุณาสร้างคณะทำงาน (Tab) ก่อนครับ");
-    const isMockNode = node.isMock;
-    setEditingSlot({ 
-      isNew: isMockNode, 
-      recordId: isMockNode ? null : (node.position_record_id || node.id),
-      parentId: node.parent_id || null 
-    });
-    const today = new Date().toISOString().split('T')[0];
-    setFormData({
-      role_name: node.role_name, account_id: node.account_id || '',
-      start_date: node.start_date ? node.start_date.split('T')[0] : today, 
-      end_date: node.end_date ? node.end_date.split('T')[0] : '',
-      responsibilities: node.responsibilities || '', previewUrl: node.user_image || '/profile-img.jpg', image_file: null
-    });
-
-    if (node.account_id) {
-        setFoundUser({ first_name: node.first_name, last_name: node.last_name, village_name: userData.villageName, tambon_name_th: userData.tambonName });
-    } else setFoundUser(null); 
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteNode = async (node) => {
-    const targetId = node.id || node.position_record_id;
-    if (!targetId) return alert("ไม่สามารถลบได้: ไม่พบรหัสอ้างอิงตำแหน่ง");
-    if (window.confirm(`คุณต้องการลบ "${node.first_name || ''} ${node.last_name || ''}" ออกจากตำแหน่งนี้ใช่หรือไม่?`)) {
-        try {
-            const res = await fetch(`${API_URL}/api/community-leaders/${targetId}`, { method: 'DELETE' });
-            const result = await res.json();
-            if (result.success) { 
-              alert(result.message); fetchLeaders(selectedDate, activeTab); 
-            } else alert('ลบข้อมูลไม่สำเร็จ: ' + result.message);
-        } catch (error) { alert('เกิดข้อผิดพลาดในการลบข้อมูล'); }
-    }
-  };
-
-  // 🌟 ดึงข้อมูล API
+  // 🌟 สมองที่ 2: ดึงข้อมูลคณะทำงานจากฐานข้อมูล
   const fetchCommittees = async () => {
     try {
       const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
@@ -221,7 +171,7 @@ const CommunityLeaders = () => {
     } catch (error) { console.error("Error fetching committees:", error); }
   };
 
-  // 🌟 2. ดึงข้อมูลคน และประกอบเข้ากับยอดพีระมิด
+  // 🌟 สมองที่ 3: ดึงคนแบบแยกตามแท็บอย่างถูกต้อง
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
@@ -229,35 +179,21 @@ const CommunityLeaders = () => {
       const res = await fetch(url);
       const result = await res.json();
       
-      console.log("🔥 ข้อมูลดิบจาก DB:", result.data);
-
       const rootNodeId = `root-${userData.id || '0'}`;
-
-      // ส่ง rootNodeId เข้าไปใน buildTree ด้วย
       const childrenFromDB = (result.success && result.data && result.data.length > 0) 
         ? buildTree(result.data, rootNodeId) 
         : [];
 
-      console.log("🌳 ข้อมูลที่จัดผังแล้ว:", childrenFromDB);
-
-      // สร้างโหนดผู้ใหญ่บ้าน และนำ childrenFromDB มาต่อท้าย
       setOrgTree({ 
-          isRoot: true, 
-          isMock: true, 
-          id: rootNodeId, // ID นี้สำคัญมาก ต้องเป็นค่าเดียวกับที่เช็กใน buildTree
-          account_id: userData.id,
-          role_name: userData.position_name || 'ผู้นำชุมชน', 
-          first_name: userData.firstName || 'ไม่ระบุชื่อ',
-          last_name: userData.lastName || '',
+          isRoot: true, isMock: true, id: rootNodeId, account_id: userData.id,
+          role_name: userData.position_name || 'ผู้นำชุมชน', first_name: userData.firstName || 'ไม่ระบุชื่อ', last_name: userData.lastName || '',
           user_image: userData.profile_image || userData.imageUrl || userData.userImage || userData.headmanImage || '/profile-img.jpg', 
           responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
           children: childrenFromDB 
       });
-      
-    } catch (error) { 
-      console.error("Error fetching leaders:", error); 
-    }
+    } catch (error) { console.error("Error fetching leaders:", error); }
   };
+
   useEffect(() => { fetchCommittees(); }, []);
   useEffect(() => {
     if (activeTab) fetchLeaders(selectedDate, activeTab);
@@ -265,13 +201,12 @@ const CommunityLeaders = () => {
       setOrgTree({ 
         isRoot: true, isMock: true, id: `root-mock`, account_id: userData.id,
         role_name: userData.position_name || 'ผู้นำชุมชน', first_name: userData.firstName || 'ผู้ใหญ่บ้าน', last_name: userData.lastName || '',
-        user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg',
-        responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`, children: [] 
+        user_image: userData.userImage || userData.headmanImage || '/profile-img.jpg', children: [] 
       });
     }
   }, [activeTab, selectedDate]);
 
-  // 🌟 ฟังก์ชันจัดการ Form
+  // ฟังก์ชันจัดการฟอร์ม
   const formatCitizenId = (value) => {
     const numbers = value.replace(/\D/g, '');
     let formatted = '';
@@ -303,6 +238,46 @@ const CommunityLeaders = () => {
     } catch (error) { alert('เกิดข้อผิดพลาดในการเชื่อมต่อ'); } finally { setIsLoading(false); }
   };
 
+  const handleAddNode = (node, direction) => {
+    if (!activeTab) return alert("กรุณาสร้างและเลือกคณะทำงาน (Tab) ก่อนเพิ่มบุคคลครับ");
+    let targetParentId = null;
+    if (direction === 'child') targetParentId = node.isRoot ? null : (node.position_record_id || node.id);
+    else targetParentId = node.parent_id || null;
+
+    setEditingSlot({ isNew: true, parentId: targetParentId, direction }); 
+    setFormData({ role_name: '', account_id: '', start_date: new Date().toISOString().split('T')[0], end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null });
+    setFoundUser(null); setSearchCitizenId(''); setIsModalOpen(true);
+  };
+
+  const handleEditNode = (node) => {
+    if (!activeTab) return alert("กรุณาสร้างคณะทำงานก่อนครับ");
+    const isMockNode = node.isMock;
+    setEditingSlot({ isNew: isMockNode, recordId: isMockNode ? null : (node.position_record_id || node.id), parentId: node.parent_id || null });
+    setFormData({
+      role_name: node.role_name, account_id: node.account_id || '',
+      start_date: node.start_date ? node.start_date.split('T')[0] : new Date().toISOString().split('T')[0], 
+      end_date: node.end_date ? node.end_date.split('T')[0] : '',
+      responsibilities: node.responsibilities || '', previewUrl: node.user_image || '/profile-img.jpg', image_file: null
+    });
+    if (node.account_id) setFoundUser({ first_name: node.first_name, last_name: node.last_name, village_name: userData.villageName, tambon_name_th: userData.tambonName });
+    else setFoundUser(null); 
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteNode = async (node) => {
+    const targetId = node.id || node.position_record_id;
+    if (!targetId) return alert("ไม่สามารถลบได้: ไม่พบรหัสอ้างอิง");
+    if (window.confirm(`คุณต้องการลบ "${node.first_name || ''} ${node.last_name || ''}" ออกจากตำแหน่งนี้ใช่หรือไม่?`)) {
+        try {
+            const res = await fetch(`${API_URL}/api/community-leaders/${targetId}`, { method: 'DELETE' });
+            const result = await res.json();
+            if (result.success) { alert(result.message); fetchLeaders(selectedDate, activeTab); } 
+            else alert('ลบข้อมูลไม่สำเร็จ: ' + result.message);
+        } catch (error) { alert('เกิดข้อผิดพลาดในการลบข้อมูล'); }
+    }
+  };
+
+  // 🌟 สมองที่ 4: บันทึกคน พร้อมแนบ parent_id
   const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.account_id) return alert("กรุณาระบุบุคลากร");
@@ -327,7 +302,9 @@ const CommunityLeaders = () => {
     } catch (error) { alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล'); }
   };
 
-  const handleSaveCommittee = async () => {
+  // 🌟 สมองที่ 5: บันทึกแท็บลงฐานข้อมูล
+  const handleSaveCommittee = async (e) => {
+    e.preventDefault();
     if (!committeeForm.name) return alert("กรุณากรอกชื่อคณะทำงาน");
     try {
       const res = await fetch(`${API_URL}/api/community-committees`, {
@@ -341,232 +318,163 @@ const CommunityLeaders = () => {
     } catch (error) { console.error("Save committee error:", error); }
   };
 
-  const openEditCommitteeModal = (committee) => {
-    setCommitteeForm({ name: committee.committee_name, description: committee.description || '' });
-    setEditingCommitteeId(committee.committee_id); setIsEditCommitteeModalOpen(true);
-  };
-
-  const handleUpdateCommittee = async (e) => {
-    e.preventDefault();
-    if (!committeeForm.name || !editingCommitteeId) return;
-    try {
-      const res = await fetch(`${API_URL}/api/community-committees/${editingCommitteeId}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ committee_name: committeeForm.name, description: committeeForm.description })
-      });
-      const result = await res.json();
-      if (result.success || res.ok) {
-        alert('แก้ไขข้อมูลคณะทำงานสำเร็จ'); fetchCommittees(); setIsEditCommitteeModalOpen(false); setEditingCommitteeId(null); setCommitteeForm({ name: '', description: '' });
-      } else alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถแก้ไขได้'));
-    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
-  };
-
-  const handleDeleteCommittee = async (id, name) => {
-    if (!window.confirm(`คุณต้องการลบ "${name}" ใช่หรือไม่?\n\n⚠️ คำเตือน: บุคลากรที่อยู่ในผังนี้จะถูกลบไปด้วยทั้งหมด!`)) return;
-    try {
-      const res = await fetch(`${API_URL}/api/community-committees/${id}`, { method: 'DELETE' });
-      const result = await res.json();
-      if (result.success || res.ok) {
-        alert('ลบคณะทำงานเรียบร้อยแล้ว');
-        if (activeTab === id) setActiveTab(null); fetchCommittees(); 
-      } else alert('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่สามารถลบได้'));
-    } catch (error) { alert('เชื่อมต่อระบบล้มเหลว'); }
-  };
-
   const activeCommitteeInfo = committees.find(c => c.committee_id === activeTab);
 
   return (
-    <div className="bg-[#f8fafc] min-h-screen pb-24 font-sans">
+    <div className="bg-slate-50 min-h-screen pb-24 font-sans">
       <TopNavbar userData={userData} />
       
       <div className="max-w-7xl mx-auto p-4 pt-20">
-        
-        <div className="flex flex-col md:flex-row justify-between items-center bg-white p-5 md:p-6 rounded-2xl shadow-sm mb-6 border border-slate-200">
-          <div className="flex items-center gap-4 w-full">
-            <div className="p-3.5 bg-blue-50 rounded-xl text-blue-600 border border-blue-100"><Users size={32} strokeWidth={1.5} /></div>
-            <div className="flex-1">
-              <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">ทำเนียบผู้นำและคณะทำงาน</h1>
-              <div className="flex flex-wrap items-center gap-2 mt-1.5 text-sm font-medium text-slate-500">
-                <span className="flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-md text-slate-600"><MapPin size={14}/> กำลังจัดการผัง:</span>
-                <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">บ้าน{userData.villageName || '-'}</span>
-                <span className="text-slate-600">หมู่ที่ {userData.village_no || '-'}</span>
-                <span className="text-slate-600">ต.{userData.tambonName || '-'}</span>
-              </div>
+        <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm mb-6 border border-slate-200">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-blue-100 rounded-lg text-blue-600"><Users size={24} /></div>
+            <div>
+              <h1 className="text-lg md:text-xl font-bold text-slate-800">ทำเนียบผู้นำและคณะทำงาน</h1>
+              <p className="text-sm text-slate-500">หมู่บ้าน: บ้าน{userData?.villageName || '-'} หมู่ที่ {userData?.village_no || '-'}</p>
             </div>
           </div>
         </div>
 
-        <div className="flex overflow-x-auto gap-3 mb-6 pb-2 hide-scrollbar items-center px-1">
+        <div className="flex overflow-x-auto gap-2 mb-6 pb-2 hide-scrollbar items-center">
           {committees.map(c => (
-            <div key={c.committee_id} className="relative group shrink-0">
-              <button
-                onClick={() => setActiveTab(c.committee_id)}
-                className={`px-6 py-3 rounded-xl whitespace-nowrap text-sm font-bold transition-all duration-300 ${
-                  activeTab === c.committee_id 
-                  ? 'bg-slate-800 text-white shadow-md -translate-y-0.5' 
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300'
-                }`}
-              >
-                {c.committee_name}
-              </button>
-              
-              {activeTab === c.committee_id && (
-                <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                  <button onClick={() => openEditCommitteeModal(c)} className="p-1.5 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-600 hover:text-white shadow-sm transition-colors" title="แก้ไข">
-                    <Edit size={12} />
-                  </button>
-                  <button onClick={() => handleDeleteCommittee(c.committee_id, c.committee_name)} className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white shadow-sm transition-colors" title="ลบ">
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              )}
-            </div>
+            <button
+              key={c.committee_id}
+              onClick={() => setActiveTab(c.committee_id)}
+              className={`px-5 py-2.5 rounded-full whitespace-nowrap text-sm font-bold transition-all shadow-sm ${
+                activeTab === c.committee_id 
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md' 
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-blue-600'
+              }`}
+            >
+              {c.committee_name}
+            </button>
           ))}
-          
-          <button 
-            onClick={() => { setCommitteeForm({ name: '', description: '' }); setIsCommitteeModalOpen(true); }} 
-            className="px-5 py-3 rounded-xl whitespace-nowrap text-sm font-bold bg-blue-50 text-blue-600 border-2 border-blue-100 hover:bg-blue-100 hover:border-blue-200 flex items-center gap-2 transition-all ml-1 shrink-0"
-          >
-            <FolderPlus size={18} /> เพิ่มคณะทำงาน
+          <button onClick={() => setIsCommitteeModalOpen(true)} className="px-4 py-2.5 rounded-full whitespace-nowrap text-sm font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1.5 shadow-sm transition-colors ml-2">
+            <FolderPlus size={16} /> เพิ่มผังใหม่
           </button>
         </div>
 
         {activeCommitteeInfo && (
-          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 mb-8 text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
-            <h2 className="text-2xl md:text-3xl font-black text-slate-800 mt-2 tracking-tight">{activeCommitteeInfo.committee_name}</h2>
-            <p className="text-sm md:text-base text-slate-500 mt-3 max-w-2xl mx-auto leading-relaxed font-medium">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-8 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+            <h2 className="text-xl md:text-2xl font-bold text-slate-800 mt-2">{activeCommitteeInfo.committee_name}</h2>
+            <p className="text-sm md:text-base text-slate-500 mt-2 max-w-2xl mx-auto leading-relaxed">
               {activeCommitteeInfo.description || 'ยังไม่มีคำอธิบายหน้าที่ของคณะทำงานนี้'}
             </p>
           </div>
         )}
 
-        <div className="relative py-12 overflow-x-auto flex justify-center min-w-max md:min-w-full bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] rounded-[2.5rem] border border-slate-200/50">
-          
+        <div className="relative py-10 overflow-x-auto flex justify-center min-w-max md:min-w-full bg-slate-50/50 rounded-3xl">
           {committees.length === 0 ? (
-            <div className="flex flex-col items-center">
-              <div className="bg-amber-50 border border-amber-200 text-amber-700 px-6 py-3 rounded-xl font-bold text-sm mb-6 flex items-center gap-2 shadow-sm">
-                <FolderPlus size={18}/> กรุณากด "เพิ่มคณะทำงาน" ด้านบน เพื่อเริ่มจัดผังองค์กร
-              </div>
-              <OrgNode node={orgTree} onAddNode={() => alert('กรุณาสร้างคณะทำงานก่อนครับ')} onEditNode={() => alert('กรุณาสร้างคณะทำงานก่อนครับ')} onDeleteNode={() => {}} />
-            </div>
-          ) : orgTree ? (
+             <div className="text-slate-500 py-10 font-bold">กรุณากด "เพิ่มผังใหม่" ด้านบนเพื่อเริ่มจัดทำเนียบครับ</div>
+          ) : orgTree && orgTree.role_name ? (
             <OrgNode node={orgTree} onAddNode={handleAddNode} onEditNode={handleEditNode} onDeleteNode={handleDeleteNode} />
           ) : (
-             <div className="text-slate-400 py-20 flex flex-col items-center gap-4">
-               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-               <span className="font-medium text-sm">กำลังจัดเตรียมผังองค์กร...</span>
+             <div className="text-slate-400 py-10 flex flex-col items-center gap-3">
+               <div className="animate-pulse bg-slate-200 w-16 h-16 rounded-full"></div>
+               กำลังโหลดข้อมูลผังองค์กร...
              </div>
           )}
-
         </div>
       </div>
 
       {isCommitteeModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all">
-            <div className="p-6 pb-0 flex justify-between items-center">
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center"><FolderPlus size={24} /></div>
-              <button onClick={() => setIsCommitteeModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-full transition-colors"><X size={18} /></button>
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-4 text-white flex justify-between items-center">
+              <h2 className="text-lg font-bold flex items-center gap-2"><FolderPlus size={20} /> เพิ่มคณะทำงาน / ผังใหม่</h2>
+              <button onClick={() => setIsCommitteeModalOpen(false)} className="hover:text-emerald-200"><X size={24} /></button>
             </div>
-            <div className="px-6 pt-4 pb-2">
-              <h2 className="text-xl font-black text-slate-800">เพิ่มคณะทำงานใหม่</h2>
-              <p className="text-sm text-slate-500 mt-1">สร้างแท็บคณะทำงานหรือโครงการใหม่ในชุมชน</p>
-            </div>
-            <form onSubmit={handleSaveCommittee} className="p-6 pt-4">
-              <div className="mb-5">
+            <form onSubmit={handleSaveCommittee} className="p-6">
+              <div className="mb-4">
                 <label className="block text-sm font-bold text-slate-700 mb-2">ชื่อคณะทำงาน / กลุ่ม *</label>
-                <input type="text" required value={committeeForm.name} onChange={e => setCommitteeForm({...committeeForm, name: e.target.value})} placeholder="เช่น คณะกรรมการหมู่บ้าน, กองทุนประชารัฐ" className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+                <input type="text" required value={committeeForm.name} onChange={e => setCommitteeForm({...committeeForm, name: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500" />
               </div>
-              <div className="mb-8">
+              <div className="mb-6">
                 <label className="block text-sm font-bold text-slate-700 mb-2">หน้าที่รับผิดชอบ (ย่อ)</label>
-                <textarea rows="3" value={committeeForm.description} onChange={e => setCommitteeForm({...committeeForm, description: e.target.value})} placeholder="อธิบายหน้าที่หลักของคณะทำงานนี้..." className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"></textarea>
+                <textarea rows="3" value={committeeForm.description} onChange={e => setCommitteeForm({...committeeForm, description: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg outline-none resize-none focus:ring-2 focus:ring-emerald-500"></textarea>
               </div>
-              <button type="submit" className="w-full py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-md transition-colors flex justify-center items-center gap-2"><Plus size={18} /> สร้างผังคณะทำงาน</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {isEditCommitteeModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all">
-            <div className="p-6 pb-0 flex justify-between items-center">
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center"><Edit size={24} /></div>
-              <button onClick={() => { setIsEditCommitteeModalOpen(false); setEditingCommitteeId(null); }} className="w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-full transition-colors"><X size={18} /></button>
-            </div>
-            <div className="px-6 pt-4 pb-2"><h2 className="text-xl font-black text-slate-800">แก้ไขคณะทำงาน</h2></div>
-            <form onSubmit={handleUpdateCommittee} className="p-6 pt-4">
-              <div className="mb-5">
-                <label className="block text-sm font-bold text-slate-700 mb-2">ชื่อคณะทำงาน / กลุ่ม *</label>
-                <input type="text" required value={committeeForm.name} onChange={e => setCommitteeForm({...committeeForm, name: e.target.value})} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium" />
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setIsCommitteeModalOpen(false)} className="flex-1 py-3 rounded-lg border-2 border-slate-200 font-bold text-slate-600 hover:bg-slate-100">ยกเลิก</button>
+                <button type="submit" className="flex-1 py-3 rounded-lg font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-md">สร้างผังใหม่</button>
               </div>
-              <div className="mb-8">
-                <label className="block text-sm font-bold text-slate-700 mb-2">หน้าที่รับผิดชอบ (ย่อ)</label>
-                <textarea rows="3" value={committeeForm.description} onChange={e => setCommitteeForm({...committeeForm, description: e.target.value})} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"></textarea>
-              </div>
-              <button type="submit" className="w-full py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-md transition-colors flex justify-center items-center gap-2"><Save size={18} /> บันทึกการแก้ไข</button>
             </form>
           </div>
         </div>
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
-            <div className="p-5 flex justify-between items-center border-b border-slate-100">
-              <h2 className="text-lg font-black text-slate-800 flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                  {editingSlot?.isNew ? <UserPlus size={20} /> : <Edit size={20} />} 
-                </div>
-                {editingSlot?.isNew ? 'ระบุบุคลากรลงในผัง' : 'จัดการข้อมูลตำแหน่ง'}
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 text-white flex justify-between items-center shrink-0">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                {editingSlot?.isNew ? <UserPlus size={20} /> : <Edit size={20} />} 
+                {editingSlot?.isNew ? 'เพิ่มบุคลากรในผัง' : 'แก้ไขข้อมูล'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-full transition-colors"><X size={18} /></button>
+              <button onClick={() => setIsModalOpen(false)} className="hover:text-blue-200"><X size={24} /></button>
             </div>
             
-            <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
-              <div className="mb-6">
-                 <label className="text-sm font-bold text-slate-700 block mb-2 text-center">ชื่อตำแหน่งย่อยในผัง *</label>
-                 <input type="text" required value={formData.role_name} onChange={e => setFormData({...formData, role_name: e.target.value})} placeholder="เช่น รองประธาน, เหรัญญิก..." className="w-full text-center p-3.5 bg-blue-50/50 border-2 border-blue-100 text-blue-700 font-black text-lg outline-none rounded-2xl focus:border-blue-500 transition-colors" />
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="mb-6 text-center">
+                 <label className="text-sm font-bold text-slate-700 block mb-1">ชื่อตำแหน่งย่อยในผัง *</label>
+                 <input type="text" required value={formData.role_name} onChange={e => setFormData({...formData, role_name: e.target.value})} placeholder="เช่น รองประธาน, เหรัญญิก..." className="w-full text-center p-2.5 border-b-2 border-blue-500 bg-blue-50 text-blue-800 font-bold outline-none rounded-t-lg focus:bg-blue-100" />
               </div>
 
-              {!foundUser && (
-                <div className="mb-6 p-5 bg-slate-50 border border-slate-200 rounded-2xl">
-                  <label className="block text-sm font-bold text-slate-700 mb-3 flex items-center gap-2"><Search size={16} className="text-slate-400"/> ค้นหาจากเลขบัตรประชาชน</label>
-                  <div className="flex gap-2 flex-col sm:flex-row">
-                    <input type="text" maxLength="17" value={searchCitizenId} onChange={handleCitizenIdChange} placeholder="X-XXXX-XXXXX-XX-X" className="flex-1 p-3.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono tracking-wider font-bold" />
-                    <button type="button" onClick={handleSearchUser} disabled={isLoading} className="bg-slate-900 text-white px-5 py-3.5 rounded-xl font-bold hover:bg-slate-800 disabled:bg-slate-300 transition-colors shrink-0">{isLoading ? 'กำลังค้น...' : 'ค้นหา'}</button>
+              {editingSlot?.isNew && !foundUser && (
+                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                  <label className="block text-sm font-bold text-slate-700 mb-2">ค้นหาจากเลขบัตรประชาชน 13 หลัก</label>
+                  <div className="flex gap-2">
+                    <input type="text" maxLength="17" value={searchCitizenId} onChange={handleCitizenIdChange} placeholder="X-XXXX-XXXXX-XX-X" className="w-full p-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-wider" />
+                    <button type="button" onClick={handleSearchUser} disabled={isLoading} className="bg-slate-800 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-slate-700 flex items-center gap-2 shrink-0 disabled:bg-slate-400">
+                      <Search size={16} /> {isLoading ? 'ค้นหา...' : 'ค้นหา'}
+                    </button>
                   </div>
                 </div>
               )}
 
-              {foundUser && (
-                <form id="leaderForm" onSubmit={handleSave} className="animate-fade-in-up">
-                  <div className="flex flex-col items-center mb-8 p-6 bg-slate-50 rounded-3xl border border-slate-100 relative overflow-hidden">
-                    <div className="relative w-28 h-28 rounded-full p-1 bg-white shadow-sm border border-slate-200 group cursor-pointer" onClick={() => document.getElementById('leader-img-upload').click()}>
-                      <img src={formData.previewUrl} alt="Preview" className="w-full h-full rounded-full object-cover" />
-                      <div className="absolute inset-1 rounded-full bg-slate-900/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Camera size={24} className="text-white" /></div>
+              {(!editingSlot?.isNew || foundUser) && (
+                <form id="leaderForm" onSubmit={handleSave}>
+                  <div className="flex flex-col items-center mb-6">
+                    <div className="relative w-28 h-28 rounded-2xl border-4 border-slate-100 overflow-hidden shadow-md group cursor-pointer" onClick={() => document.getElementById('leader-img-upload').click()}>
+                      <img src={formData.previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Camera size={24} className="text-white" /></div>
                     </div>
-                    <h3 className="mt-4 font-black text-slate-800 text-xl">{foundUser.first_name} {foundUser.last_name}</h3>
-                    <button type="button" onClick={() => { setFoundUser(null); setFormData({...formData, account_id: '', previewUrl: '/profile-img.jpg'}); setSearchCitizenId(''); }} className="text-xs font-bold px-4 py-1.5 bg-white border border-slate-200 rounded-full text-slate-500 hover:text-slate-800 hover:border-slate-300 mt-2 mb-3 transition-colors shadow-sm">เปลี่ยนบุคลากร</button>
-                    <div className="text-xs font-medium text-slate-500 text-center bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm w-full">
-                      {foundUser.village_name || foundUser.tambon_name_th ? (<>บ้าน{foundUser.village_name || '-'} ต.{foundUser.tambon_name_th || '-'}</>) : (<span className="text-red-400">ไม่มีข้อมูลที่อยู่</span>)}
-                    </div>
+                    {foundUser && (
+                      <>
+                        <h3 className="mt-3 font-bold text-slate-800 text-lg">{foundUser.first_name} {foundUser.last_name}</h3>
+                        <p className="text-sm text-slate-500 text-center mt-1">
+                          {foundUser.village_name || foundUser.tambon_name_th ? (<>หมู่บ้าน: {foundUser.village_name || '-'} <br/> ตำบล: {foundUser.tambon_name_th || '-'}</>) : (<span className="text-red-400">ไม่มีข้อมูลที่อยู่</span>)}
+                        </p>
+                      </>
+                    )}
                     <input type="file" id="leader-img-upload" accept="image/*" onChange={handleImageChange} className="hidden" />
                   </div>
-                  <div className="space-y-5">
+
+                  <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      <div><label className="block text-sm font-bold text-slate-700 mb-2">วันที่รับตำแหน่ง *</label><input type="date" required value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-blue-500 font-medium transition-colors" /></div>
-                      <div><label className="block text-sm font-bold text-slate-700 mb-2">วันหมดวาระ</label><input type="date" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-blue-500 font-medium transition-colors" /></div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">วันที่รับตำแหน่ง *</label>
+                        <input type="date" required value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg text-sm outline-none bg-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1">วันหมดวาระ</label>
+                        <input type="date" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg text-sm outline-none bg-white" />
+                      </div>
                     </div>
-                    <div><label className="block text-sm font-bold text-slate-700 mb-2">หน้าที่รับผิดชอบเพิ่มเติม</label><textarea rows="3" value={formData.responsibilities} onChange={e => setFormData({...formData, responsibilities: e.target.value})} placeholder="ระบุหน้าที่เฉพาะของบุคคลนี้..." className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none resize-none focus:bg-white focus:border-blue-500 font-medium transition-colors"></textarea></div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">หน้าที่รับผิดชอบเพิ่มเติม</label>
+                      <textarea rows="3" value={formData.responsibilities} onChange={e => setFormData({...formData, responsibilities: e.target.value})} placeholder="ระบุหน้าที่เฉพาะของบุคคลนี้..." className="w-full p-3 border border-slate-300 rounded-lg text-sm outline-none resize-none bg-white"></textarea>
+                    </div>
                   </div>
                 </form>
               )}
             </div>
-            <div className="p-5 border-t border-slate-100 flex gap-3 bg-white">
-              <button type="button" onClick={() => { setIsModalOpen(false); setFoundUser(null); setSearchCitizenId(''); }} className="w-1/3 py-3.5 rounded-xl bg-slate-100 font-bold text-slate-600 hover:bg-slate-200 transition-colors">ยกเลิก</button>
-              <button type="submit" form="leaderForm" disabled={!foundUser} className={`w-2/3 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${(!foundUser) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:-translate-y-0.5'}`}><Save size={18} /> บันทึกผัง</button>
+
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex gap-3 shrink-0">
+              <button type="button" onClick={() => { setIsModalOpen(false); setFoundUser(null); setSearchCitizenId(''); }} className="flex-1 py-3 rounded-lg border-2 border-slate-200 font-bold text-slate-600 hover:bg-slate-100">ยกเลิก</button>
+              <button type="submit" form="leaderForm" disabled={editingSlot?.isNew && !foundUser} className={`flex-1 py-3 rounded-lg font-bold flex items-center justify-center gap-2 ${(editingSlot?.isNew && !foundUser) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'}`}>
+                <Save size={18} /> บันทึกบุคลากร
+              </button>
             </div>
           </div>
         </div>
