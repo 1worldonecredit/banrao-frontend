@@ -511,7 +511,7 @@ const CommunityLeaders = () => {
       )}
       
       <BottomNavbar />
-    </div>
+    </div> 
   );
 };
 
