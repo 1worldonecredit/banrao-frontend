@@ -149,7 +149,7 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
-  // 🌟 1. ฟังก์ชันประกอบร่างผัง
+  // 🌟 1. ฟังก์ชันประกอบร่างผัง (ปรับให้ยืดหยุ่นที่สุด)
   const buildTree = (data) => {
     let lookup = {};
     data.forEach(item => {
@@ -160,7 +160,8 @@ const CommunityLeaders = () => {
     let rootNodes = [];
     data.forEach(item => {
       const realId = item.id || item.position_record_id;
-      const parentId = item.parent_id;
+      // บางที Backend ส่งมาเป็น 'null' (string) เราต้องแปลงให้มันเช็กถูกต้อง
+      const parentId = (item.parent_id === 'null' || item.parent_id === '') ? null : item.parent_id;
 
       if (parentId && lookup[parentId]) {
         lookup[parentId].children.push(lookup[realId]);
@@ -172,54 +173,21 @@ const CommunityLeaders = () => {
     return rootNodes;
   };
 
-  // 🌟 2. ฟังก์ชันแก้ไขตอนกดเพิ่มคน
-  const handleAddNode = (node, direction) => {
-    if (!activeTab) return alert("กรุณาสร้างและเลือกคณะทำงาน (Tab) ก่อนเพิ่มบุคคลครับ");
-    
-    let targetParentId = null;
-    if (direction === 'child') {
-      targetParentId = node.isRoot ? null : node.id;
-    } else {
-      targetParentId = node.parent_id || null;
-    }
-
-    setEditingSlot({ isNew: true, parentId: targetParentId, direction }); 
-    
-    const today = new Date().toISOString().split('T')[0];
-    setFormData({ role_name: '', account_id: '', start_date: today, end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null });
-    setFoundUser(null);
-    setSearchCitizenId('');
-    setIsModalOpen(true);
-  };
-
-  // 🌟 3. ฟังก์ชันดึงข้อมูลแท็บคณะทำงาน
-  const fetchCommittees = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
-      const result = await res.json();
-      if (result.success && result.data.length > 0) {
-        setCommittees(result.data);
-        if (!activeTab) setActiveTab(result.data[0].committee_id);
-      } else {
-        setCommittees([]);
-        setActiveTab(null);
-      }
-    } catch (error) { console.error("Error fetching committees:", error); }
-  };
-
-  // 🌟 4. ฟังก์ชันดึงข้อมูลคน และดักจับ Console Log
+  // 🌟 2. ดึงข้อมูลคน (ปรับ URL ไม่ต้องส่ง villageId ไปค้นหาซ้ำซ้อน)
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-      const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
+      // 💡 เปลี่ยน URL ให้ดึงจาก committee_id โดยตรง เพื่อตัดปัญหา village_id ไม่ตรงกัน
+      const url = `${API_URL}/api/community-leaders/by-committee/${committeeId}${dateQuery ? `?term_date=${dateQuery}` : ''}`;
+      
       const res = await fetch(url);
       const result = await res.json();
       
-      console.log("🔥 1. ข้อมูลดิบจาก DB:", result.data);
+      console.log("🔥 ข้อมูลดิบจาก DB:", result.data); // ใช้เช็กว่ามีข้อมูลส่งมาไหม
 
-      const childrenFromDB = (result.success && result.data) ? buildTree(result.data) : [];
+      const childrenFromDB = (result.success && result.data && result.data.length > 0) ? buildTree(result.data) : [];
 
-      console.log("🌳 2. ข้อมูลที่จัดผังแล้ว:", childrenFromDB);
+      console.log("🌳 ข้อมูลที่จัดผังแล้ว:", childrenFromDB);
 
       setOrgTree({ 
           isRoot: true, 
@@ -238,6 +206,24 @@ const CommunityLeaders = () => {
       console.error("Error fetching leaders:", error); 
     }
   };
+
+  // 🌟 3. ฟังก์ชันดึงข้อมูลแท็บคณะทำงาน
+  const fetchCommittees = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
+      const result = await res.json();
+      if (result.success && result.data.length > 0) {
+        setCommittees(result.data);
+        if (!activeTab) setActiveTab(result.data[0].committee_id);
+      } else {
+        setCommittees([]);
+        setActiveTab(null);
+      }
+    } catch (error) { console.error("Error fetching committees:", error); }
+  };
+
+  // 🌟 4. ฟังก์ชันดึงข้อมูลคน และดักจับ Console Log
+ 
 
   // 🌟 5. ควบคุมการทำงานเมื่อโหลดหน้าจอ
   useEffect(() => { 
