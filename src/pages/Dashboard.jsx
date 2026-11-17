@@ -212,10 +212,11 @@ return (
                 />
                 <div onClick={triggerImageSelect} style={{ cursor: 'pointer', position: 'relative', width: '65px', height: '65px', flexShrink: 0 }}>
                   <img 
-                    src={userData.userImage || '/profile-img.jpg'} 
+                 // 🌟 ดึงข้อมูลรูปภาพแบบเผื่อไว้หลายๆ ชื่อ (Fallback) ป้องกันหาตัวแปรไม่เจอ
+                   src={userData?.userImage || userData?.profile_image || userData?.imageUrl || '/profile-img.jpg'} 
                     alt="User Profile" 
                     style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.8)' }} 
-                  />
+                    />
                   <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#ffffff', borderRadius: '50%', padding: '4px', border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                     <Pencil size={12} color="#475569" />
                   </div>
