@@ -113,7 +113,9 @@ const OrgNode = ({ node, onAddNode, onEditNode, onDeleteNode }) => {
 // ==========================================
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-  const villageId = userData.village_id || ''; 
+  
+  // 🌟 จุดที่แก้: คืนค่าเป็น 1 ป้องกัน URL แหว่งจนดึงข้อมูลไม่ได้
+  const villageId = userData.village_id || 1; 
   
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
@@ -124,6 +126,10 @@ const CommunityLeaders = () => {
   
   const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
   const [committeeForm, setCommitteeForm] = useState({ name: '', description: '' });
+
+  // 🌟 [แทรกใหม่ 1]: State สำหรับ Modal แก้ไข/ลบ แท็บ
+  const [isEditCommitteeModalOpen, setIsEditCommitteeModalOpen] = useState(false);
+  const [editingCommitteeId, setEditingCommitteeId] = useState(null);
   
   // State สำหรับ Modal บุคลากร
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -136,7 +142,7 @@ const CommunityLeaders = () => {
     role_name: '', account_id: '', start_date: '', end_date: '', responsibilities: '', previewUrl: '/profile-img.jpg', image_file: null
   });
 
-// 🌟 สมองที่ 1: ร้อยเรียงต้นไม้ (แบบกันเหนียว 100%)
+  // 🌟 สมองที่ 1: ร้อยเรียงต้นไม้ (แบบกันเหนียว 100%)
   const buildTree = (data) => {
     let lookup = {};
     data.forEach(item => {
@@ -160,17 +166,64 @@ const CommunityLeaders = () => {
     return rootNodes;
   };
 
-  // 🌟 สมองที่ 2: ดึงข้อมูลคณะทำงานจากฐานข้อมูล
+  // 🌟 สมองที่ 2: ดึงข้อมูลคณะทำงานจากฐานข้อมูล (อัปเกรดจัดเรียงแท็บ)
   const fetchCommittees = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
+      const currentVillageId = villageId || 1; // กันเหนียว
+      const res = await fetch(`${API_URL}/api/community-committees/${currentVillageId}`);
       const result = await res.json();
+      
       if (result.success && result.data.length > 0) {
-        setCommittees(result.data);
-        if (!activeTab) setActiveTab(result.data[0].committee_id);
-      } else { setCommittees([]); setActiveTab(null); }
+        // 🌟 ลอจิกการเรียง: "ผังผู้นำชุมชน" ซ้ายสุดเสมอ แท็บใหม่สุดอยู่ซ้ายรองลงมา
+        const sortedCommittees = result.data.sort((a, b) => {
+          if (a.committee_name === 'ผังผู้นำชุมชน') return -1;
+          if (b.committee_name === 'ผังผู้นำชุมชน') return 1;
+          return b.committee_id - a.committee_id; 
+        });
+
+        setCommittees(sortedCommittees);
+        if (!activeTab) setActiveTab(sortedCommittees[0].committee_id);
+      } else { 
+        setCommittees([]); setActiveTab(null); 
+      }
     } catch (error) { console.error("Error fetching committees:", error); }
   };
+
+  // 🌟 [แทรกใหม่ 2]: ฟังก์ชัน แก้ไข และ ลบ แท็บคณะทำงาน
+  const openEditCommitteeModal = (committee) => {
+    setCommitteeForm({ name: committee.committee_name, description: committee.description || '' });
+    setEditingCommitteeId(committee.committee_id);
+    setIsEditCommitteeModalOpen(true);
+  };
+
+  const handleUpdateCommittee = async (e) => {
+    e.preventDefault();
+    if (!committeeForm.name || !editingCommitteeId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees/${editingCommitteeId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ committee_name: committeeForm.name, description: committeeForm.description })
+      });
+      if (res.ok) {
+        alert('แก้ไขข้อมูลแท็บสำเร็จ');
+        fetchCommittees();
+        setIsEditCommitteeModalOpen(false);
+      }
+    } catch (error) { alert('เกิดข้อผิดพลาดในการแก้ไขแท็บ'); }
+  };
+
+  const handleDeleteCommittee = async (id, name) => {
+    if (!window.confirm(`คุณต้องการลบแท็บ "${name}" ใช่หรือไม่?\n⚠️ คำเตือน: บุคลากรที่อยู่ในผังนี้จะถูกลบไปด้วยทั้งหมด!`)) return;
+    try {
+      const res = await fetch(`${API_URL}/api/community-committees/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('ลบแท็บเรียบร้อยแล้ว');
+        if (activeTab === id) setActiveTab(null); // เคลียร์หน้าจอถ้ากำลังเปิดแท็บที่โดนลบ
+        fetchCommittees(); // รีเฟรชแท็บใหม่
+      }
+    } catch (error) { alert('เกิดข้อผิดพลาดในการลบแท็บ'); }
+  };
+
   
 // 🌟 สมองที่ 3: ดึงข้อมูล (เวอร์ชันติดเครื่องจับเท็จ เด้งแจ้งเตือนหน้าจอทันที)
   const fetchLeaders = async (dateQuery = '', committeeId) => {
@@ -365,21 +418,37 @@ const CommunityLeaders = () => {
           </div>
         </div>
 
-        <div className="flex overflow-x-auto gap-2 mb-6 pb-2 hide-scrollbar items-center">
+        <div className="flex overflow-x-auto gap-3 mb-6 pb-2 hide-scrollbar items-center px-1">
           {committees.map(c => (
-            <button
-              key={c.committee_id}
-              onClick={() => setActiveTab(c.committee_id)}
-              className={`px-5 py-2.5 rounded-full whitespace-nowrap text-sm font-bold transition-all shadow-sm ${
-                activeTab === c.committee_id 
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md' 
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-blue-600'
-              }`}
-            >
-              {c.committee_name}
-            </button>
+            <div key={c.committee_id} className="relative group shrink-0">
+              <button
+                onClick={() => setActiveTab(c.committee_id)}
+                className={`px-5 py-2.5 rounded-full whitespace-nowrap text-sm font-bold transition-all shadow-sm ${
+                  activeTab === c.committee_id 
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md transform -translate-y-0.5' 
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-blue-600'
+                }`}
+              >
+                {c.committee_name}
+              </button>
+
+              {/* 🌟 จะโชว์ปุ่ม ลบ/แก้ไข ก็ต่อเมื่อแท็บนั้นถูกคลิกเลือกอยู่ */}
+              {activeTab === c.committee_id && (
+                <div className="absolute -top-2 -right-2 flex gap-1 z-10 animate-fade-in">
+                  <button onClick={() => openEditCommitteeModal(c)} className="p-1.5 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-600 hover:text-white shadow-sm transition-colors border border-blue-200" title="แก้ไขชื่อแท็บ">
+                    <Edit size={12} />
+                  </button>
+                  {/* ล็อกไม่ให้ลบแท็บ "ผังผู้นำชุมชน" เด็ดขาด */}
+                  {c.committee_name !== 'ผังผู้นำชุมชน' && (
+                    <button onClick={() => handleDeleteCommittee(c.committee_id, c.committee_name)} className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white shadow-sm transition-colors border border-red-200" title="ลบแท็บนี้">
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           ))}
-          <button onClick={() => setIsCommitteeModalOpen(true)} className="px-4 py-2.5 rounded-full whitespace-nowrap text-sm font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1.5 shadow-sm transition-colors ml-2">
+          <button onClick={() => { setCommitteeForm({ name: '', description: '' }); setIsCommitteeModalOpen(true); }} className="px-4 py-2.5 rounded-full whitespace-nowrap text-sm font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1.5 shadow-sm transition-colors ml-2 shrink-0">
             <FolderPlus size={16} /> เพิ่มผังใหม่
           </button>
         </div>
@@ -407,7 +476,7 @@ const CommunityLeaders = () => {
           )}
         </div>
       </div>
-
+{/* 🌟 1. Modal เพิ่มแท็บ (ของเดิม) */}
       {isCommitteeModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
@@ -433,6 +502,33 @@ const CommunityLeaders = () => {
         </div>
       )}
 
+      {/* 🌟 2. [แทรกใหม่] Modal แก้ไขแท็บ */}
+      {isEditCommitteeModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center">
+              <h2 className="text-lg font-bold flex items-center gap-2"><Edit size={20} /> แก้ไขข้อมูลแท็บ</h2>
+              <button onClick={() => setIsEditCommitteeModalOpen(false)} className="hover:text-blue-200"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleUpdateCommittee} className="p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-bold text-slate-700 mb-2">ชื่อคณะทำงาน / กลุ่ม *</label>
+                <input type="text" required value={committeeForm.name} onChange={e => setCommitteeForm({...committeeForm, name: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div className="mb-6">
+                <label className="block text-sm font-bold text-slate-700 mb-2">หน้าที่รับผิดชอบ (ย่อ)</label>
+                <textarea rows="3" value={committeeForm.description} onChange={e => setCommitteeForm({...committeeForm, description: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg outline-none resize-none focus:ring-2 focus:ring-blue-500"></textarea>
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setIsEditCommitteeModalOpen(false)} className="flex-1 py-3 rounded-lg border-2 border-slate-200 font-bold text-slate-600 hover:bg-slate-100">ยกเลิก</button>
+                <button type="submit" className="flex-1 py-3 rounded-lg font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-md">บันทึกการแก้ไข</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🌟 3. Modal บุคลากร (ของเดิม ไม่แตะต้องโครงสร้างการทำงาน) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative">
