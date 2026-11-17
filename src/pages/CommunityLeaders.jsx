@@ -149,26 +149,30 @@ const CommunityLeaders = () => {
     image_file: null
   });
 
-  // 🌟 1. ฟังก์ชันประกอบร่างผัง (แบบใหม่: กันข้อมูลล่องหน 100%)
+  // 🌟 1. ฟังก์ชันประกอบร่างผัง
   const buildTree = (data) => {
     let lookup = {};
     data.forEach(item => {
-      lookup[item.id] = { ...item, children: [] };
+      const realId = item.id || item.position_record_id;
+      lookup[realId] = { ...item, id: realId, children: [] };
     });
 
     let rootNodes = [];
     data.forEach(item => {
-      if (item.parent_id && lookup[item.parent_id]) {
-        lookup[item.parent_id].children.push(lookup[item.id]);
+      const realId = item.id || item.position_record_id;
+      const parentId = item.parent_id;
+
+      if (parentId && lookup[parentId]) {
+        lookup[parentId].children.push(lookup[realId]);
       } else {
-        rootNodes.push(lookup[item.id]);
+        rootNodes.push(lookup[realId]);
       }
     });
 
     return rootNodes;
   };
 
-  // 🌟 2. แก้ไขตอนกดเพิ่มคน ให้แยกแยะยอดพีระมิดถูกต้อง
+  // 🌟 2. ฟังก์ชันแก้ไขตอนกดเพิ่มคน
   const handleAddNode = (node, direction) => {
     if (!activeTab) return alert("กรุณาสร้างและเลือกคณะทำงาน (Tab) ก่อนเพิ่มบุคคลครับ");
     
@@ -188,7 +192,7 @@ const CommunityLeaders = () => {
     setIsModalOpen(true);
   };
 
-// 🌟 3. ดึงข้อมูลแท็บคณะทำงาน
+  // 🌟 3. ฟังก์ชันดึงข้อมูลแท็บคณะทำงาน
   const fetchCommittees = async () => {
     try {
       const res = await fetch(`${API_URL}/api/community-committees/${villageId}`);
@@ -203,19 +207,20 @@ const CommunityLeaders = () => {
     } catch (error) { console.error("Error fetching committees:", error); }
   };
 
-  // 🌟 4. ดึงข้อมูลคน และประกอบเข้ากับผู้ใหญ่บ้าน       const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
-// 🌟 4. ดึงข้อมูลคน และประกอบเข้ากับผู้ใหญ่บ้าน (อัปเดตให้ใช้ buildTree ตัวใหม่)
+  // 🌟 4. ฟังก์ชันดึงข้อมูลคน และดักจับ Console Log
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-       const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
+      const url = `${API_URL}/api/community-leaders/${villageId}?committee_id=${committeeId}${dateQuery ? `&term_date=${dateQuery}` : ''}`;
       const res = await fetch(url);
       const result = await res.json();
       
-      // ใช้ buildTree ตัวใหม่ จัดการให้ลูกน้องมารวมกัน
+      console.log("🔥 1. ข้อมูลดิบจาก DB:", result.data);
+
       const childrenFromDB = (result.success && result.data) ? buildTree(result.data) : [];
 
-      // นำการ์ดผู้ใหญ่บ้านมาตั้งเป็นยอดพีระมิดเสมอ เอาลูกน้องทั้งหมดมาต่อท้าย
+      console.log("🌳 2. ข้อมูลที่จัดผังแล้ว:", childrenFromDB);
+
       setOrgTree({ 
           isRoot: true, 
           isMock: true, 
@@ -229,7 +234,9 @@ const CommunityLeaders = () => {
           children: childrenFromDB 
       });
       
-    } catch (error) { console.error("Error fetching leaders:", error); }
+    } catch (error) { 
+      console.error("Error fetching leaders:", error); 
+    }
   };
 
   // 🌟 5. ควบคุมการทำงานเมื่อโหลดหน้าจอ
