@@ -171,55 +171,37 @@ const CommunityLeaders = () => {
       } else { setCommittees([]); setActiveTab(null); }
     } catch (error) { console.error("Error fetching committees:", error); }
   };
-  
-// 🌟 สมองที่ 3: ดึงข้อมูล (เวอร์ชันติดเครื่องจับเท็จ เด้งแจ้งเตือนหน้าจอทันที)
+// 🌟 สมองที่ 3: ดึงข้อมูล (ตั้งการ์ดผู้ใหญ่บ้านเป็น "เสาหลัก" เสมอ)
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-      const url = `${API_URL}/api/v2/committee-leaders/${committeeId}` + (dateQuery ? `?term_date=${dateQuery}` : '');
+      const url = `${API_URL}/api/community-leaders/by-committee/${committeeId}` + (dateQuery ? `?term_date=${dateQuery}` : '');
       const res = await fetch(url);
-      
-      // 🚨 จับเท็จที่ 1: ถ้า Backend หา API เส้นนี้ไม่เจอ (404) เพราะยังไม่ได้อัปเดต server.js
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-         alert(`❌ ปัญหาอยู่ที่ Backend ครับ!\nหน้าเว็บเรียกหา API V2 ไม่เจอ (อาจจะลืม Push โค้ด server.js ขึ้น Railway หรือเซิร์ฟเวอร์ยัง Build ไม่เสร็จ)\n\nระบบตอบกลับมาเป็น: ${contentType}`);
-         return;
-      }
-
       const result = await res.json();
       
-      // 🚨 จับเท็จที่ 2: ถ้า Database คาย Error ออกมา (เช่น ชื่อคอลัมน์ผิด)
-      if (!result.success) {
-         alert(`❌ ฐานข้อมูลแจ้ง Error ว่า:\n${result.message}\n${result.error || ''}`);
-         return;
-      }
-
-      // 🚨 จับเท็จที่ 3: แอบดูว่าดึงข้อมูลลูกน้องมาได้กี่คน
-      console.log(`✅ โหลดสำเร็จ! พบลูกน้องในแท็บนี้: ${result.data.length} คน`, result.data);
-      if (result.data.length === 0) {
-          console.warn("⚠️ แจ้งเตือน: ฐานข้อมูลบอกว่าไม่มีใครอยู่ในแท็บนี้เลยครับ");
-      }
-
       let childrenFromDB = [];
-      if (result.data && result.data.length > 0) {
+      if (result.success && result.data && result.data.length > 0) {
+        // ส่งข้อมูลให้ buildTree เรียงลำดับลูกน้องให้เสร็จ
         childrenFromDB = buildTree(result.data);
       }
 
+      // 🌟 สร้างการ์ดผู้ใหญ่บ้านรอไว้เสมอ แล้วเอาลูกน้อง (childrenFromDB) มาเสียบต่อท้าย!
       setOrgTree({ 
           isRoot: true, 
           isMock: true, 
-          id: userData.id || 'root-0',
+          id: userData.id || 'root-0', // ใช้ ID จริงของผู้ใหญ่บ้าน
           account_id: userData.id,
           role_name: userData.position_name || 'ผู้นำชุมชน', 
           first_name: userData.firstName || 'ผู้ใหญ่บ้าน', 
           last_name: userData.lastName || '',
           user_image: userData.profile_image || userData.imageUrl || userData.userImage || userData.headmanImage || '/profile-img.jpg', 
           responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
+          
+          // เอาทุกคนที่ดึงมาได้ ไปต่อท้ายผู้ใหญ่บ้านตรงนี้ครับ!
           children: childrenFromDB 
       });
       
     } catch (error) { 
-        alert(`❌ เกิดข้อผิดพลาดรุนแรงในการดึงข้อมูล:\n${error.message}`);
         console.error("Error fetching leaders:", error); 
     }
   };
@@ -511,7 +493,7 @@ const CommunityLeaders = () => {
       )}
       
       <BottomNavbar />
-    </div> 
+    </div>
   );
 };
 
