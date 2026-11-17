@@ -171,30 +171,33 @@ const CommunityLeaders = () => {
       } else { setCommittees([]); setActiveTab(null); }
     } catch (error) { console.error("Error fetching committees:", error); }
   };
-// 🌟 สมองที่ 3: ดึงข้อมูล (ผ่านทางด่วน V2 ป้องกัน API ชนกัน)
+// 🌟 สมองที่ 3: ดึงข้อมูล (ตั้งการ์ดผู้ใหญ่บ้านเป็น "เสาหลัก" เสมอ)
   const fetchLeaders = async (dateQuery = '', committeeId) => {
     if (!committeeId) return; 
     try {
-      // 🚀 เปลี่ยน URL เป็น v2 เพื่อหลบ API ตัวเก่าที่ขวางทางอยู่
-      const url = `${API_URL}/api/v2/committee-leaders/${committeeId}` + (dateQuery ? `?term_date=${dateQuery}` : '');
+      const url = `${API_URL}/api/community-leaders/by-committee/${committeeId}` + (dateQuery ? `?term_date=${dateQuery}` : '');
       const res = await fetch(url);
       const result = await res.json();
       
       let childrenFromDB = [];
       if (result.success && result.data && result.data.length > 0) {
+        // ส่งข้อมูลให้ buildTree เรียงลำดับลูกน้องให้เสร็จ
         childrenFromDB = buildTree(result.data);
       }
 
+      // 🌟 สร้างการ์ดผู้ใหญ่บ้านรอไว้เสมอ แล้วเอาลูกน้อง (childrenFromDB) มาเสียบต่อท้าย!
       setOrgTree({ 
           isRoot: true, 
           isMock: true, 
-          id: userData.id || 'root-0',
+          id: userData.id || 'root-0', // ใช้ ID จริงของผู้ใหญ่บ้าน
           account_id: userData.id,
           role_name: userData.position_name || 'ผู้นำชุมชน', 
           first_name: userData.firstName || 'ผู้ใหญ่บ้าน', 
           last_name: userData.lastName || '',
           user_image: userData.profile_image || userData.imageUrl || userData.userImage || userData.headmanImage || '/profile-img.jpg', 
           responsibilities: `ดูแลพื้นที่ หมู่ที่ ${userData.village_no || '-'} ${userData.villageName || ''}`,
+          
+          // เอาทุกคนที่ดึงมาได้ ไปต่อท้ายผู้ใหญ่บ้านตรงนี้ครับ!
           children: childrenFromDB 
       });
       
