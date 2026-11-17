@@ -344,22 +344,26 @@ return (
                     </div>
                     
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                       {/* ฝั่งซ้าย: ตามทะเบียนบ้าน (เป้าหมาย) */}
                        <div style={{ backgroundColor: 'rgba(248, 250, 252, 0.6)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(226,232,240,0.5)' }}>
                           <div style={{ fontSize: '10px', color: '#64748b' }}>ตามทะเบียนบ้าน</div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>{userData.target_household_count || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>ครัวเรือน</span></span>
-                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>{userData.target_population_count || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></span>
+                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>{dashboardStats?.target_houses || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>ครัวเรือน</span></span>
+                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f172a' }}>{dashboardStats?.target_population || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></span>
                           </div>
                        </div>
+                       
+                       {/* ฝั่งขวา: อาศัยอยู่จริง (ลงทะเบียนแล้ว) */}
                        <div style={{ backgroundColor: 'rgba(240, 253, 244, 0.6)', padding: '8px', borderRadius: '8px', border: '1px solid rgba(187,247,208,0.5)' }}>
                           <div style={{ fontSize: '10px', color: '#166534' }}>อาศัยอยู่จริง (ลงทะเบียน)</div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>{userData.actual_household_count || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>ครัวเรือน</span></span>
-                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>{userData.actual_population_count || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></span>
+                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>{dashboardStats?.total_houses || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>ครัวเรือน</span></span>
+                             <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#15803d' }}>{dashboardStats?.total_population || '0'} <span style={{fontSize: '10px', fontWeight: 'normal'}}>คน</span></span>
                           </div>
                        </div>
                     </div>
                   </div>
+
                 </div>
               )}
             </div>
