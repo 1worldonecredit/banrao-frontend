@@ -146,10 +146,10 @@ const ManageAreaStructure = () => {
   // รายการที่จะแสดงให้ติ๊กเลือกตามแท็บปัจจุบัน
   const currentList =
     activeTab === 'province'
-      ? amphures.map(a => ({ id: a.amphure_code, label: a.amphure_name_th }))
+      ? amphures.map(a => ({ id: a.amphure_code || a.id, label: a.amphure_name_th }))
       : activeTab === 'amphure'
-      ? tambons.map(t => ({ id: t.tambon_id, label: t.tambon_name_th }))
-      : villages.map(v => ({ id: v.village_id, label: `หมู่ ${v.village_no} ${v.village_name}` }));
+      ? tambons.map(t => ({ id: t.tambon_id || t.id, label: t.tambon_name_th }))
+      : villages.map(v => ({ id: v.village_id ?? v.id, label: `หมู่ ${v.village_no} ${v.village_name}` }));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
