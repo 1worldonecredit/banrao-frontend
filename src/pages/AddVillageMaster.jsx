@@ -141,7 +141,7 @@ const AddVillageMaster = () => {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
       
       {/* 1. ส่วนหัว: แถบนำทางด้านบน (ยึดติด) */}
-      <div style={{ flexShrink: 0, zIndex: 50, position: 'sticky', top: 0, width: '100%', backgroundColor: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0' }}>
+      <div style={{ flexShrink: 0, zIndex: 50, position: 'sticky', top: 0, width: '100%', backgroundColor: 'rgba(255, 255, 255, 0.9)',  borderBottom: '1px solid #e2e8f0' }}>
         <TopNavbar />
       </div>
       
