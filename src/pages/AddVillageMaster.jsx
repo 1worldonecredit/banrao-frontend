@@ -72,21 +72,25 @@ useEffect(() => {
       .catch(err => console.error("Error fetching amphures:", err));
   }, [selectedProvince]);
 
-  useEffect(() => {
+ useEffect(() => {
     if (!selectedAmphure) {
-        setTambons([]);
-        return;
+      setTambons([]);
+      return;
     }
     fetch(`${API_URL}/api/sys-tambons-with-count/${selectedAmphure}`)
       .then(res => res.json())
       .then(data => {
-          const formattedData = data.map(item => ({ 
-              id: item.tambon_id, 
-              name_th: item.tambon_name_th 
-          }));
-          setTambons(formattedData);
+        if (Array.isArray(data)) {
+          setTambons(data.map(t => ({
+            id: t.tambon_id,
+            name_th: t.tambon_name_th,
+            village_count: t.village_count || 0
+          })));
+        } else {
+          setTambons([]);
+        }
       })
-      .catch(err => console.error("Error fetching tambons:", err));
+      .catch(err => console.error(err));
   }, [selectedAmphure]);
 
   const fetchExistingVillages = () => {
