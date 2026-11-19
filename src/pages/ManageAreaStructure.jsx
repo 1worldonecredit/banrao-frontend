@@ -62,7 +62,7 @@ const ManageAreaStructure = () => {
       .catch(err => console.error(err));
   }, [selectedAmphure]);
 
-  // โหลดหมู่บ้านเมื่อเปลี่ยนตำบล
+ // โหลดหมู่บ้านเมื่อเปลี่ยนตำบล
   useEffect(() => {
     setVillages([]);
     if (activeTab === 'tambon') setSelectedItems([]);
@@ -70,7 +70,16 @@ const ManageAreaStructure = () => {
 
     fetch(`${API_URL}/api/villages/by-tambon-id/${selectedTambon}`)
       .then(res => res.json())
-      .then(data => setVillages(Array.isArray(data) ? data : []))
+      .then(data => {
+        if (Array.isArray(data)) {
+          const sorted = data.sort((a, b) =>
+            String(a.village_no).localeCompare(String(b.village_no), undefined, { numeric: true })
+          );
+          setVillages(sorted);
+        } else {
+          setVillages([]);
+        }
+      })
       .catch(err => console.error(err));
   }, [selectedTambon]);
 
@@ -148,7 +157,7 @@ const ManageAreaStructure = () => {
         <TopNavbar />
       </div>
 
-      <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '16px', paddingBottom: '80px', width: '100%' }}>
+      <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '16px', paddingTop: '72px', paddingBottom: '80px', width: '100%' }}>
         <div className="max-w-5xl mx-auto">
           {/* Header */}
           <div className="flex items-center gap-3 mb-5">
