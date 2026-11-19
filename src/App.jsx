@@ -45,6 +45,7 @@ import AddHousehold from './pages/AddHousehold';
 import AddVillageMaster from './pages/AddVillageMaster';
 import ManagePopulation from './pages/ManagePopulation';
 import ApiTracker from './pages/ApiTracker';
+import ManageAreaStructure from './pages/ManageAreaStructure';
 
 function App() {
   return (
@@ -94,6 +95,7 @@ function App() {
             <Route path="/add-village-master" element={<AddVillageMaster />} /> 
              <Route path="/manage-population" element={<ManagePopulation />} /> 
               <Route path="/api-tracker" element={<ApiTracker />} /> 
+              <Route path="/manage-area" element={<ManageAreaStructure />} />
             </Routes>
           
        
