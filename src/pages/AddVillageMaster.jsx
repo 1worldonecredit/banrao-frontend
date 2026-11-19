@@ -23,6 +23,11 @@ const AddVillageMaster = () => {
   const [existingVillages, setExistingVillages] = useState([]);
   const [isLoadingTable, setIsLoadingTable] = useState(false);
 
+  const [editingId, setEditingId] = useState(null);
+  const [editNo, setEditNo] = useState('');
+  const [editName, setEditName] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const [areaStats, setAreaStats] = useState({
   total_provinces: 0, provinces_with_villages: 0,
   total_amphures: 0, amphures_with_villages: 0,
@@ -92,6 +97,49 @@ useEffect(() => {
       })
       .catch(err => console.error(err));
   }, [selectedAmphure]);
+
+
+  const handleStartEdit = (v) => {
+    setEditingId(v.village_id);
+    setEditNo(v.village_no || '');
+    setEditName(v.village_name || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditNo('');
+    setEditName('');
+  };
+
+  const handleSaveEdit = async (villageId) => {
+    if (!editName.trim()) return alert('กรุณากรอกชื่อหมู่บ้าน');
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`${API_URL}/api/villages/${villageId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ village_no: editNo, village_name: editName })
+      });
+      const result = await res.json();
+      if (result.success) {
+        // อัปเดตข้อมูลในตารางทันทีโดยไม่ต้องโหลดหน้าใหม่
+        setExistingVillages(prev =>
+          prev.map(v =>
+            v.village_id === villageId
+              ? { ...v, village_no: result.data.village_no, village_name: result.data.village_name }
+              : v
+          )
+        );
+        handleCancelEdit();
+      } else {
+        alert('❌ ' + result.message);
+      }
+    } catch (err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const fetchExistingVillages = () => {
     if (!selectedTambon) {
