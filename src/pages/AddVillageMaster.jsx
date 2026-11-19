@@ -378,20 +378,78 @@ return (
                 ) : existingVillages.length > 0 ? (
                   <div className="flex-1 overflow-auto pr-2">
                     <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
-                      <table className="w-full text-sm text-left">
+                     <table className="w-full text-sm text-left">
                         <thead className="bg-slate-50 text-slate-700 sticky top-0 z-10">
                           <tr>
-                            <th className="px-5 py-3 font-bold border-b border-slate-200 w-24">หมู่ที่</th>
-                            <th className="px-5 py-3 font-bold border-b border-slate-200">ชื่อหมู่บ้าน</th>
+                            <th className="px-4 py-3 font-bold border-b border-slate-200 w-20">หมู่ที่</th>
+                            <th className="px-4 py-3 font-bold border-b border-slate-200">ชื่อหมู่บ้าน</th>
+                            <th className="px-3 py-3 font-bold border-b border-slate-200 w-24 text-center">จัดการ</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {existingVillages.map((v, idx) => (
-                            <tr key={idx} className="hover:bg-blue-50 transition-colors">
-                              <td className="px-5 py-3 font-bold text-indigo-600">{v.village_no}</td>
-                              <td className="px-5 py-3 font-medium text-slate-700">{v.village_name}</td>
-                            </tr>
-                          ))}
+                          {existingVillages.map((v, idx) => {
+                            const isEditing = editingId === v.village_id;
+                            return (
+                              <tr key={v.village_id || idx} className="hover:bg-blue-50/60 transition-colors">
+                                <td className="px-4 py-2.5 font-bold text-indigo-600">
+                                  {isEditing ? (
+                                    <input
+                                      type="text"
+                                      value={editNo}
+                                      onChange={(e) => setEditNo(e.target.value)}
+                                      className="w-14 px-2 py-1 border border-indigo-300 rounded-lg text-sm font-bold text-indigo-700 bg-white outline-none focus:ring-2 focus:ring-indigo-200"
+                                    />
+                                  ) : (
+                                    v.village_no
+                                  )}
+                                </td>
+                                <td className="px-4 py-2.5 font-medium text-slate-700">
+                                  {isEditing ? (
+                                    <input
+                                      type="text"
+                                      value={editName}
+                                      onChange={(e) => setEditName(e.target.value)}
+                                      className="w-full px-2.5 py-1 border border-indigo-300 rounded-lg text-sm font-medium text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-200"
+                                    />
+                                  ) : (
+                                    v.village_name
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  {isEditing ? (
+                                    <div className="flex items-center justify-center gap-1">
+                                      <button
+                                        type="button"
+                                        disabled={isUpdating}
+                                        onClick={() => handleSaveEdit(v.village_id)}
+                                        title="บันทึก"
+                                        className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200"
+                                      >
+                                        <Check size={15} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleCancelEdit}
+                                        title="ยกเลิก"
+                                        className="p-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200"
+                                      >
+                                        <X size={15} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleStartEdit(v)}
+                                      title="แก้ไขชื่อหมู่บ้าน"
+                                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                    >
+                                      <Pencil size={15} />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
