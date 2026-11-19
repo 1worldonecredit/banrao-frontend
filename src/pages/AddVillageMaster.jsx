@@ -23,6 +23,24 @@ const AddVillageMaster = () => {
   const [existingVillages, setExistingVillages] = useState([]);
   const [isLoadingTable, setIsLoadingTable] = useState(false);
 
+  const [areaStats, setAreaStats] = useState({
+  total_provinces: 0, provinces_with_villages: 0,
+  total_amphures: 0, amphures_with_villages: 0,
+  total_tambons: 0, tambons_with_villages: 0,
+  total_villages: 0
+});
+
+const fetchAreaStats = () => {
+  fetch(`${API_URL}/api/area/village-stats`)
+    .then(res => res.json())
+    .then(res => { if (res.success) setAreaStats(res.data); })
+    .catch(err => console.error(err));
+};
+
+useEffect(() => {
+  fetchAreaStats();
+}, []);
+
   useEffect(() => {
     fetch(`${API_URL}/api/sys-provinces`)
       .then(res => res.json())
@@ -59,7 +77,7 @@ const AddVillageMaster = () => {
         setTambons([]);
         return;
     }
-    fetch(`${API_URL}/api/sys-tambons/${selectedAmphure}`)
+    fetch(`${API_URL}/api/sys-tambons-with-count/${selectedAmphure}`)
       .then(res => res.json())
       .then(data => {
           const formattedData = data.map(item => ({ 
@@ -135,27 +153,58 @@ const AddVillageMaster = () => {
       setIsLoading(false);
     }
   };
-
-  return (
+return (
     // โครงสร้างหลัก: ใช้ Flexbox คอลัมน์ ความสูง 100vh ป้องกันการ Scroll ทะลุ
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
       
       {/* 1. ส่วนหัว: แถบนำทางด้านบน (ยึดติด) */}
-      <div style={{ flexShrink: 0, zIndex: 50, position: 'sticky', top: 0, width: '100%', backgroundColor: 'rgba(255, 255, 255, 0.9)',  borderBottom: '1px solid #e2e8f0' }}>
+      <div style={{ flexShrink: 0, zIndex: 50, position: 'sticky', top: 0, width: '100%', backgroundColor: 'rgba(255, 255, 255, 0.9)', borderBottom: '1px solid #e2e8f0' }}>
         <TopNavbar />
       </div>
       
       {/* 2. ส่วนเนื้อหา: พื้นที่ตรงกลางที่เลื่อนได้ (Scrollable) */}
-      <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '16px', paddingBottom: '80px', width: '100%' }}>
+      <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '16px', paddingTop: '24px', paddingBottom: '80px', width: '100%' }}>
         <div className="max-w-6xl mx-auto">
           
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-5">
             <div className="p-3 bg-blue-100 text-blue-700 rounded-xl shadow-sm"><MapPin size={28} /></div>
             <div>
               <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-600">
                 เพิ่มฐานข้อมูลหมู่บ้าน (Master Data)
               </h1>
               <p className="text-sm font-medium text-slate-600 mt-1">เลือกพื้นที่และพิมพ์รายชื่อหมู่บ้านเพื่อบันทึกลงระบบ</p>
+            </div>
+          </div>
+
+          {/* การ์ดสรุปสถิติพื้นที่ทั้งประเทศ */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold text-slate-500">จังหวัด (เพิ่มแล้ว / ทั้งหมด)</p>
+              <p className="text-xl font-black text-indigo-600 mt-1">
+                {(areaStats?.provinces_with_villages || 0).toLocaleString()}{' '}
+                <span className="text-sm font-medium text-slate-400">/ {(areaStats?.total_provinces || 0).toLocaleString()}</span>
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold text-slate-500">อำเภอ (เพิ่มแล้ว / ทั้งหมด)</p>
+              <p className="text-xl font-black text-blue-600 mt-1">
+                {(areaStats?.amphures_with_villages || 0).toLocaleString()}{' '}
+                <span className="text-sm font-medium text-slate-400">/ {(areaStats?.total_amphures || 0).toLocaleString()}</span>
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold text-slate-500">ตำบล (เพิ่มแล้ว / ทั้งหมด)</p>
+              <p className="text-xl font-black text-emerald-600 mt-1">
+                {(areaStats?.tambons_with_villages || 0).toLocaleString()}{' '}
+                <span className="text-sm font-medium text-slate-400">/ {(areaStats?.total_tambons || 0).toLocaleString()}</span>
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <p className="text-xs font-bold text-slate-500">หมู่บ้านในระบบทั้งหมด</p>
+              <p className="text-xl font-black text-amber-600 mt-1">
+                {(areaStats?.total_villages || 0).toLocaleString()}{' '}
+                <span className="text-xs font-medium text-slate-400">หมู่บ้าน</span>
+              </p>
             </div>
           </div>
 
@@ -177,7 +226,7 @@ const AddVillageMaster = () => {
                       value={selectedProvince} 
                       onChange={(e) => setSelectedProvince(e.target.value)}
                       disabled={!!currentUser.scope_province_code}
-                      style={{ boxSizing: 'border-box', maxWidth: '100%', textOverflow: 'ellipsis' }} // ป้องกัน Over
+                      style={{ boxSizing: 'border-box', maxWidth: '100%', textOverflow: 'ellipsis' }}
                     >
                       <option value="">-- เลือกจังหวัด --</option>
                       {provinces.map(p => <option key={p.id} value={p.id}>{p.name_th}</option>)}
@@ -195,14 +244,14 @@ const AddVillageMaster = () => {
                       value={selectedAmphure} 
                       onChange={(e) => setSelectedAmphure(e.target.value)}
                       disabled={!!currentUser.scope_amphure_code || !selectedProvince}
-                      style={{ boxSizing: 'border-box', maxWidth: '100%', textOverflow: 'ellipsis' }} // ป้องกัน Over
+                      style={{ boxSizing: 'border-box', maxWidth: '100%', textOverflow: 'ellipsis' }}
                     >
                       <option value="">-- เลือกอำเภอ --</option>
                       {amphures.map(a => <option key={a.id} value={a.id}>{a.name_th}</option>)}
                     </select>
                   </div>
 
-                  {/* Dropdown ตำบล */}
+                  {/* Dropdown ตำบล (แสดงสถานะ + จำนวนหมู่บ้าน) */}
                   <div>
                     <label className="flex items-center gap-1 text-sm font-bold text-slate-700 mb-2">
                       ตำบล {currentUser.scope_tambon_id && <Lock size={12} className="text-slate-400"/>}
@@ -213,10 +262,14 @@ const AddVillageMaster = () => {
                       value={selectedTambon} 
                       onChange={(e) => setSelectedTambon(e.target.value)}
                       disabled={!!currentUser.scope_tambon_id || !selectedAmphure}
-                      style={{ boxSizing: 'border-box', maxWidth: '100%', textOverflow: 'ellipsis' }} // ป้องกัน Over
+                      style={{ boxSizing: 'border-box', maxWidth: '100%', textOverflow: 'ellipsis' }}
                     >
                       <option value="">-- เลือกตำบล --</option>
-                      {tambons.map(t => <option key={t.id} value={t.id}>{t.name_th}</option>)}
+                      {tambons.map(t => (
+                        <option key={t.tambon_id || t.id} value={t.tambon_id || t.id}>
+                          {t.village_count > 0 ? '✅' : '⬜'} {t.tambon_name_th || t.name_th} ({t.village_count || 0} หมู่บ้าน)
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
