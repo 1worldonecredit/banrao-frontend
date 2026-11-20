@@ -314,7 +314,7 @@ const AssignPosition = () => {
                   <div className="w-full p-4 bg-slate-100 border border-slate-300 rounded-xl text-slate-700 font-bold shadow-inner flex items-center justify-between">
                     {foundUser.village_name ? (
                       <span>
-                        หมู่ {foundUser.village_no || '-'} {foundUser.village_name}
+                        {foundUser.village_no || '-'} {foundUser.village_name}
                         {foundUser.tambon_name ? ` ต.${foundUser.tambon_name}` : ''}
                         {foundUser.amphure_name ? ` อ.${foundUser.amphure_name}` : ''}
                         {foundUser.province_name ? ` จ.${foundUser.province_name}` : ''}
