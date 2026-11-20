@@ -303,7 +303,47 @@ const AssignPosition = () => {
                     </div>
                   </div>
                 </div>
-
+                        {/* ===================================================================== */}
+                {/* 👇 นำโค้ดปุ่ม "ปรับเป็นอดีตผู้ใหญ่บ้าน" มาวางตรงนี้ครับ 👇                  */}
+                {/* ===================================================================== */}
+                {foundUser.prev_position && foundUser.prev_position !== 'ประชาชนทั่วไป' && foundUser.position_is_active !== false && (
+                  <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-5 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                      <div className="font-bold text-amber-900 text-sm">บุคคลนี้กำลังดำรงตำแหน่ง "{foundUser.prev_position}"</div>
+                      <div className="text-xs text-amber-700 mt-1">
+                        หากต้องการให้พ้นจากตำแหน่งก่อนหมดวาระ เพื่อปรับเป็น "อดีตผู้ใหญ่บ้าน (ระดับประชาชน)" และรอแต่งตั้งคนใหม่
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!window.confirm(`ยืนยันการปรับ "${foundUser.first_name} ${foundUser.last_name}" เป็นอดีตผู้ใหญ่บ้าน (ระดับประชาชน)?`)) return;
+                        const pin = window.prompt('กรุณากรอกรหัสผ่านอนุมัติ (PIN):');
+                        if (!pin) return;
+                        const res = await fetch(`${API_URL}/api/demote-position`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            target_account_id: foundUser.real_account_id || foundUser.account_id,
+                            approval_pin: pin,
+                            reason: 'ปรับพ้นจากตำแหน่งโดยผู้ดูแลระบบ'
+                          })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          alert('✅ ' + data.message);
+                          handleSearchUser();
+                        } else {
+                          alert('❌ ' + data.message);
+                        }
+                      }}
+                      className="px-5 py-3 rounded-xl font-bold bg-gradient-to-r from-amber-500 to-red-500 text-white shadow-md hover:opacity-90 shrink-0 text-sm"
+                    >
+                      ปรับเป็นอดีตผู้ใหญ่บ้าน
+                    </button>
+                  </div>
+                )}
+                
                 {/* ===================================================================== */}
                 {/* ✨ จุดที่ 2: กล่องพื้นที่ปกครอง (แสดงหมู่บ้าน + ตำบล + อำเภอ + จังหวัด)   */}
                 {/* ===================================================================== */}
