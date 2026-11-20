@@ -38,7 +38,7 @@ const RegisterVillage = () => {
 
     const [formData, setFormData] = useState({
         village_id: '', village_no: '', village_name: '', province: '', district: '', sub_district: '',
-        citizen_id: '', first_name: '', last_name: '', nickname: '', phone_number: '', password: '', confirm_password: ''
+        citizen_id: '', first_name: '', last_name: '', nickname: '', phone_number: '', password: '', confirm_password: '' , gender: '', dob_day: '', dob_month: '', dob_year: ''
     });
 
     const [villagesList, setVillagesList] = useState([]);
@@ -187,45 +187,53 @@ const RegisterVillage = () => {
         setIsCheckingReferrer(false);
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if(!formData.village_id) return alert("กรุณาเลือกหมู่บ้านจากรายการ");
-        if(formData.phone_number.length !== 10) return alert("กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก");
-        if(formData.password.length < 6) return alert("รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
-        if(formData.password !== formData.confirm_password) return alert("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน!");
-        if(!markerPos) return alert("กรุณาปักหมุดที่ตั้งหมู่บ้านบนแผนที่");
-        if (!formData.province || !formData.district || !formData.sub_district) return alert("กรุณากรอกข้อมูล ตำบล อำเภอ จังหวัด ให้ครบถ้วน");
+   const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.village_id) return alert("กรุณาเลือกหมู่บ้านจากรายการ");
+    if (formData.phone_number.length !== 10) return alert("กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก");
+    if (!formData.gender) return alert("กรุณาเลือกเพศ");
+    if (!formData.dob_day || !formData.dob_month || !formData.dob_year) return alert("กรุณาเลือกวันเดือนปีเกิดให้ครบถ้วน");
+    if (formData.password.length < 6) return alert("รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
+    if (formData.password !== formData.confirm_password) return alert("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน!");
+    if (!markerPos) return alert("กรุณาปักหมุดที่ตั้งหมู่บ้านบนแผนที่");
+    if (!formData.province || !formData.district || !formData.sub_district) return alert("กรุณากรอกข้อมูล ตำบล อำเภอ จังหวัด ให้ครบถ้วน");
 
-        const cleanCitizenId = formData.citizen_id.replace(/-/g, '');
-        if(cleanCitizenId && cleanCitizenId.length !== 13) return alert("เลขบัตรประชาชนต้องครบ 13 หลัก");
+    const cleanCitizenId = formData.citizen_id.replace(/-/g, '');
+    if (cleanCitizenId && cleanCitizenId.length !== 13) return alert("เลขบัตรประชาชนต้องครบ 13 หลัก");
 
-        setIsSubmitting(true);
-        try {
-            const payload = { 
-                ...formData, 
-                citizen_id: cleanCitizenId, 
-                latitude: markerPos.lat, 
-                longitude: markerPos.lng,
-                referrer_account_id: (referrerInfo && !referrerInfo.notFound) ? referrerInfo.account_id : null
-            };
-            
-            const res = await fetch(`${API_URL}/api/villages/register`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            
-            if(data.success) {
-                alert('ลงทะเบียนสำเร็จ! เข้าสู่ระบบด้วยเบอร์โทรศัพท์ได้เลยครับ');
-                navigate('/login'); 
-            } else {
-                alert('ลงทะเบียนล้มเหลว: ' + data.message);
-            }
-        } catch (error) {
-            alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
-        }
-        setIsSubmitting(false);
-    };
+    // ✨ แปลง พ.ศ. เป็น ค.ศ. รูปแบบ YYYY-MM-DD
+    const ceYear = Number(formData.dob_year) - 543;
+    const finalDob = `${ceYear}-${String(formData.dob_month).padStart(2, '0')}-${String(formData.dob_day).padStart(2, '0')}`;
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        ...formData,
+        citizen_id: cleanCitizenId,
+        gender: formData.gender,
+        dob: finalDob,
+        latitude: markerPos.lat,
+        longitude: markerPos.lng,
+        referrer_account_id: (referrerInfo && !referrerInfo.notFound) ? referrerInfo.account_id : null
+      };
+
+      const res = await fetch(`${API_URL}/api/villages/register`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        alert('ลงทะเบียนสำเร็จ! เข้าสู่ระบบด้วยเบอร์โทรศัพท์ได้เลยครับ');
+        navigate('/login');
+      } else {
+        alert('ลงทะเบียนล้มเหลว: ' + data.message);
+      }
+    } catch (error) {
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    }
+    setIsSubmitting(false);
+  };
 
     const inputStyle = "w-full p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-slate-700 text-sm";
     const labelStyle = "block text-xs font-bold text-slate-500 mb-1.5";
@@ -382,6 +390,72 @@ const RegisterVillage = () => {
                                         <label className={labelStyle}>ชื่อเรียก / ตำแหน่ง</label>
                                         <input type="text" name="nickname" onChange={handleChange} placeholder="เช่น ผู้ใหญ่สมชาย" className={inputStyle} />
                                     </div>
+                                    {/* ✨ เพศ */}
+              <div className="col-span-full">
+                <label className={labelStyle}>เพศ *</label>
+                <select
+                  required
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  className={inputStyle}
+                >
+                  <option value="">-- เลือก --</option>
+                  <option value="MALE">ชาย</option>
+                  <option value="FEMALE">หญิง</option>
+                </select>
+              </div>
+
+              {/* ✨ วันเดือนปีเกิด (แบบไทย) */}
+              <div className="col-span-full p-4 bg-slate-50/80 rounded-xl border border-slate-100">
+                <label className={labelStyle}>วันเดือนปีเกิด (แบบไทย) *</label>
+                <div className="grid grid-cols-3 gap-3 mt-1">
+                  {/* วันที่ */}
+                  <select
+                    required
+                    name="dob_day"
+                    value={formData.dob_day}
+                    onChange={handleChange}
+                    className={inputStyle}
+                  >
+                    <option value="">- วันที่ -</option>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+
+                  {/* เดือน */}
+                  <select
+                    required
+                    name="dob_month"
+                    value={formData.dob_month}
+                    onChange={handleChange}
+                    className={inputStyle}
+                  >
+                    <option value="">- เดือน -</option>
+                    {[
+                      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+                      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+                    ].map((m, idx) => (
+                      <option key={idx + 1} value={idx + 1}>{m}</option>
+                    ))}
+                  </select>
+
+                  {/* พ.ศ. */}
+                  <select
+                    required
+                    name="dob_year"
+                    value={formData.dob_year}
+                    onChange={handleChange}
+                    className={inputStyle}
+                  >
+                    <option value="">- พ.ศ. -</option>
+                    {Array.from({ length: 100 }, (_, i) => (new Date().getFullYear() + 543) - i).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
                                 </div>
 
                                 <div className="mt-5 p-4 bg-slate-50/80 rounded-xl border border-slate-100">
