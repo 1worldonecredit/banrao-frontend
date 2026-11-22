@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import RegisterCitizen from './pages/RegisterCitizen';
 
 // บริการและร้านค้าในชุมชน
 import HotelSearch from './pages/HotelSearch';
@@ -60,6 +61,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/register" element={<RegisterCitizen />} />
             
             <Route path="/hotels" element={<HotelSearch />} />
             <Route path="/hotel-map" element={<HotelMap />} />
