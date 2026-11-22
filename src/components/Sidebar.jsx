@@ -56,8 +56,11 @@ const Sidebar = ({ isOpen, onClose }) => {
              
              // ตรวจสอบว่ามี data ส่งมาจริงๆ ป้องกันแอปพัง (Crash)
              if (result.success && Array.isArray(result.data)) {
-                 setMenuGroups(result.data);
-             } else {
+              setMenuGroups(result.data);
+              if (result.permissionsMap) {
+              localStorage.setItem('menuPermissions', JSON.stringify(result.permissionsMap));
+               }
+            } else {
                  console.error("Failed to load menus:", result.message);
                  setMenuGroups([]); // ล้างเมนูถ้าโหลดไม่สำเร็จ
              }
