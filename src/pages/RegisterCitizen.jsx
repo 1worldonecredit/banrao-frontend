@@ -127,7 +127,7 @@ const RegisterCitizen = () => {
     setHasSearched(true);
     setSelectedCitizen(null);
     try {
-      const res = await fetch(`${API_URL}/api/public/search-citizens-by-house?house_no=${encodeURIComponent(houseNo.trim())}`);
+      const res = await fetch(`${API_URL}/api/public/search-citizens-by-house?village_id=${selectedVillage}&house_no=${encodeURIComponent(houseNo.trim())}`);
       const data = await res.json();
       if (data.success) setCitizenResults(data.data || []);
       else setCitizenResults([]);
@@ -150,12 +150,12 @@ const RegisterCitizen = () => {
       const res = await fetch(`${API_URL}/api/register-citizen`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profile_id: selectedCitizen.profile_id,
-          village_id: selectedVillage,
-          username_phone: phone,
-          password,
-          referred_by: referralCode || null
+            body: JSON.stringify({
+         member_id: selectedCitizen.member_id,
+         village_id: selectedVillage,
+         username_phone: phone,
+        password,
+        referred_by: referralCode || null
         })
       });
       const data = await res.json();
@@ -322,10 +322,10 @@ const RegisterCitizen = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>เลือกรายชื่อของคุณ (ระบบสงวนเลขบัตรประชาชนเพื่อความปลอดภัย):</div>
                     {citizenResults.map((c) => {
-                      const isSelected = selectedCitizen?.profile_id === c.profile_id;
-                      return (
-                        <button
-                          key={c.profile_id}
+                        const isSelected = selectedCitizen?.member_id === c.member_id;
+                        return (
+                         <button
+                         key={c.member_id}
                           type="button"
                           disabled={c.already_registered}
                           onClick={() => setSelectedCitizen(c)}
