@@ -75,10 +75,11 @@ const Sidebar = ({ isOpen, onClose }) => {
   }, [userData, isOpen]); // อัปเดตเมื่อ userData หรือสถานะการเปิด/ปิดเปลี่ยน
 
   const handleLogout = () => {
-    localStorage.removeItem('userData');
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
+  localStorage.removeItem('userData');
+  localStorage.removeItem('token');
+  localStorage.removeItem('menuPermissions');
+  navigate('/login');
+};
 
   // 🌟 ฟังก์ชันเมื่อเลือกไฟล์รูปภาพใหม่
   const handleFileChange = (e) => {
