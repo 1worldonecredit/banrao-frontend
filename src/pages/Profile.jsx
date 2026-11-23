@@ -634,17 +634,37 @@ const Profile = () => {
                 const visLabel = VISIBILITY_OPTIONS.find((v) => v.value === st.visibility)?.label || st.visibility;
                 return (
                   <div key={st.story_id} style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', aspectRatio: '9 / 14', backgroundColor: '#0f172a', boxShadow: '0 6px 16px rgba(0,0,0,0.12)' }}>
-                    {st.media_type === 'VIDEO' ? (
-                      <video src={st.media_url} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      {st.media_type === 'VIDEO' ? (
+                      <video
+                        src={st.media_url}
+                        controls
+                        style={{
+                          width: '100%', height: '100%', objectFit: 'cover',
+                          filter: st.bg_blur > 0 ? `blur(${(st.bg_blur / 100) * 16}px)` : 'none',
+                          transform: st.bg_blur > 0 ? 'scale(1.06)' : 'none'
+                        }}
+                      />
                     ) : (
-                      <img src={st.media_url} alt="Story" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img
+                        src={st.media_url}
+                        alt="Story"
+                        style={{
+                          width: '100%', height: '100%', objectFit: 'cover',
+                          filter: st.bg_blur > 0 ? `blur(${(st.bg_blur / 100) * 16}px)` : 'none',
+                          transform: st.bg_blur > 0 ? 'scale(1.06)' : 'none'
+                        }}
+                      />
                     )}
 
-                    {/* ข้อความทับบนภาพ (Overlay Text) */}
+                    {/* ข้อความทับบนภาพตามตำแหน่งที่ผู้ใช้ลากวางไว้ */}
                     {st.overlay_text && (
                       <div style={{
-                        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        padding: '12px', textAlign: 'center', pointerEvents: 'none',
+                        position: 'absolute',
+                        left: `${st.text_x ?? 50}%`,
+                        top: `${st.text_y ?? 50}%`,
+                        transform: 'translate(-50%, -50%)',
+                        maxWidth: '90%',
+                        textAlign: 'center', pointerEvents: 'none',
                         color: st.text_color || '#ffffff', fontSize: `${st.text_size || 20}px`,
                         fontWeight: 800, textShadow: '0 2px 8px rgba(0,0,0,0.85)', wordBreak: 'break-word'
                       }}>
@@ -669,6 +689,7 @@ const Profile = () => {
                   </div>
                 );
               })}
+
             </div>
           )}
         </div>
@@ -757,24 +778,79 @@ const Profile = () => {
                 <input type="file" accept="image/*,video/*" onChange={handleSelectStoryFile} style={inputStyle} />
               </div>
 
-              {/* ตัวอย่างแสดงผลสด (Live Preview พร้อมข้อความทับภาพ) */}
+                {/* ตัวอย่างแสดงผลสด (ลากย้ายข้อความได้ทั้งเมาส์และนิ้ว + แสดงความเบลอสด) */}
               {storyPreview && (
-                <div style={{ position: 'relative', width: '100%', height: '240px', borderRadius: '14px', overflow: 'hidden', backgroundColor: '#0f172a' }}>
-                  {storyIsVideo ? (
-                    <video src={storyPreview} controls style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <img src={storyPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  )}
-                  {storyText && (
-                    <div style={{
-                      position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '16px', textAlign: 'center', pointerEvents: 'none',
-                      color: storyColor, fontSize: `${storySize}px`, fontWeight: 800,
-                      textShadow: '0 2px 8px rgba(0,0,0,0.85)', wordBreak: 'break-word'
-                    }}>
-                      {storyText}
-                    </div>
-                  )}
+                <div>
+                  <div style={{ fontSize: '11px', color: '#2563eb', fontWeight: 700, marginBottom: '4px' }}>
+                    💡 จิ้มหรือคลิกลากข้อความบนภาพเพื่อย้ายตำแหน่งได้อิสระ
+                  </div>
+                  <div
+                    ref={previewBoxRef}
+                    style={{
+                      position: 'relative', width: '100%', height: '260px',
+                      borderRadius: '14px', overflow: 'hidden', backgroundColor: '#0f172a',
+                      userSelect: 'none'
+                    }}
+                  >
+                    {storyIsVideo ? (
+                      <video
+                        src={storyPreview}
+                        controls
+                        style={{
+                          width: '100%', height: '100%', objectFit: 'contain',
+                          filter: storyBlur > 0 ? `blur(${(storyBlur / 100) * 16}px)` : 'none',
+                          transform: storyBlur > 0 ? 'scale(1.06)' : 'none'
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={storyPreview}
+                        alt="Preview"
+                        draggable={false}
+                        style={{
+                          width: '100%', height: '100%', objectFit: 'cover',
+                          filter: storyBlur > 0 ? `blur(${(storyBlur / 100) * 16}px)` : 'none',
+                          transform: storyBlur > 0 ? 'scale(1.06)' : 'none'
+                        }}
+                      />
+                    )}
+
+                    {/* ข้อความที่ลากย้ายตำแหน่งได้ */}
+                    {storyText && (
+                      <div
+                        onPointerDown={(e) => {
+                          e.currentTarget.setPointerCapture(e.pointerId);
+                          setIsDraggingText(true);
+                          updateTextPosition(e.clientX, e.clientY);
+                        }}
+                        onPointerMove={(e) => {
+                          if (isDraggingText) updateTextPosition(e.clientX, e.clientY);
+                        }}
+                        onPointerUp={() => setIsDraggingText(false)}
+                        onPointerCancel={() => setIsDraggingText(false)}
+                        style={{
+                          position: 'absolute',
+                          left: `${storyTextX}%`,
+                          top: `${storyTextY}%`,
+                          transform: 'translate(-50%, -50%)',
+                          maxWidth: '90%',
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          border: isDraggingText ? '1.5px dashed #38bdf8' : '1px dashed rgba(255,255,255,0.45)',
+                          textAlign: 'center',
+                          cursor: isDraggingText ? 'grabbing' : 'grab',
+                          touchAction: 'none',
+                          color: storyColor,
+                          fontSize: `${storySize}px`,
+                          fontWeight: 800,
+                          textShadow: '0 2px 8px rgba(0,0,0,0.85)',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                        {storyText}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -784,31 +860,42 @@ const Profile = () => {
                 <input type="text" placeholder="พิมพ์ข้อความที่ต้องการแสดงทับ..." value={storyText} onChange={(e) => setStoryText(e.target.value)} style={inputStyle} />
               </div>
 
-              {/* เลือกสีและขนาดตัวอักษร */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>สีตัวอักษร</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-                    {TEXT_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => setStoryColor(c)}
-                        style={{
-                          width: '22px', height: '22px', borderRadius: '50%', backgroundColor: c, cursor: 'pointer',
-                          border: storyColor === c ? '2.5px solid #2563eb' : '1px solid #cbd5e1'
-                        }}
-                      />
-                    ))}
-                    <input type="color" value={storyColor} onChange={(e) => setStoryColor(e.target.value)} style={{ width: '24px', height: '24px', border: 'none', cursor: 'pointer' }} />
+              {/* เลือกสี, ขนาดตัวอักษร และความเบลอพื้นหลัง 0-100% */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>สีตัวอักษร</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                      {TEXT_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setStoryColor(c)}
+                          style={{
+                            width: '22px', height: '22px', borderRadius: '50%', backgroundColor: c, cursor: 'pointer',
+                            border: storyColor === c ? '2.5px solid #2563eb' : '1px solid #cbd5e1'
+                          }}
+                        />
+                      ))}
+                      <input type="color" value={storyColor} onChange={(e) => setStoryColor(e.target.value)} style={{ width: '24px', height: '24px', border: 'none', cursor: 'pointer' }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                      ขนาดตัวอักษร ({storySize}px)
+                    </label>
+                    <input type="range" min="14" max="38" value={storySize} onChange={(e) => setStorySize(Number(e.target.value))} style={{ width: '100%' }} />
                   </div>
                 </div>
 
+                {/* สไลเดอร์ปรับความเบลอพื้นหลัง 0 - 100% */}
                 <div>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>
-                    ขนาดตัวอักษร ({storySize}px)
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span>ความเบลอภาพพื้นหลัง (Background Blur)</span>
+                    <span style={{ color: '#2563eb' }}>{storyBlur}%</span>
                   </label>
-                  <input type="range" min="14" max="38" value={storySize} onChange={(e) => setStorySize(Number(e.target.value))} style={{ width: '100%' }} />
+                  <input type="range" min="0" max="100" value={storyBlur} onChange={(e) => setStoryBlur(Number(e.target.value))} style={{ width: '100%' }} />
                 </div>
               </div>
 
