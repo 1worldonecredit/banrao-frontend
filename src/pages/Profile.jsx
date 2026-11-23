@@ -74,6 +74,22 @@ const Profile = () => {
   const [storyVisibility, setStoryVisibility] = useState('VILLAGE');
   const [postingStory, setPostingStory] = useState(false);
 
+  const [storyTextX, setStoryTextX] = useState(50);   // ตำแหน่งแนวนอน (%) 0-100
+  const [storyTextY, setStoryTextY] = useState(50);   // ตำแหน่งแนวตั้ง (%) 0-100
+  const [storyBlur, setStoryBlur] = useState(0);      // ความเบลอพื้นหลัง (%) 0-100
+  const [isDraggingText, setIsDraggingText] = useState(false);
+  const previewBoxRef = useRef(null);
+
+  // ฟังก์ชันคำนวณตำแหน่งตอนลาก (รองรับทั้งเมาส์และนิ้วสัมผัส)
+  const updateTextPosition = (clientX, clientY) => {
+    if (!previewBoxRef.current) return;
+    const rect = previewBoxRef.current.getBoundingClientRect();
+    const x = Math.min(92, Math.max(8, ((clientX - rect.left) / rect.width) * 100));
+    const y = Math.min(92, Math.max(8, ((clientY - rect.top) / rect.height) * 100));
+    setStoryTextX(Math.round(x));
+    setStoryTextY(Math.round(y));
+  };
+
   // สร้างรายการปี พ.ศ. (ย้อนหลัง 100 ปี)
   const currentYearBE = new Date().getFullYear() + 543;
   const yearsBE = Array.from({ length: 100 }, (_, i) => currentYearBE - i);
