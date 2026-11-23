@@ -281,6 +281,9 @@ const Profile = () => {
     fd.append('overlay_text', storyText);
     fd.append('text_color', storyColor);
     fd.append('text_size', storySize);
+    fd.append('text_x', storyTextX);
+    fd.append('text_y', storyTextY);
+    fd.append('bg_blur', storyBlur);
     fd.append('visibility', storyVisibility);
 
     setPostingStory(true);
