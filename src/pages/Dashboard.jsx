@@ -369,8 +369,11 @@ return (
                 </div>
               )}
             </div>
-            
+
+            // แสดงผลการ Post story
+                <div style={{ gridColumn: '1 / -1' }}>
                 <FriendStoriesBar userData={userData} />
+                </div>
             
           </div> 
         </div> 
