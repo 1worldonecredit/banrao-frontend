@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom'; // นำเข้า Outlet จา�
 import TopNavbar from './TopNavbar';
 import BottomNavbar from './BottomNavbar';
 
-const Layout = () => {
+const Layout = ({ children }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#f8fafc' }}>
       
@@ -17,8 +17,8 @@ const Layout = () => {
         className="custom-scrollbar"
         style={{ flex: '1 1 auto', overflowY: 'auto', paddingBottom: '100px', width: '100%' }}
       >
-        {/* <Outlet /> คือรูรับเสียบ! React Router จะเอาเนื้อหาของแต่ละหน้ามาใส่ตรงนี้อัตโนมัติ */}
-        <Outlet />
+        {/* รองรับทั้งการครอบด้วย <Layout>...</Layout> (children) และแบบ Route ซ้อนกัน (<Outlet />) */}
+        {children || <Outlet />}
       </div>
       
       {/* 3. แถบนำทางด้านล่าง (Fix ไว้) */}
