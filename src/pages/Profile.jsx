@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   User, Phone, Calendar, MapPin, Shield, Camera, Edit3,
   Save, X, Trash2, Home, Users, Briefcase, Award, Copy, Check,
-  Plus, Image as ImageIcon, Globe, Lock, Eye, Sparkles
+  Plus, Image as ImageIcon, Globe, Lock, Eye, EyeOff, Sparkles,
+  MessageCircle, Reply, Ban, Send
 } from 'lucide-react';
 import Layout from '../components/Layout';
 
@@ -379,6 +380,67 @@ const Profile = () => {
     if (res.success) fetchAllData();
   };
 
+// State & ฟังก์ชันจัดการคอมเมนต์บนหน้า My Story (ดู / ตอบกลับ / ลบ / บล็อก)
+  const [openCommentStoryId, setOpenCommentStoryId] = useState(null);
+  const [storyComments, setStoryComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null);
+
+  const loadStoryComments = async (storyId) => {
+    const res = await fetch(`${API_URL}/api/stories/${storyId}/comments`).then((r) => r.json()).catch(() => ({}));
+    if (res.success) setStoryComments(res.data || []);
+  };
+
+  const handleOpenComments = (storyId) => {
+    if (openCommentStoryId === storyId) {
+      setOpenCommentStoryId(null);
+      setReplyingTo(null);
+      return;
+    }
+    setOpenCommentStoryId(storyId);
+    setReplyingTo(null);
+    loadStoryComments(storyId);
+  };
+
+  const handleSendStoryComment = async (e, storyId) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+    const myAccountId = userData.account_id || userData.id;
+    const finalText = replyingTo ? `@${replyingTo.author_name} ${commentText.trim()}` : commentText.trim();
+    const res = await fetch(`${API_URL}/api/stories/${storyId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        account_id: myAccountId,
+        comment_text: finalText,
+        parent_comment_id: replyingTo?.comment_id || null
+      })
+    }).then((r) => r.json()).catch(() => ({}));
+
+    if (res.success) {
+      setCommentText('');
+      setReplyingTo(null);
+      loadStoryComments(storyId);
+    }
+  };
+
+  const handleDeleteStoryComment = async (storyId, commentId) => {
+    if (!window.confirm('ต้องการลบคอมเมนต์นี้ใช่หรือไม่?')) return;
+    const res = await fetch(`${API_URL}/api/stories/comments/${commentId}/delete`, { method: 'PATCH' }).then((r) => r.json()).catch(() => ({}));
+    if (res.success) loadStoryComments(storyId);
+  };
+
+  const handleBlockCommenter = async (targetId, targetName) => {
+    if (!window.confirm(`ต้องการบล็อก "${targetName}" ไม่ให้เห็นและคอมเมนต์โพสต์ของคุณใช่หรือไม่?`)) return;
+    const myAccountId = userData.account_id || userData.id;
+    const res = await fetch(`${API_URL}/api/users/block`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocker_id: myAccountId, blocked_id: targetId })
+    }).then((r) => r.json()).catch(() => ({}));
+    if (res.success) alert('✅ ' + res.message);
+  };
+
 
   const handleDeleteStory = async (storyId) => {
     if (!window.confirm('ต้องการลบ Story นี้ใช่หรือไม่?')) return;
@@ -675,8 +737,8 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* ================================================================= */}
-        {/* 🎬 ส่วนที่ 3: MY STORY (โพสต์รูป / วิดีโอ + ข้อความทับภาพ + ตั้งค่าความเป็นส่วนตัว) */}
+              {/* ================================================================= */}
+        {/* 🎬 ส่วนที่ 3: MY STORY (แสดง/ซ่อน, แก้ไข, ลบ, ดู/ตอบคอมเมนต์) */}
         {/* ================================================================= */}
         <div style={{ ...cardStyle, marginTop: '22px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
@@ -686,7 +748,20 @@ const Profile = () => {
             </div>
             <button
               type="button"
-              onClick={() => setStoryModalOpen(true)}
+              onClick={() => {
+                setEditingStoryId(null);
+                setStoryTitle('');
+                setStoryDesc('');
+                setStoryText('');
+                setStoryFile(null);
+                setStoryCoverFile(null);
+                setStoryPreview('');
+                setStoryIsVideo(false);
+                setStoryBlur(0);
+                setStoryTextX(50);
+                setStoryTextY(50);
+                setStoryModalOpen(true);
+              }}
               style={{
                 background: 'linear-gradient(135deg, #2563eb, #4f46e5)', color: '#fff', border: 'none',
                 padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold',
@@ -702,71 +777,137 @@ const Profile = () => {
               ยังไม่มี Story ที่โพสต์ กดปุ่ม <strong>"+ สร้าง Story"</strong> เพื่อแชร์เรื่องราวในชุมชนของคุณ
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
               {stories.map((st) => {
                 const visLabel = VISIBILITY_OPTIONS.find((v) => v.value === st.visibility)?.label || st.visibility;
                 return (
-                  <div key={st.story_id} style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', aspectRatio: '9 / 14', backgroundColor: '#0f172a', boxShadow: '0 6px 16px rgba(0,0,0,0.12)' }}>
+                  <div key={st.story_id} style={{ borderRadius: '16px', overflow: 'hidden', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', boxShadow: '0 6px 16px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', opacity: st.is_hidden ? 0.65 : 1 }}>
+                    {/* รูปภาพ / วิดีโอ (ขนาด 4:5 เท่ากันทุกการ์ด) */}
+                    <div style={{ position: 'relative', width: '100%', aspectRatio: '4 / 5', backgroundColor: '#0f172a', overflow: 'hidden' }}>
                       {st.media_type === 'VIDEO' ? (
-                      <video
-                        src={st.media_url}
-                        controls
-                        style={{
-                          width: '100%', height: '100%', objectFit: 'cover',
-                          filter: st.bg_blur > 0 ? `blur(${(st.bg_blur / 100) * 16}px)` : 'none',
-                          transform: st.bg_blur > 0 ? 'scale(1.06)' : 'none'
-                        }}
-                      />
-                    ) : (
-                      <img
-                        src={st.media_url}
-                        alt="Story"
-                        style={{
-                          width: '100%', height: '100%', objectFit: 'cover',
-                          filter: st.bg_blur > 0 ? `blur(${(st.bg_blur / 100) * 16}px)` : 'none',
-                          transform: st.bg_blur > 0 ? 'scale(1.06)' : 'none'
-                        }}
-                      />
-                    )}
+                        <video
+                          src={st.media_url}
+                          poster={st.cover_url || undefined}
+                          controls
+                          style={{
+                            width: '100%', height: '100%', objectFit: 'cover',
+                            filter: st.bg_blur > 0 ? `blur(${(st.bg_blur / 100) * 16}px)` : 'none',
+                            transform: st.bg_blur > 0 ? 'scale(1.06)' : 'none'
+                          }}
+                        />
+                      ) : (
+                        <img
+                          src={st.media_url}
+                          alt={st.title || 'Story'}
+                          style={{
+                            width: '100%', height: '100%', objectFit: 'cover',
+                            filter: st.bg_blur > 0 ? `blur(${(st.bg_blur / 100) * 16}px)` : 'none',
+                            transform: st.bg_blur > 0 ? 'scale(1.06)' : 'none'
+                          }}
+                        />
+                      )}
 
-                    {/* ข้อความทับบนภาพตามตำแหน่งที่ผู้ใช้ลากวางไว้ */}
-                    {st.overlay_text && (
-                      <div style={{
-                        position: 'absolute',
-                        left: `${st.text_x ?? 50}%`,
-                        top: `${st.text_y ?? 50}%`,
-                        transform: 'translate(-50%, -50%)',
-                        maxWidth: '90%',
-                        textAlign: 'center', pointerEvents: 'none',
-                        color: st.text_color || '#ffffff', fontSize: `${st.text_size || 20}px`,
-                        fontWeight: 800, textShadow: '0 2px 8px rgba(0,0,0,0.85)', wordBreak: 'break-word'
-                      }}>
-                        {st.overlay_text}
+                      {st.overlay_text && (
+                        <div style={{
+                          position: 'absolute', left: `${st.text_x ?? 50}%`, top: `${st.text_y ?? 50}%`,
+                          transform: 'translate(-50%, -50%)', maxWidth: '90%', textAlign: 'center', pointerEvents: 'none',
+                          color: st.text_color || '#ffffff', fontSize: `${st.text_size || 20}px`,
+                          fontWeight: 800, textShadow: '0 2px 8px rgba(0,0,0,0.85)', wordBreak: 'break-word'
+                        }}>
+                          {st.overlay_text}
+                        </div>
+                      )}
+
+                      {/* ป้ายความเป็นส่วนตัว + ป้ายสถานะ แสดง/ซ่อน */}
+                      <div style={{ position: 'absolute', top: '8px', left: '8px', right: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, backgroundColor: 'rgba(15, 23, 42, 0.78)', color: '#fff', padding: '4px 8px', borderRadius: '999px' }}>
+                          {visLabel.split(' ')[0]} {visLabel.split(' ')[1]}
+                        </span>
+                        <span style={{
+                          fontSize: '10px', fontWeight: 800, padding: '4px 8px', borderRadius: '999px',
+                          backgroundColor: st.is_hidden ? '#fee2e2' : '#dcfce7',
+                          color: st.is_hidden ? '#b91c1c' : '#15803d'
+                        }}>
+                          {st.is_hidden ? 'ซ่อนอยู่' : 'กำลังแสดง'}
+                        </span>
                       </div>
-                    )}
+                    </div>
 
-                    {/* ป้ายระดับการมองเห็น + ปุ่มลบ */}
-                    <div style={{ position: 'absolute', top: '8px', left: '8px', right: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 700, backgroundColor: 'rgba(15, 23, 42, 0.72)', color: '#fff', padding: '4px 8px', borderRadius: '999px', backdropFilter: 'blur(4px)' }}>
-                        {visLabel.split(' ')[0]} {visLabel.split(' ')[1]}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteStory(st.story_id)}
-                        title="ลบ Story"
-                        style={{ backgroundColor: 'rgba(239, 68, 68, 0.9)', color: '#fff', border: 'none', borderRadius: '50%', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                      >
-                        <Trash2 size={13} />
+                    {/* หัวข้อ & คำอธิบาย */}
+                    <div style={{ padding: '10px 12px', flex: 1 }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#0f172a', marginBottom: '2px' }}>
+                        {st.title || '(ไม่มีหัวข้อ)'}
+                      </div>
+                      {st.description && (
+                        <div style={{ fontSize: '12px', color: '#475569', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {st.description}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* แถบปุ่มจัดการ: แก้ไข / ซ่อน-แสดง / คอมเมนต์ / ลบ */}
+                    <div style={{ padding: '8px 10px', borderTop: '1px solid #f1f5f9', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                      <button type="button" onClick={() => openEditStory(st)} title="แก้ไขโพสต์" style={{ flex: 1, padding: '6px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#2563eb', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                        <Edit3 size={13} /> แก้ไข
+                      </button>
+                      <button type="button" onClick={() => handleToggleHideStory(st)} title={st.is_hidden ? 'กดเพื่อแสดง' : 'กดเพื่อซ่อน'} style={{ flex: 1, padding: '6px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: st.is_hidden ? '#059669' : '#d97706', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                        {st.is_hidden ? <><Eye size={13} /> แสดง</> : <><EyeOff size={13} /> ซ่อน</>}
+                      </button>
+                      <button type="button" onClick={() => handleOpenComments(st.story_id)} title="ดูและตอบคอมเมนต์" style={{ padding: '6px 8px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: openCommentStoryId === st.story_id ? '#dbeafe' : '#fff', color: '#2563eb', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <MessageCircle size={14} />
+                      </button>
+                      <button type="button" onClick={() => handleDeleteStory(st.story_id)} title="ลบโพสต์" style={{ padding: '6px 8px', borderRadius: '8px', border: '1px solid #fecaca', backgroundColor: '#fef2f2', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <Trash2 size={14} />
                       </button>
                     </div>
+
+                    {/* กล่องดูและตอบคอมเมนต์ของโพสต์นี้ */}
+                    {openCommentStoryId === st.story_id && (
+                      <div style={{ padding: '10px', backgroundColor: '#f1f5f9', borderTop: '1px solid #e2e8f0' }}>
+                        <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                          {storyComments.length === 0 ? (
+                            <div style={{ fontSize: '11.5px', color: '#64748b', textAlign: 'center', padding: '4px' }}>ยังไม่มีคอมเมนต์</div>
+                          ) : (
+                            storyComments.map((cm) => {
+                              const cmName = cm.nickname || `${cm.first_name || ''} ${cm.last_name || ''}`.trim() || 'ผู้ใช้งาน';
+                              const isMe = String(cm.account_id) === String(userData.account_id || userData.id);
+                              return (
+                                <div key={cm.comment_id} style={{ backgroundColor: '#fff', padding: '6px 8px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                                    <strong style={{ color: '#0f172a' }}>{cmName}</strong>
+                                    <span style={{ color: '#94a3b8' }}>{formatThaiDate(cm.created_at)}</span>
+                                  </div>
+                                  <div style={{ color: '#334155', margin: '3px 0' }}>{cm.comment_text}</div>
+                                  <div style={{ display: 'flex', gap: '10px', fontSize: '10.5px', fontWeight: 700 }}>
+                                    <span onClick={() => setReplyingTo({ comment_id: cm.comment_id, author_name: cmName })} style={{ color: '#2563eb', cursor: 'pointer' }}>ตอบกลับ</span>
+                                    <span onClick={() => handleDeleteStoryComment(st.story_id, cm.comment_id)} style={{ color: '#ef4444', cursor: 'pointer' }}>ลบ</span>
+                                    {!isMe && <span onClick={() => handleBlockCommenter(cm.account_id, cmName)} style={{ color: '#64748b', cursor: 'pointer' }}>บล็อก</span>}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                        {replyingTo && (
+                          <div style={{ fontSize: '10.5px', color: '#2563eb', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>ตอบกลับ: <strong>{replyingTo.author_name}</strong></span>
+                            <span onClick={() => setReplyingTo(null)} style={{ color: '#ef4444', cursor: 'pointer' }}>ยกเลิก</span>
+                          </div>
+                        )}
+                        <form onSubmit={(e) => handleSendStoryComment(e, st.story_id)} style={{ display: 'flex', gap: '4px' }}>
+                          <input type="text" placeholder="พิมพ์ตอบคอมเมนต์..." value={commentText} onChange={(e) => setCommentText(e.target.value)} style={{ flex: 1, padding: '6px 10px', borderRadius: '999px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 'none' }} />
+                          <button type="submit" style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                            <Send size={13} />
+                          </button>
+                        </form>
+                      </div>
+                    )}
                   </div>
                 );
               })}
-
             </div>
           )}
         </div>
-
         {/* ================================================================= */}
         {/* 👥 ส่วนที่ 4: รายชื่อผู้ที่เราแนะนำ (สไตล์การ์ดรายชื่อสะอาดตา) */}
         {/* ================================================================= */}
@@ -836,22 +977,35 @@ const Profile = () => {
       {/* ================================================================= */}
       {/* 🎨 Modal สร้าง My Story (เลือกไฟล์ + ใส่ข้อความ + เลือกขนาด/สี + ความเป็นส่วนตัว) */}
       {/* ================================================================= */}
+      {/* ================================================================= */}
+      {/* 🎨 Modal สร้าง / แก้ไข My Story (รองรับ ปกวิดีโอ + หัวข้อ + คำอธิบาย + ลากข้อความ + เบลอ) */}
+      {/* ================================================================= */}
       {storyModalOpen && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
-          <form onSubmit={handlePostStory} style={{ backgroundColor: '#ffffff', borderRadius: '20px', width: '100%', maxWidth: '460px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-            <div style={{ backgroundColor: '#2563eb', color: '#fff', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 800, fontSize: '16px' }}>สร้าง My Story ใหม่</span>
+          <form onSubmit={handlePostStory} style={{ backgroundColor: '#ffffff', borderRadius: '20px', width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+            <div style={{ backgroundColor: '#2563eb', color: '#fff', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
+              <span style={{ fontWeight: 800, fontSize: '16px' }}>{editingStoryId ? 'แก้ไข My Story' : 'สร้าง My Story ใหม่'}</span>
               <button type="button" onClick={() => setStoryModalOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={20} /></button>
             </div>
 
             <div style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* เลือกรูปหรือวิดีโอ */}
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '6px' }}>1. เลือกรูปภาพหรือวิดีโอ *</label>
-                <input type="file" accept="image/*,video/*" onChange={handleSelectStoryFile} style={inputStyle} />
-              </div>
+              {/* 1. เลือกรูปหรือวิดีโอ (แสดงเฉพาะตอนสร้างใหม่) */}
+              {!editingStoryId && (
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '6px' }}>1. เลือกรูปภาพหรือวิดีโอ *</label>
+                  <input type="file" accept="image/*,video/*" onChange={handleSelectStoryFile} style={inputStyle} />
+                </div>
+              )}
 
-                {/* ตัวอย่างแสดงผลสด (ลากย้ายข้อความได้ทั้งเมาส์และนิ้ว + แสดงความเบลอสด) */}
+              {/* เพิ่มภาพปกวิดีโอ (แสดงอัตโนมัติเมื่อเลือกไฟล์วิดีโอ) */}
+              {!editingStoryId && storyIsVideo && (
+                <div style={{ backgroundColor: '#eff6ff', padding: '10px 12px', borderRadius: '10px', border: '1px solid #bfdbfe' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#1d4ed8', display: 'block', marginBottom: '6px' }}>🖼️ ภาพปกวิดีโอ (Thumbnail — ไม่บังคับ)</label>
+                  <input type="file" accept="image/*" onChange={(e) => setStoryCoverFile(e.target.files[0] || null)} style={inputStyle} />
+                </div>
+              )}
+
+              {/* ตัวอย่างแสดงผลสด (ลากย้ายข้อความได้ + เบลอสด) */}
               {storyPreview && (
                 <div>
                   <div style={{ fontSize: '11px', color: '#2563eb', fontWeight: 700, marginBottom: '4px' }}>
@@ -859,65 +1013,26 @@ const Profile = () => {
                   </div>
                   <div
                     ref={previewBoxRef}
-                    style={{
-                      position: 'relative', width: '100%', height: '260px',
-                      borderRadius: '14px', overflow: 'hidden', backgroundColor: '#0f172a',
-                      userSelect: 'none'
-                    }}
+                    style={{ position: 'relative', width: '100%', height: '240px', borderRadius: '14px', overflow: 'hidden', backgroundColor: '#0f172a', userSelect: 'none' }}
                   >
                     {storyIsVideo ? (
-                      <video
-                        src={storyPreview}
-                        controls
-                        style={{
-                          width: '100%', height: '100%', objectFit: 'contain',
-                          filter: storyBlur > 0 ? `blur(${(storyBlur / 100) * 16}px)` : 'none',
-                          transform: storyBlur > 0 ? 'scale(1.06)' : 'none'
-                        }}
-                      />
+                      <video src={storyPreview} controls style={{ width: '100%', height: '100%', objectFit: 'contain', filter: storyBlur > 0 ? `blur(${(storyBlur / 100) * 16}px)` : 'none', transform: storyBlur > 0 ? 'scale(1.06)' : 'none' }} />
                     ) : (
-                      <img
-                        src={storyPreview}
-                        alt="Preview"
-                        draggable={false}
-                        style={{
-                          width: '100%', height: '100%', objectFit: 'cover',
-                          filter: storyBlur > 0 ? `blur(${(storyBlur / 100) * 16}px)` : 'none',
-                          transform: storyBlur > 0 ? 'scale(1.06)' : 'none'
-                        }}
-                      />
+                      <img src={storyPreview} alt="Preview" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: storyBlur > 0 ? `blur(${(storyBlur / 100) * 16}px)` : 'none', transform: storyBlur > 0 ? 'scale(1.06)' : 'none' }} />
                     )}
-
-                    {/* ข้อความที่ลากย้ายตำแหน่งได้ */}
                     {storyText && (
                       <div
-                        onPointerDown={(e) => {
-                          e.currentTarget.setPointerCapture(e.pointerId);
-                          setIsDraggingText(true);
-                          updateTextPosition(e.clientX, e.clientY);
-                        }}
-                        onPointerMove={(e) => {
-                          if (isDraggingText) updateTextPosition(e.clientX, e.clientY);
-                        }}
+                        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setIsDraggingText(true); updateTextPosition(e.clientX, e.clientY); }}
+                        onPointerMove={(e) => { if (isDraggingText) updateTextPosition(e.clientX, e.clientY); }}
                         onPointerUp={() => setIsDraggingText(false)}
                         onPointerCancel={() => setIsDraggingText(false)}
                         style={{
-                          position: 'absolute',
-                          left: `${storyTextX}%`,
-                          top: `${storyTextY}%`,
-                          transform: 'translate(-50%, -50%)',
-                          maxWidth: '90%',
-                          padding: '6px 10px',
-                          borderRadius: '8px',
+                          position: 'absolute', left: `${storyTextX}%`, top: `${storyTextY}%`, transform: 'translate(-50%, -50%)',
+                          maxWidth: '90%', padding: '6px 10px', borderRadius: '8px',
                           border: isDraggingText ? '1.5px dashed #38bdf8' : '1px dashed rgba(255,255,255,0.45)',
-                          textAlign: 'center',
-                          cursor: isDraggingText ? 'grabbing' : 'grab',
-                          touchAction: 'none',
-                          color: storyColor,
-                          fontSize: `${storySize}px`,
-                          fontWeight: 800,
-                          textShadow: '0 2px 8px rgba(0,0,0,0.85)',
-                          wordBreak: 'break-word'
+                          textAlign: 'center', cursor: isDraggingText ? 'grabbing' : 'grab', touchAction: 'none',
+                          color: storyColor, fontSize: `${storySize}px`, fontWeight: 800,
+                          textShadow: '0 2px 8px rgba(0,0,0,0.85)', wordBreak: 'break-word'
                         }}
                       >
                         {storyText}
@@ -927,42 +1042,40 @@ const Profile = () => {
                 </div>
               )}
 
-              {/* พิมพ์ข้อความทับภาพ */}
+              {/* หัวข้อ Post & คำอธิบาย (แสดงใต้รูป/วิดีโอ) */}
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>2. ข้อความบนภาพ / วิดีโอ (ไม่บังคับ)</label>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>2. หัวข้อโพสต์ (Title)</label>
+                <input type="text" placeholder="เช่น บรรยากาศยามเช้าที่หมู่บ้านเรา" value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} style={inputStyle} />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>3. คำอธิบายเพิ่มเติม (Description)</label>
+                <textarea rows={2} placeholder="เขียนรายละเอียดหรือเรื่องราวใต้โพสต์..." value={storyDesc} onChange={(e) => setStoryDesc(e.target.value)} style={{ ...inputStyle, resize: 'vertical' }} />
+              </div>
+
+              {/* ข้อความทับบนภาพ + สี/ขนาด/ความเบลอ */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>4. ข้อความทับบนภาพ / วิดีโอ (ไม่บังคับ)</label>
                 <input type="text" placeholder="พิมพ์ข้อความที่ต้องการแสดงทับ..." value={storyText} onChange={(e) => setStoryText(e.target.value)} style={inputStyle} />
               </div>
 
-              {/* เลือกสี, ขนาดตัวอักษร และความเบลอพื้นหลัง 0-100% */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>สีตัวอักษร</label>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
                       {TEXT_COLORS.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setStoryColor(c)}
-                          style={{
-                            width: '22px', height: '22px', borderRadius: '50%', backgroundColor: c, cursor: 'pointer',
-                            border: storyColor === c ? '2.5px solid #2563eb' : '1px solid #cbd5e1'
-                          }}
-                        />
+                        <button key={c} type="button" onClick={() => setStoryColor(c)} style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: c, cursor: 'pointer', border: storyColor === c ? '2.5px solid #2563eb' : '1px solid #cbd5e1' }} />
                       ))}
                       <input type="color" value={storyColor} onChange={(e) => setStoryColor(e.target.value)} style={{ width: '24px', height: '24px', border: 'none', cursor: 'pointer' }} />
                     </div>
                   </div>
-
                   <div>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>
-                      ขนาดตัวอักษร ({storySize}px)
-                    </label>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>ขนาดตัวอักษร ({storySize}px)</label>
                     <input type="range" min="14" max="38" value={storySize} onChange={(e) => setStorySize(Number(e.target.value))} style={{ width: '100%' }} />
                   </div>
                 </div>
 
-                {/* สไลเดอร์ปรับความเบลอพื้นหลัง 0 - 100% */}
                 <div>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                     <span>ความเบลอภาพพื้นหลัง (Background Blur)</span>
@@ -974,7 +1087,7 @@ const Profile = () => {
 
               {/* ตั้งค่าความเป็นส่วนตัว */}
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '6px' }}>3. ตั้งค่าการมองเห็น (ความเป็นส่วนตัว)</label>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '6px' }}>5. ตั้งค่าการมองเห็น (ความเป็นส่วนตัว)</label>
                 <select value={storyVisibility} onChange={(e) => setStoryVisibility(e.target.value)} style={inputStyle}>
                   {VISIBILITY_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -985,7 +1098,7 @@ const Profile = () => {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
                 <button type="button" onClick={() => setStoryModalOpen(false)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#334155', fontWeight: 700, cursor: 'pointer' }}>ยกเลิก</button>
                 <button type="submit" disabled={postingStory} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', backgroundColor: '#2563eb', color: '#fff', fontWeight: 700, cursor: postingStory ? 'not-allowed' : 'pointer' }}>
-                  {postingStory ? 'กำลังอัปโหลด...' : 'โพสต์ Story'}
+                  {postingStory ? 'กำลังบันทึก...' : editingStoryId ? 'บันทึกการแก้ไข' : 'โพสต์ Story'}
                 </button>
               </div>
             </div>
