@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import FriendStoriesBar from '../components/FriendStoriesBar';
 import BottomNavbar from '../components/BottomNavbar';
 import TopNavbar from '../components/TopNavbar';
 import { 
@@ -184,6 +185,7 @@ return (
             </div>
           </div>
 
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px' }}>
             
             {/* --- Card 1: ข้อมูลผู้ใช้งาน (ปรับเป็น Glassmorphism) --- */}
@@ -240,7 +242,7 @@ return (
 
             
             {/* --- Card 2: ข้อมูลพื้นที่รับผิดชอบ (ปรับให้ฉลาดขึ้น แยกผู้บริหาร กับ ประชาชน) --- */}
-         
+                
                   {/* --- Card 2: ข้อมูลพื้นที่รับผิดชอบ (ปรับให้ฉลาดขึ้น แยกผู้บริหาร กับ ประชาชน) --- */}
             <div 
               style={{ 
@@ -258,7 +260,7 @@ return (
               }}
               onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
               onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
+             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {userData.position_level === 'NATIONAL' && <><Building2 size={16} color="#8b5cf6"/> ส่วนกลาง (กระทรวง)</>}
@@ -367,7 +369,8 @@ return (
                 </div>
               )}
             </div>
-
+            
+                <FriendStoriesBar userData={userData} />
             
           </div> 
         </div> 
