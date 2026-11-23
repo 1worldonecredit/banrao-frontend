@@ -81,7 +81,7 @@ function App() {
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/media" element={<Media />} />
             <Route path="/post-vedio" element={<PostVedio />} />
-            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile" element={<Profile/>} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/bookings" element={<Bookings />} />
             <Route path="/jobs" element={<Jobs />} />
