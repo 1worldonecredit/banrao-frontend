@@ -12,7 +12,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 const Profile = () => {
   // 1. State เก็บข้อมูลผู้ใช้งานที่แสดงผล (ดึงจาก Login + อัปเดตจากฐานข้อมูลจริง)
   const [userData, setUserData] = useState(() => JSON.parse(localStorage.getItem('userData') || '{}'));
-  const [occupations, setOccupations] = useState([]); // รายชื่ออาชีพจากตาราง sys_occupations
+  const [occupations, setOccupations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // 2. State สำหรับโหมดแก้ไขข้อมูล (Edit Mode)
@@ -56,10 +56,8 @@ const Profile = () => {
         const db = result.data;
         setOccupations(result.occupations || []);
 
-        // แปลงวันที่เกิดให้อยู่ในรูปแบบ YYYY-MM-DD สำหรับ <input type="date" />
         const formattedDob = db.dob ? String(db.dob).split('T')[0] : '';
 
-        // รวมข้อมูลจาก Login เดิม + ข้อมูลล่าสุดจาก DB
         const mergedUser = {
           ...storedUser,
           firstName: db.first_name || '',
@@ -82,7 +80,6 @@ const Profile = () => {
         setUserData(mergedUser);
         localStorage.setItem('userData', JSON.stringify(mergedUser));
 
-        // เตรียมค่าเริ่มต้นในฟอร์มแก้ไข
         setFormData({
           first_name: db.first_name || '',
           last_name: db.last_name || '',
@@ -121,16 +118,13 @@ const Profile = () => {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/upload-profile`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formDataImg
       });
 
       const data = await response.json();
 
       if (response.ok && data.imageUrl) {
-        // อัปเดต State และ LocalStorage ทันทีเพื่อให้ Sidebar / Dashboard เปลี่ยนตาม
         setUserData((prev) => {
           const updatedData = { ...prev, userImage: data.imageUrl };
           localStorage.setItem('userData', JSON.stringify(updatedData));
@@ -145,7 +139,7 @@ const Profile = () => {
       alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     } finally {
       setUploading(false);
-      event.target.value = ''; // รีเซ็ต input เพื่อให้เลือกรูปเดิมซ้ำได้
+      event.target.value = '';
     }
   };
 
@@ -193,7 +187,7 @@ const Profile = () => {
       if (data.success) {
         alert('✅ ' + data.message);
         setIsEditing(false);
-        fetchLatestProfile(); // โหลดข้อมูลล่าสุดมาแสดงและอัปเดต localStorage
+        fetchLatestProfile();
       } else {
         alert('❌ ' + data.message);
       }
@@ -204,7 +198,7 @@ const Profile = () => {
     }
   };
 
-  // ฟังก์ชันช่วยล้างค่าข้อมูลรายช่อง (สำหรับลบข้อมูลในช่องที่ไม่ต้องการ)
+  // ฟังก์ชันช่วยล้างค่าข้อมูลรายช่อง
   const clearField = (fieldName) => {
     setFormData((prev) => ({ ...prev, [fieldName]: '' }));
   };
@@ -218,26 +212,35 @@ const Profile = () => {
     setTimeout(() => setCopiedRef(false), 2000);
   };
 
-  // สไตล์ช่องกรอกข้อมูลตอนแก้ไข
+  // สไตล์การ์ดและช่องกรอกข้อมูลสำหรับธีมสว่าง (Light Theme)
+  const cardStyle = {
+    backgroundColor: '#ffffff',
+    borderRadius: '20px',
+    padding: '24px',
+    boxShadow: '0 4px 20px rgba(15, 23, 42, 0.08)',
+    border: '1px solid #e2e8f0',
+    color: '#0f172a'
+  };
+
   const inputStyle = {
-    width: '100%', padding: '9px 12px', borderRadius: '8px',
-    border: '1px solid rgba(255,255,255,0.25)',
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-    color: '#ffffff', fontSize: '14px', boxSizing: 'border-box', outline: 'none'
+    width: '100%', padding: '10px 12px', borderRadius: '10px',
+    border: '1px solid #cbd5e1',
+    backgroundColor: '#f8fafc',
+    color: '#0f172a', fontSize: '14px', boxSizing: 'border-box', outline: 'none'
   };
 
   if (loading) {
-    return <div style={{ color: '#fff', textAlign: 'center', marginTop: '50px' }}>กำลังโหลดข้อมูลโปรไฟล์...</div>;
+    return <div style={{ color: '#475569', textAlign: 'center', marginTop: '50px', fontWeight: 600 }}>กำลังโหลดข้อมูลโปรไฟล์...</div>;
   }
 
   return (
-    <div style={{ paddingBottom: '40px', maxWidth: '1150px', margin: '0 auto' }}>
+    <div style={{ padding: '20px 16px 40px', maxWidth: '1150px', margin: '0 auto', color: '#0f172a' }}>
 
       {/* ========================================== */}
       {/* 🧭 ส่วนหัวหน้าโปรไฟล์ & ปุ่มสลับโหมดแก้ไข */}
       {/* ========================================== */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '25px' }}>
-        <h2 style={{ margin: 0, color: '#fff', fontWeight: '700', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+        <h2 style={{ margin: 0, color: '#0f172a', fontWeight: '800', fontSize: '22px' }}>
           โปรไฟล์ส่วนตัว (My Profile)
         </h2>
 
@@ -245,9 +248,9 @@ const Profile = () => {
           <button
             onClick={() => setIsEditing(true)}
             style={{
-              backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '10px 20px',
+              backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px',
               borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
-              fontWeight: 'bold', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)'
+              fontWeight: 'bold', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
             }}
           >
             <Edit3 size={18} /> แก้ไขข้อมูลส่วนตัว
@@ -258,7 +261,7 @@ const Profile = () => {
               type="button"
               onClick={() => setIsEditing(false)}
               style={{
-                backgroundColor: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)',
+                backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1',
                 padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold'
               }}
             >
@@ -269,9 +272,9 @@ const Profile = () => {
               onClick={handleSaveProfile}
               disabled={saving}
               style={{
-                backgroundColor: '#10b981', color: '#fff', border: 'none', padding: '10px 22px',
+                backgroundColor: '#059669', color: '#fff', border: 'none', padding: '10px 22px',
                 borderRadius: '10px', cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-                fontWeight: 'bold', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)'
+                fontWeight: 'bold', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)'
               }}
             >
               <Save size={18} /> {saving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
@@ -281,14 +284,13 @@ const Profile = () => {
       </div>
 
       {/* 🌟 Grid Layout แบ่ง 2 คอลัมน์ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '25px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '24px' }}>
 
         {/* ========================================== */}
         {/* 🟢 คอลัมน์ซ้าย: รูปโปรไฟล์ + สถานะ + รหัสแนะนำ */}
         {/* ========================================== */}
-        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
 
-          {/* ช่อง input file ที่ซ่อนไว้สำหรับเลือกรูป */}
           <input
             type="file"
             accept="image/*"
@@ -304,27 +306,25 @@ const Profile = () => {
               alt="Profile"
               style={{
                 width: '150px', height: '150px', borderRadius: '50%', objectFit: 'cover',
-                border: '4px solid rgba(255,255,255,0.25)', boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                border: '4px solid #e2e8f0', boxShadow: '0 8px 20px rgba(15, 23, 42, 0.12)',
                 opacity: uploading ? 0.5 : 1
               }}
             />
-            {/* ปุ่มกล้อง: เปลี่ยนรูปโปรไฟล์ */}
             <button
               type="button"
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
               title="เปลี่ยนรูปโปรไฟล์"
               style={{
-                position: 'absolute', bottom: '5px', right: '5px', backgroundColor: '#4ade80',
-                color: '#000', border: 'none', borderRadius: '50%', width: '40px', height: '40px',
+                position: 'absolute', bottom: '5px', right: '5px', backgroundColor: '#10b981',
+                color: '#fff', border: 'none', borderRadius: '50%', width: '40px', height: '40px',
                 display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
+                boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
               }}
             >
               <Camera size={20} />
             </button>
 
-            {/* ปุ่มถังขยะ: ลบรูปโปรไฟล์ (แสดงเมื่อมีรูปที่ไม่ใช่รูปเริ่มต้น) */}
             {userData.userImage && userData.userImage !== '/profile-img.jpg' && (
               <button
                 type="button"
@@ -334,7 +334,7 @@ const Profile = () => {
                   position: 'absolute', bottom: '5px', left: '5px', backgroundColor: '#ef4444',
                   color: '#fff', border: 'none', borderRadius: '50%', width: '34px', height: '34px',
                   display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
                 }}
               >
                 <Trash2 size={16} />
@@ -342,51 +342,54 @@ const Profile = () => {
             )}
           </div>
 
-          <h3 style={{ margin: '0 0 4px 0', fontSize: '22px', color: '#fff' }}>
+          <h3 style={{ margin: '0 0 4px 0', fontSize: '21px', fontWeight: 800, color: '#0f172a' }}>
             {userData.full_name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'ผู้ใช้งาน'}
           </h3>
           {userData.nickname && (
-            <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)', marginBottom: '6px' }}>
+            <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '6px' }}>
               ({userData.nickname})
             </div>
           )}
-          <p style={{ margin: '0 0 18px 0', color: '#4ade80', fontWeight: 'bold', fontSize: '14px' }}>
+          <span style={{
+            display: 'inline-block', margin: '4px 0 18px 0', padding: '4px 14px', borderRadius: '999px',
+            backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 'bold', fontSize: '13px'
+          }}>
             {userData.position_name || 'ประชาชนทั่วไป'}
-          </p>
+          </span>
 
-          <div style={{ width: '100%', height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: '18px' }}></div>
+          <div style={{ width: '100%', height: '1px', backgroundColor: '#e2e8f0', marginBottom: '18px' }}></div>
 
           {/* สถิติระดับสมาชิก & คะแนนกิจกรรมชุมชน */}
           <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%', marginBottom: '18px' }}>
             <div>
-              <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>ระดับแพ็กเกจ (Tier)</p>
-              <p style={{ margin: '5px 0 0 0', color: '#38bdf8', fontSize: '15px', fontWeight: 'bold' }}>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '12px', fontWeight: 600 }}>ระดับแพ็กเกจ (Tier)</p>
+              <p style={{ margin: '5px 0 0 0', color: '#0284c7', fontSize: '15px', fontWeight: 800 }}>
                 {userData.tier_code || 'CITIZEN_FREE'}
               </p>
             </div>
-            <div style={{ width: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }}></div>
+            <div style={{ width: '1px', backgroundColor: '#e2e8f0' }}></div>
             <div>
-              <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>คะแนนชุมชน</p>
-              <p style={{ margin: '5px 0 0 0', color: '#facc15', fontSize: '18px', fontWeight: 'bold' }}>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '12px', fontWeight: 600 }}>คะแนนชุมชน</p>
+              <p style={{ margin: '5px 0 0 0', color: '#d97706', fontSize: '17px', fontWeight: 800 }}>
                 {userData.community_score || 0} คะแนน
               </p>
             </div>
           </div>
 
-          {/* กล่อง Copy ลิงก์เชิญเพื่อน (Referral Code) */}
+          {/* กล่อง Copy ลิงก์เชิญเพื่อน */}
           {userData.referral_code && (
-            <div style={{ width: '100%', backgroundColor: 'rgba(255,255,255,0.08)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)' }}>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>รหัสผู้แนะนำของคุณ</div>
+            <div style={{ width: '100%', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '6px' }}>รหัสผู้แนะนำของคุณ</div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 'bold', color: '#4ade80' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 800, color: '#059669' }}>
                   {userData.referral_code}
                 </span>
                 <button
                   type="button"
                   onClick={handleCopyReferral}
                   style={{
-                    backgroundColor: copiedRef ? '#10b981' : '#3b82f6', color: '#fff', border: 'none',
-                    padding: '6px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold',
+                    backgroundColor: copiedRef ? '#059669' : '#2563eb', color: '#fff', border: 'none',
+                    padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold',
                     cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
                   }}
                 >
@@ -402,54 +405,52 @@ const Profile = () => {
         {/* ========================================== */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', gridColumn: 'span 2' }}>
 
-          {/* การ์ดที่ 1: ข้อมูลส่วนตัว (เพิ่ม / แก้ไข / ล้างค่าได้) */}
-          <div className="glass-card">
-            <h3 style={{ margin: '0 0 20px 0', color: '#fff', fontSize: '18px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
+          {/* การ์ดที่ 1: ข้อมูลส่วนตัว */}
+          <div style={cardStyle}>
+            <h3 style={{ margin: '0 0 20px 0', color: '#0f172a', fontSize: '17px', fontWeight: 800, borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
               ข้อมูลส่วนตัว (Personal Information)
             </h3>
 
             {!isEditing ? (
-              /* โหมดแสดงผลปกติ */
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
-                <InfoItem icon={<User size={22} />} bg="rgba(168, 85, 247, 0.2)" color="#c084fc" label="ชื่อ - นามสกุล" value={userData.full_name || '-'} />
-                <InfoItem icon={<User size={22} />} bg="rgba(236, 72, 153, 0.2)" color="#f472b6" label="ชื่อเล่น" value={userData.nickname || '-'} />
-                <InfoItem icon={<Phone size={22} />} bg="rgba(16, 185, 129, 0.2)" color="#34d399" label="เบอร์โทรศัพท์ (Username)" value={userData.username || '-'} />
-                <InfoItem icon={<Calendar size={22} />} bg="rgba(234, 179, 8, 0.2)" color="#facc15" label="วันเกิด / อายุ" value={userData.dob ? `${userData.dob} (${userData.age_years || 0} ปี)` : '-'} />
-                <InfoItem icon={<Users size={22} />} bg="rgba(59, 130, 246, 0.2)" color="#60a5fa" label="เพศ" value={userData.gender || '-'} />
-                <InfoItem icon={<Home size={22} />} bg="rgba(244, 63, 94, 0.2)" color="#fb7185" label="บ้านเลขที่ / ผู้อาศัย" value={`บ้านเลขที่ ${userData.house_no || '-'} (${userData.household_member_count || 0} คน)`} />
-                <InfoItem icon={<Briefcase size={22} />} bg="rgba(14, 165, 233, 0.2)" color="#38bdf8" label="อาชีพ" value={userData.occupation || '-'} />
+                <InfoItem icon={<User size={20} />} bg="#f3e8ff" color="#7e22ce" label="ชื่อ - นามสกุล" value={userData.full_name || '-'} />
+                <InfoItem icon={<User size={20} />} bg="#fce7f3" color="#be185d" label="ชื่อเล่น" value={userData.nickname || '-'} />
+                <InfoItem icon={<Phone size={20} />} bg="#d1fae5" color="#047857" label="เบอร์โทรศัพท์ (Username)" value={userData.username || '-'} />
+                <InfoItem icon={<Calendar size={20} />} bg="#fef3c7" color="#b45309" label="วันเกิด / อายุ" value={userData.dob ? `${userData.dob} (${userData.age_years || 0} ปี)` : '-'} />
+                <InfoItem icon={<Users size={20} />} bg="#dbeafe" color="#1d4ed8" label="เพศ" value={userData.gender || '-'} />
+                <InfoItem icon={<Home size={20} />} bg="#ffe4e6" color="#be123c" label="บ้านเลขที่ / ผู้อาศัย" value={`บ้านเลขที่ ${userData.house_no || '-'} (${userData.household_member_count || 0} คน)`} />
+                <InfoItem icon={<Briefcase size={20} />} bg="#e0f2fe" color="#0369a1" label="อาชีพ" value={userData.occupation || '-'} />
               </div>
             ) : (
-              /* โหมดแก้ไขข้อมูล (สามารถเพิ่ม แก้ไข หรือกดปุ่มกากบาทเพื่อล้างค่าได้) */
               <form onSubmit={handleSaveProfile} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: '5px' }}>ชื่อจริง *</label>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>ชื่อจริง *</label>
                   <input required type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} style={inputStyle} />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: '5px' }}>นามสกุล *</label>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>นามสกุล *</label>
                   <input required type="text" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} style={inputStyle} />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                     <span>ชื่อเล่น</span>
-                    <span onClick={() => clearField('nickname')} style={{ color: '#f87171', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
+                    <span onClick={() => clearField('nickname')} style={{ color: '#dc2626', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
                   </label>
                   <input type="text" placeholder="ระบุชื่อเล่น" value={formData.nickname} onChange={(e) => setFormData({ ...formData, nickname: e.target.value })} style={inputStyle} />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                     <span>วันเดือนปีเกิด</span>
-                    <span onClick={() => clearField('dob')} style={{ color: '#f87171', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
+                    <span onClick={() => clearField('dob')} style={{ color: '#dc2626', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
                   </label>
                   <input type="date" value={formData.dob} onChange={(e) => setFormData({ ...formData, dob: e.target.value })} style={inputStyle} />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: '5px' }}>เพศ</label>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>เพศ</label>
                   <select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} style={inputStyle}>
                     <option value="">-- ไม่ระบุ --</option>
                     <option value="MALE">ชาย</option>
@@ -458,20 +459,20 @@ const Profile = () => {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                     <span>บ้านเลขที่</span>
-                    <span onClick={() => clearField('house_no')} style={{ color: '#f87171', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
+                    <span onClick={() => clearField('house_no')} style={{ color: '#dc2626', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
                   </label>
                   <input type="text" value={formData.house_no} onChange={(e) => setFormData({ ...formData, house_no: e.target.value })} style={inputStyle} />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: '5px' }}>จำนวนผู้อาศัยในบ้าน (คน)</label>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>จำนวนผู้อาศัยในบ้าน (คน)</label>
                   <input type="number" min="0" value={formData.household_member_count} onChange={(e) => setFormData({ ...formData, household_member_count: e.target.value })} style={inputStyle} />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: '5px' }}>อาชีพ</label>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>อาชีพ</label>
                   <select value={formData.occupation_id} onChange={(e) => setFormData({ ...formData, occupation_id: e.target.value })} style={inputStyle}>
                     <option value="">-- ไม่ระบุอาชีพ --</option>
                     {occupations.map((o) => (
@@ -483,25 +484,25 @@ const Profile = () => {
             )}
           </div>
 
-          {/* การ์ดที่ 2: ข้อมูลหมู่บ้านและสังกัด 4 มิติ (ดึงจากการ Login) */}
-          <div className="glass-card">
-            <h3 style={{ margin: '0 0 20px 0', color: '#fff', fontSize: '18px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
+          {/* การ์ดที่ 2: ข้อมูลหมู่บ้านและสังกัด 4 มิติ */}
+          <div style={cardStyle}>
+            <h3 style={{ margin: '0 0 20px 0', color: '#0f172a', fontSize: '17px', fontWeight: 800, borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
               ข้อมูลหมู่บ้านและสังกัดในระบบ (Village & 4D Status)
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '18px' }}>
               <InfoItem
-                icon={<MapPin size={22} />} bg="rgba(244, 63, 94, 0.2)" color="#fb7185"
+                icon={<MapPin size={20} />} bg="#ffe4e6" color="#be123c"
                 label="พื้นที่หมู่บ้าน"
                 value={userData.villageName ? `หมู่ ${userData.village_no || '-'} ${userData.villageName} ต.${userData.tambonName || '-'} อ.${userData.amphureName || '-'} จ.${userData.provinceName || '-'}` : '-'}
               />
               <InfoItem
-                icon={<Award size={22} />} bg="rgba(234, 179, 8, 0.2)" color="#facc15"
+                icon={<Award size={20} />} bg="#fef3c7" color="#b45309"
                 label="ผู้ใหญ่บ้านในพื้นที่"
                 value={userData.headmanName || 'ยังไม่ระบุ'}
               />
               <InfoItem
-                icon={<Shield size={22} />} bg="rgba(14, 165, 233, 0.2)" color="#38bdf8"
+                icon={<Shield size={20} />} bg="#e0f2fe" color="#0369a1"
                 label="ตำแหน่ง / หน่วยงาน / แผนก"
                 value={`${userData.position_name || 'ประชาชนทั่วไป'}${userData.org_name ? ` (${userData.org_name})` : ''}`}
               />
@@ -514,15 +515,15 @@ const Profile = () => {
   );
 };
 
-// Component ย่อยสำหรับแสดงแต่ละรายการข้อมูลให้โค้ดอ่านง่ายและแก้ไขสะดวก
+// Component ย่อยสำหรับแสดงแต่ละรายการข้อมูล (ตัวอักษรเข้ม อ่านชัดบนพื้นขาว)
 const InfoItem = ({ icon, bg, color, label, value }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-    <div style={{ backgroundColor: bg, padding: '11px', borderRadius: '12px', color, flexShrink: 0 }}>
+    <div style={{ backgroundColor: bg, padding: '11px', borderRadius: '12px', color, flexShrink: 0, display: 'flex' }}>
       {icon}
     </div>
     <div>
-      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>{label}</div>
-      <div style={{ fontSize: '15px', color: '#fff', fontWeight: '500', marginTop: '2px' }}>{value}</div>
+      <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700, marginTop: '2px' }}>{value}</div>
     </div>
   </div>
 );
