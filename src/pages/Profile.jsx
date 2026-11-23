@@ -1,63 +1,107 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   User, Phone, Calendar, MapPin, Shield, Camera, Edit3,
-  Save, X, Trash2, Home, Users, Briefcase, Award, Copy, Check
+  Save, X, Trash2, Home, Users, Briefcase, Award, Copy, Check,
+  Plus, Image as ImageIcon, Globe, Lock, Eye, Sparkles
 } from 'lucide-react';
 import Layout from '../components/Layout';
 
 // =========================================================================
-// ⚙️ ตั้งค่า URL ของ Backend API
+// ⚙️ ตั้งค่า URL และข้อมูลคงที่ (เดือนภาษาไทย / ระดับการมองเห็น Story)
 // =========================================================================
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
+const THAI_MONTHS = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+];
+
+const VISIBILITY_OPTIONS = [
+  { value: 'PRIVATE', label: '🔒 ส่วนตัว (เห็นเฉพาะฉัน)' },
+  { value: 'FRIENDS', label: '👥 เฉพาะเพื่อน' },
+  { value: 'VILLAGE', label: '🏡 เฉพาะหมู่บ้านของฉัน' },
+  { value: 'TAMBON', label: '📍 เฉพาะตำบลของฉัน' },
+  { value: 'AMPHURE', label: '🗺️ เฉพาะอำเภอของฉัน' },
+  { value: 'PROVINCE', label: '🏛️ เฉพาะจังหวัดของฉัน' },
+  { value: 'PUBLIC', label: '🌍 สาธารณะ (ทุกคนเห็นได้)' }
+];
+
+const TEXT_COLORS = ['#ffffff', '#000000', '#facc15', '#ef4444', '#22c55e', '#3b82f6', '#ec4899'];
+
+// ฟังก์ชันแปลง YYYY-MM-DD เป็นวันที่ภาษาไทย (เช่น 15 มกราคม 2533)
+const formatThaiDate = (dobStr) => {
+  if (!dobStr || dobStr.startsWith('1900')) return '-';
+  const parts = String(dobStr).split('T')[0].split('-');
+  if (parts.length !== 3) return '-';
+  const yearBE = Number(parts[0]) + 543;
+  const monthName = THAI_MONTHS[Number(parts[1]) - 1] || '';
+  const day = Number(parts[2]);
+  return `${day} ${monthName} ${yearBE}`;
+};
+
 const Profile = () => {
-  // 1. State เก็บข้อมูลผู้ใช้งานที่แสดงผล (ดึงจาก Login + อัปเดตจากฐานข้อมูลจริง)
+  // 1. State ข้อมูลผู้ใช้งาน, รายชื่ออาชีพ, รายชื่อผู้ที่แนะนำ และ Story
   const [userData, setUserData] = useState(() => JSON.parse(localStorage.getItem('userData') || '{}'));
   const [occupations, setOccupations] = useState([]);
+  const [referrals, setReferrals] = useState([]);
+  const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 2. State สำหรับโหมดแก้ไขข้อมูล (Edit Mode)
+  // 2. State โหมดแก้ไขโปรไฟล์ & อัปโหลดรูป
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
-
-  // Ref สำหรับสั่งกด <input type="file" /> ที่ซ่อนไว้เมื่อคลิกปุ่มกล้อง
   const fileInputRef = useRef(null);
 
-  // 3. State เก็บค่าในฟอร์มตอนกด "แก้ไขข้อมูล"
+  // 3. State ฟอร์มแก้ไขโปรไฟล์ + แยกวัน/เดือน/พ.ศ. แบบไทย
   const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    nickname: '',
-    dob: '',
-    gender: '',
-    house_no: '',
-    occupation_id: '',
-    household_member_count: 0
+    first_name: '', last_name: '', nickname: '',
+    dob: '', gender: '', house_no: '', occupation_id: '', household_member_count: 0
   });
+  const [dobDay, setDobDay] = useState('');
+  const [dobMonth, setDobMonth] = useState('');
+  const [dobYearBE, setDobYearBE] = useState('');
+
+  // 4. State สำหรับ Modal สร้าง My Story
+  const [storyModalOpen, setStoryModalOpen] = useState(false);
+  const [storyFile, setStoryFile] = useState(null);
+  const [storyPreview, setStoryPreview] = useState('');
+  const [storyIsVideo, setStoryIsVideo] = useState(false);
+  const [storyText, setStoryText] = useState('');
+  const [storyColor, setStoryColor] = useState('#ffffff');
+  const [storySize, setStorySize] = useState(22);
+  const [storyVisibility, setStoryVisibility] = useState('VILLAGE');
+  const [postingStory, setPostingStory] = useState(false);
+
+  // สร้างรายการปี พ.ศ. (ย้อนหลัง 100 ปี)
+  const currentYearBE = new Date().getFullYear() + 543;
+  const yearsBE = Array.from({ length: 100 }, (_, i) => currentYearBE - i);
 
   // =========================================================================
-  // 🔄 ฟังก์ชันดึงข้อมูลโปรไฟล์ล่าสุดจากฐานข้อมูลจริง
+  // 🔄 ดึงข้อมูลโปรไฟล์ + รายชื่อผู้ที่เราแนะนำ + My Story ทั้งหมดพร้อมกัน
   // =========================================================================
-  const fetchLatestProfile = async () => {
+  const fetchAllData = async () => {
     const storedUser = JSON.parse(localStorage.getItem('userData') || '{}');
     const accountId = storedUser.account_id || storedUser.id;
-
     if (!accountId) {
       setLoading(false);
       return;
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/user/profile/${accountId}`);
-      const result = await res.json();
+      const [profileRes, refRes, storyRes] = await Promise.all([
+        fetch(`${API_URL}/api/user/profile/${accountId}`).then((r) => r.json()),
+        fetch(`${API_URL}/api/user/referrals/${accountId}`).then((r) => r.json()).catch(() => ({ success: false })),
+        fetch(`${API_URL}/api/user/stories/${accountId}`).then((r) => r.json()).catch(() => ({ success: false }))
+      ]);
 
-      if (result.success && result.data) {
-        const db = result.data;
-        setOccupations(result.occupations || []);
+      if (profileRes.success && profileRes.data) {
+        const db = profileRes.data;
+        setOccupations(profileRes.occupations || []);
 
         const formattedDob = db.dob ? String(db.dob).split('T')[0] : '';
+        const isDummy = formattedDob.startsWith('1900');
 
         const mergedUser = {
           ...storedUser,
@@ -65,7 +109,7 @@ const Profile = () => {
           lastName: db.last_name || '',
           full_name: `${db.first_name || ''} ${db.last_name || ''}`.trim(),
           nickname: db.nickname || '',
-          dob: formattedDob,
+          dob: isDummy ? '' : formattedDob,
           genderCode: db.gender || '',
           gender: db.gender === 'MALE' ? 'ชาย' : db.gender === 'FEMALE' ? 'หญิง' : '-',
           house_no: db.house_no || '-',
@@ -85,26 +129,41 @@ const Profile = () => {
           first_name: db.first_name || '',
           last_name: db.last_name || '',
           nickname: db.nickname || '',
-          dob: formattedDob,
+          dob: isDummy ? '' : formattedDob,
           gender: db.gender || '',
           house_no: db.house_no || '',
           occupation_id: db.occupation_id || '',
           household_member_count: db.household_member_count || 0
         });
+
+        // แยกวัน/เดือน/พ.ศ. ใส่ Dropdown แบบไทย
+        if (formattedDob && !isDummy) {
+          const [y, m, d] = formattedDob.split('-');
+          setDobYearBE(String(Number(y) + 543));
+          setDobMonth(String(Number(m)));
+          setDobDay(String(Number(d)));
+        } else {
+          setDobYearBE('');
+          setDobMonth('');
+          setDobDay('');
+        }
       }
+
+      if (refRes.success && Array.isArray(refRes.data)) setReferrals(refRes.data);
+      if (storyRes.success && Array.isArray(storyRes.data)) setStories(storyRes.data);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Error fetching profile data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLatestProfile();
+    fetchAllData();
   }, []);
 
   // =========================================================================
-  // 📸 ฟังก์ชันอัปโหลดรูปโปรไฟล์ (ใช้ API เส้นเดียวกับ Dashboard Card 1)
+  // 📸 อัปโหลด & ลบรูปโปรไฟล์ (API เส้นเดียวกับ Dashboard Card 1)
   // =========================================================================
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
@@ -122,21 +181,19 @@ const Profile = () => {
         headers: { 'Authorization': `Bearer ${token}` },
         body: formDataImg
       });
-
       const data = await response.json();
 
       if (response.ok && data.imageUrl) {
         setUserData((prev) => {
-          const updatedData = { ...prev, userImage: data.imageUrl };
-          localStorage.setItem('userData', JSON.stringify(updatedData));
-          return updatedData;
+          const updated = { ...prev, userImage: data.imageUrl };
+          localStorage.setItem('userData', JSON.stringify(updated));
+          return updated;
         });
         alert('✅ อัปโหลดรูปโปรไฟล์สำเร็จ!');
       } else {
-        alert('❌ เกิดข้อผิดพลาด: ' + (data.error || 'ไม่สามารถอัปโหลดได้'));
+        alert('❌ ' + (data.error || 'ไม่สามารถอัปโหลดได้'));
       }
     } catch (error) {
-      console.error('Error uploading image:', error);
       alert('❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     } finally {
       setUploading(false);
@@ -144,17 +201,11 @@ const Profile = () => {
     }
   };
 
-  // =========================================================================
-  // 🗑️ ฟังก์ชันลบรูปโปรไฟล์ (Soft Delete: ปรับ is_active = false)
-  // =========================================================================
   const handleDeleteImage = async () => {
     if (!window.confirm('ต้องการลบรูปโปรไฟล์ปัจจุบันใช่หรือไม่?')) return;
     const accountId = userData.account_id || userData.id;
-
     try {
-      const res = await fetch(`${API_URL}/api/user/profile-image/${accountId}`, {
-        method: 'DELETE'
-      });
+      const res = await fetch(`${API_URL}/api/user/profile-image/${accountId}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         setUserData((prev) => {
@@ -165,30 +216,38 @@ const Profile = () => {
         alert('✅ ลบรูปโปรไฟล์เรียบร้อยแล้ว');
       }
     } catch (err) {
-      alert('❌ ลบรูปไม่สำเร็จ: ' + err.message);
+      alert('❌ ลบรูปไม่สำเร็จ');
     }
   };
 
   // =========================================================================
-  // 💾 ฟังก์ชันบันทึกการเพิ่ม / แก้ไข / ล้างค่าข้อมูลส่วนตัว
+  // 💾 บันทึกข้อมูลส่วนตัว (แปลง วัน/เดือน/พ.ศ. กลับเป็น YYYY-MM-DD)
   // =========================================================================
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     const accountId = userData.account_id || userData.id;
-    setSaving(true);
 
+    let finalDob = '';
+    if (dobDay && dobMonth && dobYearBE) {
+      const yearAD = Number(dobYearBE) - 543;
+      const mm = String(dobMonth).padStart(2, '0');
+      const dd = String(dobDay).padStart(2, '0');
+      finalDob = `${yearAD}-${mm}-${dd}`;
+    }
+
+    setSaving(true);
     try {
       const res = await fetch(`${API_URL}/api/user/profile/${accountId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, dob: finalDob })
       });
       const data = await res.json();
 
       if (data.success) {
         alert('✅ ' + data.message);
         setIsEditing(false);
-        fetchLatestProfile();
+        fetchAllData();
       } else {
         alert('❌ ' + data.message);
       }
@@ -199,12 +258,63 @@ const Profile = () => {
     }
   };
 
-  // ฟังก์ชันช่วยล้างค่าข้อมูลรายช่อง
-  const clearField = (fieldName) => {
-    setFormData((prev) => ({ ...prev, [fieldName]: '' }));
+  // =========================================================================
+  // 🎬 ฟังก์ชันจัดการ My Story (เลือกรูป/วิดีโอ, โพสต์, ลบ)
+  // =========================================================================
+  const handleSelectStoryFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setStoryFile(file);
+    setStoryIsVideo(file.type.startsWith('video/'));
+    setStoryPreview(URL.createObjectURL(file));
   };
 
-  // ฟังก์ชัน Copy ลิงก์เชิญเพื่อน (Referral Link)
+  const handlePostStory = async (e) => {
+    e.preventDefault();
+    if (!storyFile) return alert('กรุณาเลือกรูปภาพหรือวิดีโอก่อนโพสต์');
+
+    const accountId = userData.account_id || userData.id;
+    const fd = new FormData();
+    fd.append('storyMedia', storyFile);
+    fd.append('account_id', accountId);
+    if (userData.village_id) fd.append('village_id', userData.village_id);
+    fd.append('overlay_text', storyText);
+    fd.append('text_color', storyColor);
+    fd.append('text_size', storySize);
+    fd.append('visibility', storyVisibility);
+
+    setPostingStory(true);
+    try {
+      const res = await fetch(`${API_URL}/api/user/stories`, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ โพสต์ My Story สำเร็จ!');
+        setStoryModalOpen(false);
+        setStoryFile(null);
+        setStoryPreview('');
+        setStoryText('');
+        fetchAllData();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    } catch (err) {
+      alert('❌ โพสต์ไม่สำเร็จ: ' + err.message);
+    } finally {
+      setPostingStory(false);
+    }
+  };
+
+  const handleDeleteStory = async (storyId) => {
+    if (!window.confirm('ต้องการลบ Story นี้ใช่หรือไม่?')) return;
+    try {
+      const res = await fetch(`${API_URL}/api/user/stories/${storyId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) fetchAllData();
+    } catch (err) {
+      alert('❌ ลบ Story ไม่สำเร็จ');
+    }
+  };
+
   const handleCopyReferral = () => {
     if (!userData.referral_code) return;
     const shareUrl = `${window.location.origin}/register-citizen?ref=${userData.referral_code}`;
@@ -213,27 +323,25 @@ const Profile = () => {
     setTimeout(() => setCopiedRef(false), 2000);
   };
 
-  // สไตล์การ์ดและช่องกรอกข้อมูลสำหรับธีมสว่าง (Light Theme)
   const cardStyle = {
     backgroundColor: '#ffffff',
     borderRadius: '20px',
-    padding: '24px',
-    boxShadow: '0 4px 20px rgba(15, 23, 42, 0.08)',
+    padding: '22px',
+    boxShadow: '0 4px 20px rgba(15, 23, 42, 0.07)',
     border: '1px solid #e2e8f0',
     color: '#0f172a'
   };
 
   const inputStyle = {
     width: '100%', padding: '10px 12px', borderRadius: '10px',
-    border: '1px solid #cbd5e1',
-    backgroundColor: '#f8fafc',
+    border: '1px solid #cbd5e1', backgroundColor: '#f8fafc',
     color: '#0f172a', fontSize: '14px', boxSizing: 'border-box', outline: 'none'
   };
 
   if (loading) {
     return (
       <Layout>
-        <div style={{ color: '#475569', textAlign: 'center', marginTop: '50px', fontWeight: 600 }}>
+        <div style={{ color: '#475569', textAlign: 'center', paddingTop: '100px', fontWeight: 600 }}>
           กำลังโหลดข้อมูลโปรไฟล์...
         </div>
       </Layout>
@@ -242,13 +350,12 @@ const Profile = () => {
 
   return (
     <Layout>
-      <div style={{ padding: '20px 16px 90px', maxWidth: '1150px', margin: '0 auto', color: '#0f172a' }}>
+      {/* ✨ เพิ่ม paddingTop: '80px' เพื่อไม่ให้ Top Navbar บังหัวข้อและปุ่มแก้ไข */}
+      <div style={{ padding: '80px 16px 100px', maxWidth: '1150px', margin: '0 auto', color: '#0f172a' }}>
 
-        {/* ========================================== */}
-        {/* 🧭 ส่วนหัวหน้าโปรไฟล์ & ปุ่มสลับโหมดแก้ไข */}
-        {/* ========================================== */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-          <h2 style={{ margin: 0, color: '#0f172a', fontWeight: '800', fontSize: '22px' }}>
+        {/* ส่วนหัวหน้าโปรไฟล์ & ปุ่มแก้ไข */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '22px' }}>
+          <h2 style={{ margin: 0, color: '#0f172a', fontWeight: '800', fontSize: '21px' }}>
             โปรไฟล์ส่วนตัว (My Profile)
           </h2>
 
@@ -256,64 +363,53 @@ const Profile = () => {
             <button
               onClick={() => setIsEditing(true)}
               style={{
-                backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '10px 20px',
+                backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '10px 18px',
                 borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
-                fontWeight: 'bold', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
+                fontWeight: 'bold', fontSize: '13.5px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
               }}
             >
-              <Edit3 size={18} /> แก้ไขข้อมูลส่วนตัว
+              <Edit3 size={17} /> แก้ไขข้อมูลส่วนตัว
             </button>
           ) : (
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
                 style={{
                   backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1',
-                  padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold'
+                  padding: '9px 16px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold'
                 }}
               >
-                <X size={18} /> ยกเลิก
+                <X size={17} /> ยกเลิก
               </button>
               <button
                 type="button"
                 onClick={handleSaveProfile}
                 disabled={saving}
                 style={{
-                  backgroundColor: '#059669', color: '#fff', border: 'none', padding: '10px 22px',
-                  borderRadius: '10px', cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-                  fontWeight: 'bold', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)'
+                  backgroundColor: '#059669', color: '#fff', border: 'none', padding: '9px 18px',
+                  borderRadius: '10px', cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold'
                 }}
               >
-                <Save size={18} /> {saving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
+                <Save size={17} /> {saving ? 'กำลังบันทึก...' : 'บันทึก'}
               </button>
             </div>
           )}
         </div>
 
-        {/* 🌟 Grid Layout แบ่ง 2 คอลัมน์ */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '24px' }}>
+        {/* Grid หลัก */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '22px' }}>
 
-          {/* ========================================== */}
           {/* 🟢 คอลัมน์ซ้าย: รูปโปรไฟล์ + สถานะ + รหัสแนะนำ */}
-          {/* ========================================== */}
-          <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', height: 'fit-content' }}>
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{ display: 'none' }} />
 
-            <input
-              type="file"
-              accept="image/*"
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-              style={{ display: 'none' }}
-            />
-
-            {/* กรอบรูป Profile พร้อมปุ่มอัปโหลดรูป และปุ่มลบรูป */}
-            <div style={{ position: 'relative', marginBottom: '18px' }}>
+            <div style={{ position: 'relative', marginBottom: '16px' }}>
               <img
                 src={userData.userImage || '/profile-img.jpg'}
                 alt="Profile"
                 style={{
-                  width: '150px', height: '150px', borderRadius: '50%', objectFit: 'cover',
+                  width: '140px', height: '140px', borderRadius: '50%', objectFit: 'cover',
                   border: '4px solid #e2e8f0', boxShadow: '0 8px 20px rgba(15, 23, 42, 0.12)',
                   opacity: uploading ? 0.5 : 1
                 }}
@@ -324,13 +420,12 @@ const Profile = () => {
                 onClick={() => fileInputRef.current?.click()}
                 title="เปลี่ยนรูปโปรไฟล์"
                 style={{
-                  position: 'absolute', bottom: '5px', right: '5px', backgroundColor: '#10b981',
-                  color: '#fff', border: 'none', borderRadius: '50%', width: '40px', height: '40px',
-                  display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
+                  position: 'absolute', bottom: '4px', right: '4px', backgroundColor: '#10b981',
+                  color: '#fff', border: 'none', borderRadius: '50%', width: '38px', height: '38px',
+                  display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
                 }}
               >
-                <Camera size={20} />
+                <Camera size={18} />
               </button>
 
               {userData.userImage && userData.userImage !== '/profile-img.jpg' && (
@@ -339,59 +434,43 @@ const Profile = () => {
                   onClick={handleDeleteImage}
                   title="ลบรูปโปรไฟล์"
                   style={{
-                    position: 'absolute', bottom: '5px', left: '5px', backgroundColor: '#ef4444',
+                    position: 'absolute', bottom: '4px', left: '4px', backgroundColor: '#ef4444',
                     color: '#fff', border: 'none', borderRadius: '50%', width: '34px', height: '34px',
-                    display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.2)'
                   }}
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={15} />
                 </button>
               )}
             </div>
 
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '21px', fontWeight: 800, color: '#0f172a' }}>
-              {userData.full_name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'ผู้ใช้งาน'}
+            <h3 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>
+              {userData.full_name || 'ผู้ใช้งาน'}
             </h3>
-            {userData.nickname && (
-              <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '6px' }}>
-                ({userData.nickname})
-              </div>
-            )}
-            <span style={{
-              display: 'inline-block', margin: '4px 0 18px 0', padding: '4px 14px', borderRadius: '999px',
-              backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 'bold', fontSize: '13px'
-            }}>
+            {userData.nickname && <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '6px' }}>({userData.nickname})</div>}
+            <span style={{ display: 'inline-block', margin: '4px 0 16px 0', padding: '4px 14px', borderRadius: '999px', backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 'bold', fontSize: '13px' }}>
               {userData.position_name || 'ประชาชนทั่วไป'}
             </span>
 
-            <div style={{ width: '100%', height: '1px', backgroundColor: '#e2e8f0', marginBottom: '18px' }}></div>
+            <div style={{ width: '100%', height: '1px', backgroundColor: '#e2e8f0', marginBottom: '16px' }}></div>
 
-            {/* สถิติระดับสมาชิก & คะแนนกิจกรรมชุมชน */}
-            <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%', marginBottom: '16px' }}>
               <div>
                 <p style={{ margin: 0, color: '#64748b', fontSize: '12px', fontWeight: 600 }}>ระดับแพ็กเกจ (Tier)</p>
-                <p style={{ margin: '5px 0 0 0', color: '#0284c7', fontSize: '15px', fontWeight: 800 }}>
-                  {userData.tier_code || 'CITIZEN_FREE'}
-                </p>
+                <p style={{ margin: '4px 0 0 0', color: '#0284c7', fontSize: '14px', fontWeight: 800 }}>{userData.tier_code || 'CITIZEN_FREE'}</p>
               </div>
               <div style={{ width: '1px', backgroundColor: '#e2e8f0' }}></div>
               <div>
                 <p style={{ margin: 0, color: '#64748b', fontSize: '12px', fontWeight: 600 }}>คะแนนชุมชน</p>
-                <p style={{ margin: '5px 0 0 0', color: '#d97706', fontSize: '17px', fontWeight: 800 }}>
-                  {userData.community_score || 0} คะแนน
-                </p>
+                <p style={{ margin: '4px 0 0 0', color: '#d97706', fontSize: '16px', fontWeight: 800 }}>{userData.community_score || 0} คะแนน</p>
               </div>
             </div>
 
-            {/* กล่อง Copy ลิงก์เชิญเพื่อน */}
             {userData.referral_code && (
               <div style={{ width: '100%', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '6px' }}>รหัสผู้แนะนำของคุณ</div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 800, color: '#059669' }}>
-                    {userData.referral_code}
-                  </span>
+                  <span style={{ fontFamily: 'monospace', fontSize: '15px', fontWeight: 800, color: '#059669' }}>{userData.referral_code}</span>
                   <button
                     type="button"
                     onClick={handleCopyReferral}
@@ -408,53 +487,63 @@ const Profile = () => {
             )}
           </div>
 
-          {/* ========================================== */}
-          {/* 🔵 คอลัมน์ขวา: ข้อมูลส่วนตัว + ข้อมูลหมู่บ้าน + โครงสร้าง 4 มิติ */}
-          {/* ========================================== */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', gridColumn: 'span 2' }}>
+          {/* 🔵 คอลัมน์ขวา: ข้อมูลส่วนตัว + หมู่บ้าน + My Story + รายชื่อผู้ที่เราแนะนำ */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '22px', gridColumn: 'span 1' }}>
 
             {/* การ์ดที่ 1: ข้อมูลส่วนตัว */}
             <div style={cardStyle}>
-              <h3 style={{ margin: '0 0 20px 0', color: '#0f172a', fontSize: '17px', fontWeight: 800, borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <h3 style={{ margin: '0 0 18px 0', color: '#0f172a', fontSize: '16px', fontWeight: 800, borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
                 ข้อมูลส่วนตัว (Personal Information)
               </h3>
 
               {!isEditing ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
-                  <InfoItem icon={<User size={20} />} bg="#f3e8ff" color="#7e22ce" label="ชื่อ - นามสกุล" value={userData.full_name || '-'} />
-                  <InfoItem icon={<User size={20} />} bg="#fce7f3" color="#be185d" label="ชื่อเล่น" value={userData.nickname || '-'} />
-                  <InfoItem icon={<Phone size={20} />} bg="#d1fae5" color="#047857" label="เบอร์โทรศัพท์ (Username)" value={userData.username || '-'} />
-                  <InfoItem icon={<Calendar size={20} />} bg="#fef3c7" color="#b45309" label="วันเกิด / อายุ" value={userData.dob ? `${userData.dob} (${userData.age_years || 0} ปี)` : '-'} />
-                  <InfoItem icon={<Users size={20} />} bg="#dbeafe" color="#1d4ed8" label="เพศ" value={userData.gender || '-'} />
-                  <InfoItem icon={<Home size={20} />} bg="#ffe4e6" color="#be123c" label="บ้านเลขที่ / ผู้อาศัย" value={`บ้านเลขที่ ${userData.house_no || '-'} (${userData.household_member_count || 0} คน)`} />
-                  <InfoItem icon={<Briefcase size={20} />} bg="#e0f2fe" color="#0369a1" label="อาชีพ" value={userData.occupation || '-'} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px' }}>
+                  <InfoItem icon={<User size={19} />} bg="#f3e8ff" color="#7e22ce" label="ชื่อ - นามสกุล" value={userData.full_name || '-'} />
+                  <InfoItem icon={<User size={19} />} bg="#fce7f3" color="#be185d" label="ชื่อเล่น" value={userData.nickname || '-'} />
+                  <InfoItem icon={<Phone size={19} />} bg="#d1fae5" color="#047857" label="เบอร์โทรศัพท์ (Username)" value={userData.username || '-'} />
+                  <InfoItem icon={<Calendar size={19} />} bg="#fef3c7" color="#b45309" label="วันเดือนปีเกิด (แบบไทย)" value={formatThaiDate(userData.dob)} />
+                  <InfoItem icon={<Users size={19} />} bg="#dbeafe" color="#1d4ed8" label="เพศ" value={userData.gender || '-'} />
+                  <InfoItem icon={<Home size={19} />} bg="#ffe4e6" color="#be123c" label="บ้านเลขที่ / ผู้อาศัย" value={`บ้านเลขที่ ${userData.house_no || '-'} (${userData.household_member_count || 0} คน)`} />
+                  <InfoItem icon={<Briefcase size={19} />} bg="#e0f2fe" color="#0369a1" label="อาชีพ" value={userData.occupation || '-'} />
                 </div>
               ) : (
-                <form onSubmit={handleSaveProfile} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                <form onSubmit={handleSaveProfile} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>ชื่อจริง *</label>
                     <input required type="text" value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} style={inputStyle} />
                   </div>
-
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>นามสกุล *</label>
                     <input required type="text" value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} style={inputStyle} />
                   </div>
-
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                       <span>ชื่อเล่น</span>
-                      <span onClick={() => clearField('nickname')} style={{ color: '#dc2626', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
+                      <span onClick={() => setFormData({ ...formData, nickname: '' })} style={{ color: '#dc2626', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
                     </label>
-                    <input type="text" placeholder="ระบุชื่อเล่น" value={formData.nickname} onChange={(e) => setFormData({ ...formData, nickname: e.target.value })} style={inputStyle} />
+                    <input type="text" value={formData.nickname} onChange={(e) => setFormData({ ...formData, nickname: e.target.value })} style={inputStyle} />
                   </div>
 
-                  <div>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                      <span>วันเดือนปีเกิด</span>
-                      <span onClick={() => clearField('dob')} style={{ color: '#dc2626', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
+                  {/* ✨ วันเดือนปีเกิด (แบบไทย: วันที่ / เดือน / พ.ศ.) */}
+                  <div style={{ gridColumn: '1 / -1', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span>วันเดือนปีเกิด (แบบไทย)</span>
+                      <span onClick={() => { setDobDay(''); setDobMonth(''); setDobYearBE(''); }} style={{ color: '#dc2626', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
                     </label>
-                    <input type="date" value={formData.dob} onChange={(e) => setFormData({ ...formData, dob: e.target.value })} style={inputStyle} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr 1fr', gap: '8px' }}>
+                      <select value={dobDay} onChange={(e) => setDobDay(e.target.value)} style={inputStyle}>
+                        <option value="">- วันที่ -</option>
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                      <select value={dobMonth} onChange={(e) => setDobMonth(e.target.value)} style={inputStyle}>
+                        <option value="">- เดือน -</option>
+                        {THAI_MONTHS.map((m, idx) => <option key={m} value={idx + 1}>{m}</option>)}
+                      </select>
+                      <select value={dobYearBE} onChange={(e) => setDobYearBE(e.target.value)} style={inputStyle}>
+                        <option value="">- พ.ศ. -</option>
+                        {yearsBE.map((y) => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                    </div>
                   </div>
 
                   <div>
@@ -465,27 +554,22 @@ const Profile = () => {
                       <option value="FEMALE">หญิง</option>
                     </select>
                   </div>
-
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                       <span>บ้านเลขที่</span>
-                      <span onClick={() => clearField('house_no')} style={{ color: '#dc2626', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
+                      <span onClick={() => setFormData({ ...formData, house_no: '' })} style={{ color: '#dc2626', cursor: 'pointer', fontSize: '11px' }}>ล้างค่า</span>
                     </label>
                     <input type="text" value={formData.house_no} onChange={(e) => setFormData({ ...formData, house_no: e.target.value })} style={inputStyle} />
                   </div>
-
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>จำนวนผู้อาศัยในบ้าน (คน)</label>
                     <input type="number" min="0" value={formData.household_member_count} onChange={(e) => setFormData({ ...formData, household_member_count: e.target.value })} style={inputStyle} />
                   </div>
-
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>อาชีพ</label>
                     <select value={formData.occupation_id} onChange={(e) => setFormData({ ...formData, occupation_id: e.target.value })} style={inputStyle}>
                       <option value="">-- ไม่ระบุอาชีพ --</option>
-                      {occupations.map((o) => (
-                        <option key={o.occupation_id} value={o.occupation_id}>{o.occupation_name}</option>
-                      ))}
+                      {occupations.map((o) => <option key={o.occupation_id} value={o.occupation_id}>{o.occupation_name}</option>)}
                     </select>
                   </div>
                 </form>
@@ -494,24 +578,19 @@ const Profile = () => {
 
             {/* การ์ดที่ 2: ข้อมูลหมู่บ้านและสังกัด 4 มิติ */}
             <div style={cardStyle}>
-              <h3 style={{ margin: '0 0 20px 0', color: '#0f172a', fontSize: '17px', fontWeight: 800, borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <h3 style={{ margin: '0 0 18px 0', color: '#0f172a', fontSize: '16px', fontWeight: 800, borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
                 ข้อมูลหมู่บ้านและสังกัดในระบบ (Village & 4D Status)
               </h3>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px' }}>
                 <InfoItem
-                  icon={<MapPin size={20} />} bg="#ffe4e6" color="#be123c"
+                  icon={<MapPin size={19} />} bg="#ffe4e6" color="#be123c"
                   label="พื้นที่หมู่บ้าน"
                   value={userData.villageName ? `หมู่ ${userData.village_no || '-'} ${userData.villageName} ต.${userData.tambonName || '-'} อ.${userData.amphureName || '-'} จ.${userData.provinceName || '-'}` : '-'}
                 />
+                <InfoItem icon={<Award size={19} />} bg="#fef3c7" color="#b45309" label="ผู้ใหญ่บ้านในพื้นที่" value={userData.headmanName || 'ยังไม่ระบุ'} />
                 <InfoItem
-                  icon={<Award size={20} />} bg="#fef3c7" color="#b45309"
-                  label="ผู้ใหญ่บ้านในพื้นที่"
-                  value={userData.headmanName || 'ยังไม่ระบุ'}
-                />
-                <InfoItem
-                  icon={<Shield size={20} />} bg="#e0f2fe" color="#0369a1"
-                  label="ตำแหน่ง / หน่วยงาน / แผนก"
+                  icon={<Shield size={19} />} bg="#e0f2fe" color="#0369a1"
+                  label="ตำแหน่ง / หน่วยงาน"
                   value={`${userData.position_name || 'ประชาชนทั่วไป'}${userData.org_name ? ` (${userData.org_name})` : ''}`}
                 />
               </div>
@@ -519,20 +598,248 @@ const Profile = () => {
 
           </div>
         </div>
+
+        {/* ================================================================= */}
+        {/* 🎬 ส่วนที่ 3: MY STORY (โพสต์รูป / วิดีโอ + ข้อความทับภาพ + ตั้งค่าความเป็นส่วนตัว) */}
+        {/* ================================================================= */}
+        <div style={{ ...cardStyle, marginTop: '22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={20} color="#2563eb" />
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>My Story ({stories.length})</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStoryModalOpen(true)}
+              style={{
+                background: 'linear-gradient(135deg, #2563eb, #4f46e5)', color: '#fff', border: 'none',
+                padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+              }}
+            >
+              <Plus size={16} /> สร้าง Story
+            </button>
+          </div>
+
+          {stories.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '28px 16px', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '14px', border: '1px dashed #cbd5e1', fontSize: '14px' }}>
+              ยังไม่มี Story ที่โพสต์ กดปุ่ม <strong>"+ สร้าง Story"</strong> เพื่อแชร์เรื่องราวในชุมชนของคุณ
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: '14px' }}>
+              {stories.map((st) => {
+                const visLabel = VISIBILITY_OPTIONS.find((v) => v.value === st.visibility)?.label || st.visibility;
+                return (
+                  <div key={st.story_id} style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', aspectRatio: '9 / 14', backgroundColor: '#0f172a', boxShadow: '0 6px 16px rgba(0,0,0,0.12)' }}>
+                    {st.media_type === 'VIDEO' ? (
+                      <video src={st.media_url} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <img src={st.media_url} alt="Story" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )}
+
+                    {/* ข้อความทับบนภาพ (Overlay Text) */}
+                    {st.overlay_text && (
+                      <div style={{
+                        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '12px', textAlign: 'center', pointerEvents: 'none',
+                        color: st.text_color || '#ffffff', fontSize: `${st.text_size || 20}px`,
+                        fontWeight: 800, textShadow: '0 2px 8px rgba(0,0,0,0.85)', wordBreak: 'break-word'
+                      }}>
+                        {st.overlay_text}
+                      </div>
+                    )}
+
+                    {/* ป้ายระดับการมองเห็น + ปุ่มลบ */}
+                    <div style={{ position: 'absolute', top: '8px', left: '8px', right: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, backgroundColor: 'rgba(15, 23, 42, 0.72)', color: '#fff', padding: '4px 8px', borderRadius: '999px', backdropFilter: 'blur(4px)' }}>
+                        {visLabel.split(' ')[0]} {visLabel.split(' ')[1]}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteStory(st.story_id)}
+                        title="ลบ Story"
+                        style={{ backgroundColor: 'rgba(239, 68, 68, 0.9)', color: '#fff', border: 'none', borderRadius: '50%', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ================================================================= */}
+        {/* 👥 ส่วนที่ 4: รายชื่อผู้ที่เราแนะนำ (สไตล์การ์ดรายชื่อสะอาดตา) */}
+        {/* ================================================================= */}
+        <div style={{ ...cardStyle, marginTop: '22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Users size={20} color="#059669" />
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
+                รายชื่อผู้ที่คุณแนะนำ ({referrals.length} คน)
+              </h3>
+            </div>
+          </div>
+
+          {referrals.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '28px 16px', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '14px', border: '1px dashed #cbd5e1', fontSize: '14px' }}>
+              ยังไม่มีรายชื่อผู้ที่คุณแนะนำ — กดปุ่ม <strong>"แชร์ลิงก์"</strong> เพื่อชวนคนในชุมชนเข้าร่วม
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {referrals.map((refUser) => (
+                <div
+                  key={refUser.account_id}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+                    padding: '12px 14px', borderRadius: '14px', backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                    <img
+                      src={refUser.user_image || '/profile-img.jpg'}
+                      alt={refUser.first_name}
+                      style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #cbd5e1', flexShrink: 0 }}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: '14.5px', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {refUser.first_name} {refUser.last_name} {refUser.nickname ? `(${refUser.nickname})` : ''}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', backgroundColor: '#dbeafe', color: '#1d4ed8' }}>
+                          {refUser.tier_code}
+                        </span>
+                        {refUser.village_name && (
+                          <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '999px', backgroundColor: '#fef3c7', color: '#b45309' }}>
+                            หมู่ {refUser.village_no || '-'} {refUser.village_name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                      {refUser.created_at ? formatThaiDate(refUser.created_at) : '-'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#059669', fontWeight: 700, marginTop: '2px' }}>
+                      ⭐ {refUser.community_score || 0} คะแนน
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
+
+      {/* ================================================================= */}
+      {/* 🎨 Modal สร้าง My Story (เลือกไฟล์ + ใส่ข้อความ + เลือกขนาด/สี + ความเป็นส่วนตัว) */}
+      {/* ================================================================= */}
+      {storyModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <form onSubmit={handlePostStory} style={{ backgroundColor: '#ffffff', borderRadius: '20px', width: '100%', maxWidth: '460px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+            <div style={{ backgroundColor: '#2563eb', color: '#fff', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 800, fontSize: '16px' }}>สร้าง My Story ใหม่</span>
+              <button type="button" onClick={() => setStoryModalOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+
+            <div style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* เลือกรูปหรือวิดีโอ */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '6px' }}>1. เลือกรูปภาพหรือวิดีโอ *</label>
+                <input type="file" accept="image/*,video/*" onChange={handleSelectStoryFile} style={inputStyle} />
+              </div>
+
+              {/* ตัวอย่างแสดงผลสด (Live Preview พร้อมข้อความทับภาพ) */}
+              {storyPreview && (
+                <div style={{ position: 'relative', width: '100%', height: '240px', borderRadius: '14px', overflow: 'hidden', backgroundColor: '#0f172a' }}>
+                  {storyIsVideo ? (
+                    <video src={storyPreview} controls style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <img src={storyPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  )}
+                  {storyText && (
+                    <div style={{
+                      position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '16px', textAlign: 'center', pointerEvents: 'none',
+                      color: storyColor, fontSize: `${storySize}px`, fontWeight: 800,
+                      textShadow: '0 2px 8px rgba(0,0,0,0.85)', wordBreak: 'break-word'
+                    }}>
+                      {storyText}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* พิมพ์ข้อความทับภาพ */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '5px' }}>2. ข้อความบนภาพ / วิดีโอ (ไม่บังคับ)</label>
+                <input type="text" placeholder="พิมพ์ข้อความที่ต้องการแสดงทับ..." value={storyText} onChange={(e) => setStoryText(e.target.value)} style={inputStyle} />
+              </div>
+
+              {/* เลือกสีและขนาดตัวอักษร */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>สีตัวอักษร</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                    {TEXT_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setStoryColor(c)}
+                        style={{
+                          width: '22px', height: '22px', borderRadius: '50%', backgroundColor: c, cursor: 'pointer',
+                          border: storyColor === c ? '2.5px solid #2563eb' : '1px solid #cbd5e1'
+                        }}
+                      />
+                    ))}
+                    <input type="color" value={storyColor} onChange={(e) => setStoryColor(e.target.value)} style={{ width: '24px', height: '24px', border: 'none', cursor: 'pointer' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px' }}>
+                    ขนาดตัวอักษร ({storySize}px)
+                  </label>
+                  <input type="range" min="14" max="38" value={storySize} onChange={(e) => setStorySize(Number(e.target.value))} style={{ width: '100%' }} />
+                </div>
+              </div>
+
+              {/* ตั้งค่าความเป็นส่วนตัว */}
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '6px' }}>3. ตั้งค่าการมองเห็น (ความเป็นส่วนตัว)</label>
+                <select value={storyVisibility} onChange={(e) => setStoryVisibility(e.target.value)} style={inputStyle}>
+                  {VISIBILITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+                <button type="button" onClick={() => setStoryModalOpen(false)} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#334155', fontWeight: 700, cursor: 'pointer' }}>ยกเลิก</button>
+                <button type="submit" disabled={postingStory} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', backgroundColor: '#2563eb', color: '#fff', fontWeight: 700, cursor: postingStory ? 'not-allowed' : 'pointer' }}>
+                  {postingStory ? 'กำลังอัปโหลด...' : 'โพสต์ Story'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
     </Layout>
   );
 };
 
-// Component ย่อยสำหรับแสดงแต่ละรายการข้อมูล (ตัวอักษรเข้ม อ่านชัดบนพื้นขาว)
+// Component ย่อยสำหรับแสดงแต่ละรายการข้อมูล
 const InfoItem = ({ icon, bg, color, label, value }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-    <div style={{ backgroundColor: bg, padding: '11px', borderRadius: '12px', color, flexShrink: 0, display: 'flex' }}>
-      {icon}
-    </div>
-    <div>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+    <div style={{ backgroundColor: bg, padding: '10px', borderRadius: '12px', color, flexShrink: 0, display: 'flex' }}>{icon}</div>
+    <div style={{ minWidth: 0 }}>
       <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700, marginTop: '2px' }}>{value}</div>
+      <div style={{ fontSize: '14.5px', color: '#0f172a', fontWeight: 700, marginTop: '2px', wordBreak: 'break-word' }}>{value}</div>
     </div>
   </div>
 );
