@@ -366,44 +366,109 @@ const FriendStoriesBar = ({ userData }) => {
                   {/* กล่องคอมเมนต์ (ระบุวันที่ + ตอบกลับ / ลบ / บล็อก) */}
                   {openCommentId === st.story_id && (
                     <div style={{ padding: '10px 14px 14px', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-                      <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
-                        {(commentsMap[st.story_id] || []).length === 0 ? (
-                          <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '6px' }}>ยังไม่มีคอมเมนต์</div>
-                        ) : (
-                          (commentsMap[st.story_id] || []).map((cm) => {
+                      <div style={{ maxHeight: '260px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
+                        {(() => {
+                          const allComments = commentsMap[st.story_id] || [];
+                          if (allComments.length === 0) {
+                            return <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '6px' }}>ยังไม่มีคอมเมนต์</div>;
+                          }
+
+                          // แยกคำถามหลัก (ไม่มี parent_comment_id) กับคำตอบ (มี parent_comment_id)
+                          const rootComments = allComments.filter((c) => !c.parent_comment_id);
+                          const repliesMap = {};
+                          allComments.forEach((c) => {
+                            if (c.parent_comment_id) {
+                              if (!repliesMap[c.parent_comment_id]) repliesMap[c.parent_comment_id] = [];
+                              repliesMap[c.parent_comment_id].push(c);
+                            }
+                          });
+
+                          return rootComments.map((cm) => {
                             const cmName = cm.nickname || `${cm.first_name || ''} ${cm.last_name || ''}`.trim() || 'ผู้ใช้งาน';
                             const isMyComment = String(cm.account_id) === String(myAccountId);
-                            return (
-                              <div key={cm.comment_id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                                <img src={cm.user_image || '/profile-img.jpg'} alt="" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                                <div style={{ backgroundColor: '#ffffff', padding: '7px 10px', borderRadius: '10px', border: '1px solid #e2e8f0', flex: 1 }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-                                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>{cmName}</span>
-                                    <span style={{ fontSize: '10px', color: '#94a3b8' }}>{formatThaiDateTime(cm.created_at)}</span>
-                                  </div>
-                                  <div style={{ fontSize: '13px', color: '#334155', marginTop: '3px' }}>{cm.comment_text}</div>
+                            const replies = repliesMap[cm.comment_id] || [];
 
-                                  {/* ปุ่มจัดการคอมเมนต์: ตอบกลับ / ลบ (Soft Delete) / บล็อก */}
-                                  <div style={{ display: 'flex', gap: '12px', marginTop: '6px', fontSize: '11px', fontWeight: 700 }}>
-                                    <button type="button" onClick={() => setReplyingTo({ comment_id: cm.comment_id, author_name: cmName })} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                      <Reply size={12} /> ตอบกลับ
-                                    </button>
-                                    {(isPostOwner || isMyComment) && (
-                                      <button type="button" onClick={() => handleDeleteComment(st.story_id, cm.comment_id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                        <Trash2 size={12} /> ลบ
+                            return (
+                              /* การ์ดคำถามหลัก + คำตอบทั้งหมดอยู่ใน Card เดียวกัน */
+                              <div key={cm.comment_id} style={{ backgroundColor: '#ffffff', padding: '10px 12px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                                {/* ส่วนคำถามหลัก */}
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                  <img src={cm.user_image || '/profile-img.jpg'} alt="" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{ fontSize: '12.5px', fontWeight: 800, color: '#0f172a' }}>{cmName}</span>
+                                      <span style={{ fontSize: '10px', color: '#94a3b8' }}>{formatThaiDateTime(cm.created_at)}</span>
+                                    </div>
+                                    <div style={{ fontSize: '13px', color: '#334155', marginTop: '3px', wordBreak: 'break-word' }}>{cm.comment_text}</div>
+
+                                    {/* ปุ่มจัดการคำถามหลัก */}
+                                    <div style={{ display: 'flex', gap: '12px', marginTop: '6px', fontSize: '11px', fontWeight: 700 }}>
+                                      <button type="button" onClick={() => setReplyingTo({ comment_id: cm.comment_id, author_name: cmName })} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                        <Reply size={12} /> ตอบกลับ
                                       </button>
-                                    )}
-                                    {isPostOwner && !isMyComment && (
-                                      <button type="button" onClick={() => handleBlockUser(cm.account_id, cmName)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                        <Ban size={12} /> บล็อก
-                                      </button>
-                                    )}
+                                      {(isPostOwner || isMyComment) && (
+                                        <button type="button" onClick={() => handleDeleteComment(st.story_id, cm.comment_id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                          <Trash2 size={12} /> ลบ
+                                        </button>
+                                      )}
+                                      {isPostOwner && !isMyComment && (
+                                        <button type="button" onClick={() => handleBlockUser(cm.account_id, cmName)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                          <Ban size={12} /> บล็อก
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
+
+                                {/* ✨ ส่วนคำตอบ (ซ้อนอยู่ในการ์ดเดียวกับคำถามหลัก) */}
+                                {replies.length > 0 && (
+                                  <div style={{ marginTop: '10px', marginLeft: '14px', paddingLeft: '10px', borderLeft: '3px solid #93c5fd', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {replies.map((rp) => {
+                                      const rpName = rp.nickname || `${rp.first_name || ''} ${rp.last_name || ''}`.trim() || 'ผู้ใช้งาน';
+                                      const isMyReply = String(rp.account_id) === String(myAccountId);
+                                      return (
+                                        <div key={rp.comment_id} style={{ backgroundColor: '#f8fafc', padding: '8px 10px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                            <img src={rp.user_image || '/profile-img.jpg'} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#0f172a' }}>{rpName}</span>
+                                                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#2563eb', backgroundColor: '#dbeafe', padding: '1px 6px', borderRadius: '999px' }}>
+                                                    ตอบกลับ {cmName}
+                                                  </span>
+                                                </div>
+                                                <span style={{ fontSize: '9.5px', color: '#94a3b8' }}>{formatThaiDateTime(rp.created_at)}</span>
+                                              </div>
+                                              <div style={{ fontSize: '12.5px', color: '#334155', marginTop: '3px', wordBreak: 'break-word' }}>{rp.comment_text}</div>
+
+                                              {/* ปุ่มจัดการคำตอบ */}
+                                              <div style={{ display: 'flex', gap: '10px', marginTop: '5px', fontSize: '10.5px', fontWeight: 700 }}>
+                                                <button type="button" onClick={() => setReplyingTo({ comment_id: cm.comment_id, author_name: rpName })} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                  <Reply size={11} /> ตอบกลับ
+                                                </button>
+                                                {(isPostOwner || isMyReply) && (
+                                                  <button type="button" onClick={() => handleDeleteComment(st.story_id, rp.comment_id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                    <Trash2 size={11} /> ลบ
+                                                  </button>
+                                                )}
+                                                {isPostOwner && !isMyReply && (
+                                                  <button type="button" onClick={() => handleBlockUser(rp.account_id, rpName)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                    <Ban size={11} /> บล็อก
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             );
-                          })
-                        )}
+                          });
+                        })()}
                       </div>
 
                       {replyingTo && (
