@@ -77,6 +77,13 @@ const Profile = () => {
   const [storyTextX, setStoryTextX] = useState(50);   // ตำแหน่งแนวนอน (%) 0-100
   const [storyTextY, setStoryTextY] = useState(50);   // ตำแหน่งแนวตั้ง (%) 0-100
   const [storyBlur, setStoryBlur] = useState(0);      // ความเบลอพื้นหลัง (%) 0-100
+
+  const [editingStoryId, setEditingStoryId] = useState(null);
+  const [storyTitle, setStoryTitle] = useState('');
+  const [storyDesc, setStoryDesc] = useState('');
+  const [storyCoverFile, setStoryCoverFile] = useState(null);
+
+
   const [isDraggingText, setIsDraggingText] = useState(false);
   const previewBoxRef = useRef(null);
 
@@ -287,41 +294,91 @@ const Profile = () => {
 
   const handlePostStory = async (e) => {
     e.preventDefault();
-    if (!storyFile) return alert('กรุณาเลือกรูปภาพหรือวิดีโอก่อนโพสต์');
+    if (!editingStoryId && !storyFile) return alert('กรุณาเลือกรูปภาพหรือวิดีโอก่อนโพสต์');
 
     const accountId = userData.account_id || userData.id;
-    const fd = new FormData();
-    fd.append('storyMedia', storyFile);
-    fd.append('account_id', accountId);
-    if (userData.village_id) fd.append('village_id', userData.village_id);
-    fd.append('overlay_text', storyText);
-    fd.append('text_color', storyColor);
-    fd.append('text_size', storySize);
-    fd.append('text_x', storyTextX);
-    fd.append('text_y', storyTextY);
-    fd.append('bg_blur', storyBlur);
-    fd.append('visibility', storyVisibility);
-
     setPostingStory(true);
     try {
-      const res = await fetch(`${API_URL}/api/user/stories`, { method: 'POST', body: fd });
-      const data = await res.json();
+      let data;
+      if (editingStoryId) {
+        // โหมดแก้ไขโพสต์เดิม
+        const res = await fetch(`${API_URL}/api/user/stories/${editingStoryId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: storyTitle, description: storyDesc, overlay_text: storyText,
+            text_color: storyColor, text_size: storySize, text_x: storyTextX,
+            text_y: storyTextY, bg_blur: storyBlur, visibility: storyVisibility
+          })
+        });
+        data = await res.json();
+      } else {
+        // โหมดสร้างโพสต์ใหม่
+        const fd = new FormData();
+        fd.append('storyMedia', storyFile);
+        if (storyCoverFile) fd.append('coverImage', storyCoverFile);
+        fd.append('account_id', accountId);
+        if (userData.village_id) fd.append('village_id', userData.village_id);
+        fd.append('title', storyTitle);
+        fd.append('description', storyDesc);
+        fd.append('overlay_text', storyText);
+        fd.append('text_color', storyColor);
+        fd.append('text_size', storySize);
+        fd.append('text_x', storyTextX);
+        fd.append('text_y', storyTextY);
+        fd.append('bg_blur', storyBlur);
+        fd.append('visibility', storyVisibility);
+        const res = await fetch(`${API_URL}/api/user/stories`, { method: 'POST', body: fd });
+        data = await res.json();
+      }
+
       if (data.success) {
-        alert('✅ โพสต์ My Story สำเร็จ!');
+        alert('✅ ' + data.message);
         setStoryModalOpen(false);
+        setEditingStoryId(null);
         setStoryFile(null);
+        setStoryCoverFile(null);
         setStoryPreview('');
+        setStoryTitle('');
+        setStoryDesc('');
         setStoryText('');
         fetchAllData();
       } else {
         alert('❌ ' + data.message);
       }
     } catch (err) {
-      alert('❌ โพสต์ไม่สำเร็จ: ' + err.message);
+      alert('❌ บันทึกไม่สำเร็จ: ' + err.message);
     } finally {
       setPostingStory(false);
     }
   };
+
+  const openEditStory = (st) => {
+    setEditingStoryId(st.story_id);
+    setStoryTitle(st.title || '');
+    setStoryDesc(st.description || '');
+    setStoryText(st.overlay_text || '');
+    setStoryColor(st.text_color || '#ffffff');
+    setStorySize(st.text_size || 22);
+    setStoryTextX(st.text_x ?? 50);
+    setStoryTextY(st.text_y ?? 50);
+    setStoryBlur(st.bg_blur || 0);
+    setStoryVisibility(st.visibility || 'VILLAGE');
+    setStoryPreview(st.media_url);
+    setStoryIsVideo(st.media_type === 'VIDEO');
+    setStoryFile(null);
+    setStoryModalOpen(true);
+  };
+
+  const handleToggleHideStory = async (st) => {
+    const res = await fetch(`${API_URL}/api/user/stories/${st.story_id}/toggle-hide`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_hidden: !st.is_hidden })
+    }).then((r) => r.json()).catch(() => ({}));
+    if (res.success) fetchAllData();
+  };
+
 
   const handleDeleteStory = async (storyId) => {
     if (!window.confirm('ต้องการลบ Story นี้ใช่หรือไม่?')) return;
