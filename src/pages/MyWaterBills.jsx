@@ -1,12 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import {
   Droplets, QrCode, CheckCircle, AlertTriangle, Clock, Camera,
-  Share2, X, Upload, CreditCard
+  X, Upload, CreditCard, Calendar
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
+
+const THAI_MONTHS_FULL = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+];
+const THAI_MONTHS_SHORT = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+];
+
+const formatThaiMonth = (ymStr, short = false) => {
+  if (!ymStr || !ymStr.includes('-')) return ymStr || '-';
+  const [y, m] = ymStr.split('-').map(Number);
+  if (!y || !m || m < 1 || m > 12) return ymStr;
+  return `${short ? THAI_MONTHS_SHORT[m - 1] : THAI_MONTHS_FULL[m - 1]} ${y + 543}`;
+};
+
+const formatThaiDate = (dateStr) => {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
+  return `${d.getDate()} ${THAI_MONTHS_SHORT[d.getMonth()]} ${d.getFullYear() + 543}`;
+};
 
 const crc16CCITT = (str) => {
   let crc = 0xffff;
@@ -105,27 +128,39 @@ const MyWaterBills = () => {
     }
   };
 
-  const totalUnpaid = bills
-    .filter((b) => b.payment_status !== 'PAID')
-    .reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+  const unpaidBills = bills.filter((b) => b.payment_status !== 'PAID');
+  const totalUnpaid = unpaidBills.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
 
   return (
     <div className="bg-slate-50 min-h-screen pb-24 font-sans">
       <TopNavbar userData={userData} />
 
       <div className="max-w-3xl mx-auto p-4 pt-20">
-        {/* ส่วนหัวสรุปยอดค่าน้ำของบ้าน */}
+        {/* สรุปยอดค้างชำระและรอบเดือนที่ค้าง */}
         <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-5 rounded-2xl shadow-md mb-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 bg-white/20 rounded-xl"><Droplets size={24} /></div>
             <div>
               <h1 className="text-lg font-bold">ค่าน้ำประปาของฉัน</h1>
-              <p className="text-xs text-blue-100">ตรวจสอบยอดใช้น้ำ หลักฐานหน้าปัดมิเตอร์ และสแกนจ่ายค่าน้ำ</p>
+              <p className="text-xs text-blue-100">
+                {settings
+                  ? `รอบจดมิเตอร์ทุกวันที่ ${settings.reading_day || 25} • ชำระภายในวันที่ ${settings.due_day || 5} ${settings.due_next_month ? 'ของเดือนถัดไป' : 'ของเดือน'}`
+                  : 'ตรวจสอบยอดใช้น้ำ หลักฐานหน้าปัดมิเตอร์ และสแกนจ่ายค่าน้ำ'}
+              </p>
             </div>
           </div>
-          <div className="bg-white/15 rounded-xl p-3 flex justify-between items-center">
-            <span className="text-xs font-semibold">ยอดค้างชำระทั้งหมด</span>
-            <span className="text-2xl font-extrabold">฿{totalUnpaid.toLocaleString()}</span>
+
+          <div className="bg-white/15 rounded-xl p-3">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-semibold">ยอดค้างชำระรวมทั้งหมด</span>
+              <span className="text-2xl font-extrabold">฿{totalUnpaid.toLocaleString()}</span>
+            </div>
+            {unpaidBills.length > 0 && (
+              <div className="text-[11px] text-blue-50 mt-1.5 pt-1.5 border-t border-white/20">
+                ค้างชำระรอบเดือน:{' '}
+                {unpaidBills.map((b) => `${formatThaiMonth(b.billing_month, true)} (฿${Number(b.total_amount).toLocaleString()})`).join(', ')}
+              </div>
+            )}
           </div>
         </div>
 
@@ -144,10 +179,18 @@ const MyWaterBills = () => {
                 <div key={b.bill_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
                   <div className="flex justify-between items-start gap-2">
                     <div>
-                      <div className="text-xs font-mono text-slate-500">{b.bill_no} • รอบเดือน {b.billing_month}</div>
+                      <div className="text-xs font-mono text-slate-500">
+                        {b.bill_no} • รอบเดือน {formatThaiMonth(b.billing_month)}
+                      </div>
                       <div className="font-bold text-slate-800">บ้านเลขที่ {b.house_no} (มิเตอร์ {b.meter_code})</div>
+                      {(b.reading_date || b.due_date) && (
+                        <div className="text-[11px] text-slate-500 flex flex-wrap gap-2 mt-1">
+                          {b.reading_date && <span className="inline-flex items-center gap-1"><Calendar size={11} /> จดวันที่ {formatThaiDate(b.reading_date)}</span>}
+                          {b.due_date && <span className="text-amber-700 font-semibold">• ชำระภายใน {formatThaiDate(b.due_date)}</span>}
+                        </div>
+                      )}
                     </div>
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 ${
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0 ${
                       isPaid ? 'bg-emerald-100 text-emerald-700' : isPending ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-800'
                     }`}>
                       {isPaid ? <><CheckCircle size={13} /> ชำระแล้ว</> : isPending ? <><Clock size={13} /> รอตรวจสลิป</> : <><AlertTriangle size={13} /> รอชำระ</>}
@@ -160,8 +203,20 @@ const MyWaterBills = () => {
                       <strong>ใช้ไป {b.units_used} หน่วย</strong>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">อัตรา {b.unit_rate} บ./หน่วย + ค่ารักษามิเตอร์ {b.meter_fee} บ.</span>
-                      <strong className="text-base text-blue-700">฿{Number(b.total_amount).toLocaleString()}</strong>
+                      <span className="text-slate-500">ค่าน้ำ ({b.units_used} × {b.unit_rate} บ.)</span>
+                      <span>฿{(Number(b.units_used) * Number(b.unit_rate)).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">ค่ารักษามิเตอร์</span>
+                      <span>฿{Number(b.meter_fee || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-800 font-semibold">
+                      <span>ค่าจ้างคนจดมิเตอร์</span>
+                      <span>฿{Number(b.reader_fee || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-1.5 text-base font-extrabold text-blue-700">
+                      <span>ยอดรวมบิลนี้</span>
+                      <span>฿{Number(b.total_amount).toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -193,7 +248,9 @@ const MyWaterBills = () => {
         <div className="fixed inset-0 bg-black/65 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
             <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
-              <span className="font-bold text-sm flex items-center gap-2"><CreditCard size={18} /> ชำระค่าน้ำบิล {payModalBill.bill_no}</span>
+              <span className="font-bold text-sm flex items-center gap-2">
+                <CreditCard size={18} /> ชำระค่าน้ำรอบ {formatThaiMonth(payModalBill.billing_month, true)}
+              </span>
               <button type="button" onClick={() => setPayModalBill(null)}><X size={20} /></button>
             </div>
             <div className="p-5 overflow-y-auto text-center space-y-3">
