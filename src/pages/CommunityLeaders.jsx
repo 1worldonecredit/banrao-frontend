@@ -117,6 +117,36 @@ const CommunityLeaders = () => {
   // 🌟 จุดที่แก้: คืนค่าเป็น 1 ป้องกัน URL แหว่งจนดึงข้อมูลไม่ได้
   const villageId = userData.village_id || 1; 
   
+  // ดึงข้อมูลที่อยู่เต็ม (หมู่บ้าน / ตำบล / อำเภอ / จังหวัด) จากโปรไฟล์
+  const [fullAddress, setFullAddress] = useState({
+    village_name: userData?.villageName || userData?.village_name || '',
+    village_no: userData?.village_no || '',
+    tambon: userData?.tambon_name_th || userData?.tambon || '',
+    amphure: userData?.amphure_name_th || userData?.amphure || '',
+    province: userData?.province_name_th || userData?.province || ''
+  });
+
+  useEffect(() => {
+    const accountId = userData?.account_id || userData?.id;
+    if (!accountId) return;
+
+    fetch(`${API_URL}/api/user/profile/${accountId}`)
+      .then((res) => res.json())
+      .then((result) => {
+        if (result.success && result.data) {
+          const d = result.data;
+          setFullAddress({
+            village_name: d.village_name || userData?.villageName || '',
+            village_no: d.village_no || userData?.village_no || '',
+            tambon: d.tambon_name_th || '',
+            amphure: d.amphure_name_th || '',
+            province: d.province_name_th || ''
+          });
+        }
+      })
+      .catch((err) => console.error('Fetch full address error:', err));
+  }, [userData?.account_id]);
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); 
   const [orgTree, setOrgTree] = useState(null); 
   
@@ -408,12 +438,20 @@ const CommunityLeaders = () => {
       <TopNavbar userData={userData} />
       
       <div className="max-w-7xl mx-auto p-4 pt-20">
-        <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm mb-6 border border-slate-200">
+          <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm mb-6 border border-slate-200">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-blue-100 rounded-lg text-blue-600"><Users size={24} /></div>
             <div>
               <h1 className="text-lg md:text-xl font-bold text-slate-800">ทำเนียบผู้นำและคณะทำงาน</h1>
-              <p className="text-sm text-slate-500">หมู่บ้าน: บ้าน{userData?.villageName || '-'} หมู่ที่ {userData?.village_no || '-'}</p>
+              <p className="text-sm text-slate-500">
+                หมู่บ้าน: {fullAddress.village_name
+                  ? (fullAddress.village_name.startsWith('บ้าน') ? fullAddress.village_name : `บ้าน${fullAddress.village_name}`)
+                  : '-'}{' '}
+                หมู่ที่ {fullAddress.village_no || '-'}
+                {fullAddress.tambon ? ` ต.${fullAddress.tambon}` : ''}
+                {fullAddress.amphure ? ` อ.${fullAddress.amphure}` : ''}
+                {fullAddress.province ? ` จ.${fullAddress.province}` : ''}
+              </p>
             </div>
           </div>
         </div>
