@@ -5,6 +5,21 @@ import BottomNavbar from '../components/BottomNavbar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
+
+// คำนวณอายุจากวันเกิด (ปี เดือน)
+const calcAgeText = (dobStr) => {
+  if (!dobStr) return null;
+  const dob = new Date(dobStr);
+  if (isNaN(dob.getTime())) return null;
+  const now = new Date();
+  let years = now.getFullYear() - dob.getFullYear();
+  let months = now.getMonth() - dob.getMonth();
+  if (now.getDate() < dob.getDate()) months -= 1;
+  if (months < 0) { years -= 1; months += 12; }
+  return `${years} ปี ${months} เดือน`;
+};
+
+
 // ==========================================
 // 🌟 1. Component ก้อน Node (ใช้ UI สวยๆ ของคุณวิทยา)
 // ==========================================
@@ -603,14 +618,31 @@ const CommunityLeaders = () => {
                       <img src={formData.previewUrl} alt="Preview" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"><Camera size={24} className="text-white" /></div>
                     </div>
-                    {foundUser && (
+                      {foundUser && (
                       <>
-                        <h3 className="mt-3 font-bold text-slate-800 text-lg">{foundUser.first_name} {foundUser.last_name}</h3>
-                        <p className="text-sm text-slate-500 text-center mt-1">
-                          {foundUser.village_name || foundUser.tambon_name_th ? (<>หมู่บ้าน: {foundUser.village_name || '-'} <br/> ตำบล: {foundUser.tambon_name_th || '-'}</>) : (<span className="text-red-400">ไม่มีข้อมูลที่อยู่</span>)}
+                        <h3 className="mt-3 font-bold text-slate-800 text-lg">
+                          {foundUser.first_name} {foundUser.last_name}
+                        </h3>
+                        {calcAgeText(foundUser.dob) && (
+                          <span className="mt-1 px-3 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">
+                            อายุ: {calcAgeText(foundUser.dob)}
+                          </span>
+                        )}
+                        <p className="text-sm text-slate-500 text-center mt-1.5">
+                          {foundUser.village_name || foundUser.tambon_name_th ? (
+                            <>
+                              หมู่บ้าน: {foundUser.village_name || '-'} <br />
+                              ต.{foundUser.tambon_name_th || '-'}
+                              {foundUser.amphure_name_th ? ` อ.${foundUser.amphure_name_th}` : ''}
+                              {foundUser.province_name_th ? ` จ.${foundUser.province_name_th}` : ''}
+                            </>
+                          ) : (
+                            <span className="text-red-400">ไม่มีข้อมูลที่อยู่</span>
+                          )}
                         </p>
                       </>
                     )}
+                    
                     <input type="file" id="leader-img-upload" accept="image/*" onChange={handleImageChange} className="hidden" />
                   </div>
 
