@@ -370,12 +370,14 @@ return (
               )}
             </div>
 
-            {/*// แสดงผลการ Post story*/}
+           
+          </div> 
+
+           {/*// แสดงผลการ Post story*/}
                 <div style={{ gridColumn: '1 / -1' }}>
                 <FriendStoriesBar userData={userData} />
                 </div>
             
-          </div> 
         </div> 
 
         {/* ================= ส่วนอื่นๆ ด้านล่าง คงโค้ดเดิมของคุณไว้ได้เลยครับ ================= */}
