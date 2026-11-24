@@ -48,6 +48,8 @@ import ManagePopulation from './pages/ManagePopulation';
 import ApiTracker from './pages/ApiTracker';
 import ManageAreaStructure from './pages/ManageAreaStructure';
 import WaterUsers from './pages/WaterUsers';
+import WaterBilling from './pages/WaterBilling';
+import MyWaterBills from './pages/MyWaterBills';
 
 
 function App() {
@@ -101,6 +103,8 @@ function App() {
               <Route path="/api-tracker" element={<ApiTracker />} /> 
               <Route path="/manage-area" element={<ManageAreaStructure />} />
               <Route path="/water-users" element={<WaterUsers/>} />
+              <Route path="/water-billing" element={<WaterBilling />} />
+            <Route path="/my-water-bills" element={<MyWaterBills />} />
             </Routes>
           
        

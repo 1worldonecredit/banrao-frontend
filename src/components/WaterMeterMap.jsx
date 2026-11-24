@@ -4,20 +4,16 @@ import { Navigation } from 'lucide-react';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const LIBRARIES = ['places', 'geometry'];
-
-// ค่าพิกัดเริ่มต้น (เพชรบูรณ์) กรณียังไม่มีพิกัด
 const DEFAULT_CENTER = { lat: 16.4189, lng: 101.1551 };
 
-/**
- * WaterMeterMap (Google Maps + รัศมี 1,000 เมตร)
- * @param {string} mode - 'pick' (คลิก/ลากปักหมุดใน Modal) | 'view' (ดูหมุดผู้ใช้น้ำทั้งหมู่บ้าน)
- * @param {number|string} lat - ละติจูดที่เลือกอยู่
- * @param {number|string} lng - ลองจิจูดที่เลือกอยู่
- * @param {function} onSelectLocation - callback(lat, lng) เมื่อผู้ใช้คลิกหรือลากหมุด
- * @param {Array} meters - รายการมิเตอร์ทั้งหมด (ใช้ในโหมด 'view')
- * @param {number} radiusMeters - รัศมีวงกลม (ค่าเริ่มต้น 1000 เมตร)
- * @param {string} height - ความสูงแผนที่
- */
+const escapeXml = (str) =>
+  String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
 const WaterMeterMap = ({
   mode = 'pick',
   lat,
@@ -49,20 +45,16 @@ const WaterMeterMap = ({
   const onMapLoad = useCallback((map) => setMapInstance(map), []);
   const onMapUnmount = useCallback(() => setMapInstance(null), []);
 
-  // อัปเดตจุดศูนย์กลางเมื่อค่า lat/lng เปลี่ยน (เช่น กดปุ่มดึง GPS ปัจจุบัน)
   useEffect(() => {
     const pLat = parseFloat(lat);
     const pLng = parseFloat(lng);
     if (!isNaN(pLat) && !isNaN(pLng)) {
       const nextPos = { lat: pLat, lng: pLng };
       setCenterPos(nextPos);
-      if (mapInstance) {
-        mapInstance.panTo(nextPos);
-      }
+      if (mapInstance) mapInstance.panTo(nextPos);
     }
   }, [lat, lng, mapInstance]);
 
-  // กรณีโหมด view และข้อมูล meters โหลดเสร็จทีหลัง ให้ขยับศูนย์กลางไปที่มิเตอร์แรกที่มีพิกัด
   useEffect(() => {
     if (mode !== 'view' || meters.length === 0) return;
     if (centerPos.lat !== DEFAULT_CENTER.lat || centerPos.lng !== DEFAULT_CENTER.lng) return;
@@ -78,7 +70,6 @@ const WaterMeterMap = ({
     }
   }, [meters, mode, centerPos, mapInstance]);
 
-  // กรณีเปิด Modal เพิ่มใหม่แล้วยังไม่มีพิกัด ให้จับตำแหน่งปัจจุบันอัตโนมัติ
   useEffect(() => {
     if (mode !== 'pick') return;
     const pLat = parseFloat(lat);
@@ -97,7 +88,6 @@ const WaterMeterMap = ({
     }
   }, [mode, mapInstance]);
 
-  // คลิกบนแผนที่เพื่อปักหมุด (โหมด pick)
   const handleMapClick = (e) => {
     if (mode !== 'pick' || !e.latLng) return;
     const newLat = e.latLng.lat().toFixed(6);
@@ -106,7 +96,6 @@ const WaterMeterMap = ({
     onSelectLocation?.(newLat, newLng);
   };
 
-  // ลากหมุดเพื่อปรับตำแหน่ง (โหมด pick)
   const handleMarkerDragEnd = (e) => {
     if (!e.latLng) return;
     const newLat = e.latLng.lat().toFixed(6);
@@ -115,7 +104,6 @@ const WaterMeterMap = ({
     onSelectLocation?.(newLat, newLng);
   };
 
-  // ย้ายจุดศูนย์กลางวงกลม 1,000 เมตรมาที่ตำแหน่งปัจจุบัน (โหมด view)
   const handleCenterToMe = () => {
     if (!navigator.geolocation) return alert('อุปกรณ์นี้ไม่รองรับ GPS');
     navigator.geolocation.getCurrentPosition(
@@ -131,22 +119,32 @@ const WaterMeterMap = ({
     );
   };
 
-  // สร้างไอคอนหมุดแยกสีตามสถานะมิเตอร์
+  // สร้างหมุดแบบป้ายชื่อ แสดง "บ้านเลขที่ | เลขมิเตอร์" บนแผนที่ชัดเจน
   const getMeterPinIcon = (meter) => {
     if (!window.google?.maps) return undefined;
-    let fillColor = '#10b981'; // เขียว: ใช้งานปกติ
-    if (meter.meter_status === 'CUT_OFF') fillColor = '#ef4444'; // แดง: ตัดมิเตอร์
-    else if (meter.payment_status === 'OVERDUE') fillColor = '#f59e0b'; // เหลือง: ค้างชำระ
-    else if (meter.meter_status === 'INACTIVE') fillColor = '#64748b'; // เทา: ไม่ใช้งาน
+
+    let badgeColor = '#059669'; // เขียว: ใช้งานปกติ/ชำระแล้ว
+    if (meter.meter_status === 'CUT_OFF') badgeColor = '#dc2626'; // แดง: ตัดมิเตอร์
+    else if (meter.payment_status === 'OVERDUE' || meter.bill_payment_status === 'UNPAID') badgeColor = '#d97706'; // เหลือง: ค้างชำระ
+    else if (meter.meter_status === 'INACTIVE') badgeColor = '#475569'; // เทา: ไม่ใช้งาน
+
+    const labelText = `บ้าน ${meter.house_no || '-'} | ${meter.meter_code || '-'}`;
+    const width = Math.max(120, labelText.length * 8 + 24);
+    const heightSvg = 40;
+    const halfW = width / 2;
+
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${heightSvg}" viewBox="0 0 ${width} ${heightSvg}">
+        <rect x="2" y="2" width="${width - 4}" height="26" rx="13" fill="${badgeColor}" stroke="#ffffff" stroke-width="2" />
+        <polygon points="${halfW - 6},27 ${halfW + 6},27 ${halfW},38" fill="${badgeColor}" stroke="#ffffff" stroke-width="1.5" />
+        <text x="${halfW}" y="19" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="11.5" font-weight="700">${escapeXml(labelText)}</text>
+      </svg>
+    `;
 
     return {
-      path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-      fillColor,
-      fillOpacity: 1,
-      strokeColor: '#ffffff',
-      strokeWeight: 1.8,
-      scale: 1.6,
-      anchor: new window.google.maps.Point(12, 22)
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+      scaledSize: new window.google.maps.Size(width, heightSvg),
+      anchor: new window.google.maps.Point(halfW, heightSvg)
     };
   };
 
@@ -176,7 +174,6 @@ const WaterMeterMap = ({
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-slate-300 shadow-sm">
-      {/* ปุ่มดึงตำแหน่งปัจจุบันในโหมดดูรวมทั้งหมู่บ้าน */}
       {mode === 'view' && (
         <button
           type="button"
@@ -187,7 +184,6 @@ const WaterMeterMap = ({
         </button>
       )}
 
-      {/* ป้ายบอกรัศมี 1,000 เมตร */}
       <div className="absolute bottom-2.5 left-2.5 z-10 bg-slate-900/80 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg pointer-events-none">
         วงกลมรัศมี {radiusMeters.toLocaleString()} เมตร{' '}
         {mode === 'pick' ? '• คลิกแผนที่หรือลากหมุดเพื่อปักพิกัด' : ''}
@@ -201,14 +197,13 @@ const WaterMeterMap = ({
         onUnmount={onMapUnmount}
         onClick={handleMapClick}
         options={{
-          mapTypeId: 'hybrid', // ภาพถ่ายดาวเทียมพร้อมชื่อถนน/สถานที่
+          mapTypeId: 'hybrid',
           mapTypeControl: true,
           streetViewControl: false,
           fullscreenControl: true,
           zoomControl: true
         }}
       >
-        {/* วงกลมรัศมี 1,000 เมตร (clickable: false เพื่อให้คลิกปักหมุดด้านในได้) */}
         <Circle
           center={mode === 'pick' ? activePinPos : centerPos}
           radius={radiusMeters}
@@ -222,16 +217,10 @@ const WaterMeterMap = ({
           }}
         />
 
-        {/* โหมดปักหมุด (Modal เพิ่ม/แก้ไข) */}
         {mode === 'pick' && (
-          <Marker
-            position={activePinPos}
-            draggable={true}
-            onDragEnd={handleMarkerDragEnd}
-          />
+          <Marker position={activePinPos} draggable={true} onDragEnd={handleMarkerDragEnd} />
         )}
 
-        {/* โหมดดูภาพรวมทั้งหมู่บ้าน */}
         {mode === 'view' &&
           meters.map((m) => {
             const mLat = parseFloat(m.latitude);
@@ -248,7 +237,6 @@ const WaterMeterMap = ({
             );
           })}
 
-        {/* กล่องรายละเอียดเมื่อคลิกหมุดมิเตอร์ */}
         {mode === 'view' && selectedMeter && (
           <InfoWindow
             position={{
@@ -257,15 +245,12 @@ const WaterMeterMap = ({
             }}
             onCloseClick={() => setSelectedMeter(null)}
           >
-            <div style={{ fontFamily: 'sans-serif', minWidth: '185px', lineHeight: '1.5' }}>
+            <div style={{ fontFamily: 'sans-serif', minWidth: '190px', lineHeight: '1.5' }}>
               <div style={{ fontWeight: 800, color: '#1e3a8a', fontSize: '13px' }}>
-                มิเตอร์: {selectedMeter.meter_code}
+                บ้านเลขที่ {selectedMeter.house_no} • มิเตอร์ {selectedMeter.meter_code}
               </div>
               <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '13px' }}>
                 {selectedMeter.full_name}
-              </div>
-              <div style={{ fontSize: '12px', color: '#475569' }}>
-                บ้านเลขที่ {selectedMeter.house_no}
               </div>
               <div style={{ fontSize: '11.5px', color: '#64748b' }}>
                 โทร: {selectedMeter.phone || '-'}
