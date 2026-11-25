@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Droplets, Search, Camera, CheckCircle, AlertTriangle, Clock, UserX,
   Share2, Printer, Settings, QrCode, Banknote, X, Save, FileText, MapPin,
-  Phone, Calendar, UserCheck, ShieldCheck, Download, Lock, Trash2, Ban, Receipt
+  Phone, Calendar, UserCheck, ShieldCheck, Download, Lock, Trash2, Ban,
+  Receipt, ChevronLeft, ChevronRight, ArrowRight
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
@@ -11,9 +12,6 @@ import { authFetch } from '../utils/authFetch';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
-// =========================================================================
-// ฟังก์ชันจัดการวันที่ภาษาไทย (พ.ศ.) และคำนวณรอบวันเก็บ / วันครบกำหนดชำระ
-// =========================================================================
 const THAI_MONTHS_FULL = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
@@ -67,9 +65,7 @@ const computeScheduleDates = (ymStr, readingDay = 25, dueDay = 5, dueNextMonth =
   };
 };
 
-// =========================================================================
-// 1. ประทับลายน้ำทับบนภาพถ่ายมิเตอร์โดยตรง (ไม่มีแถบดำ)
-// =========================================================================
+// ประทับลายน้ำทับบนภาพถ่ายมิเตอร์โดยตรง (ไม่มีแถบดำ)
 const stampMeterPhoto = (file, { billingMonthLabel, houseNo, meterCode }) => {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
@@ -91,7 +87,6 @@ const stampMeterPhoto = (file, { billingMonthLabel, houseNo, meterCode }) => {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-
         ctx.drawImage(img, 0, 0, width, height);
 
         const now = new Date();
@@ -165,9 +160,7 @@ const stampMeterPhoto = (file, { billingMonthLabel, houseNo, meterCode }) => {
   });
 };
 
-// =========================================================================
 // สร้าง QR PromptPay มาตรฐาน EMVCo
-// =========================================================================
 const crc16CCITT = (str) => {
   let crc = 0xffff;
   for (let i = 0; i < str.length; i++) {
@@ -204,9 +197,6 @@ const buildPromptPayQRUrl = (promptpayId, amount) => {
   return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(fullPayload)}`;
 };
 
-// =========================================================================
-// 2. สร้างไฟล์รูปเอกสารทางการ (.JPG) แยก "ใบแจ้งหนี้" vs "ใบเสร็จรับเงิน" + Snapshot
-// =========================================================================
 const loadImageForCanvas = (src) =>
   new Promise((resolve) => {
     if (!src) return resolve(null);
@@ -258,6 +248,7 @@ const drawRoundedRect = (ctx, x, y, w, h, r) => {
   ctx.closePath();
 };
 
+// สร้างไฟล์รูปเอกสาร (.JPG): ใบแจ้งหนี้มีภาพมิเตอร์ลายน้ำ+QR / ใบเสร็จรับเงินสะอาดไม่มีภาพ
 const generateWaterDocumentJpgFile = async ({ bill, villageInfo, settings, schedule, staffFullName }) => {
   const W = 800;
   const PAD = 36;
@@ -266,7 +257,6 @@ const generateWaterDocumentJpgFile = async ({ bill, villageInfo, settings, sched
 
   const isReceipt = bill.bill_payment_status === 'PAID' || bill.document_stage === 'RECEIPT';
 
-  // ยึดข้อมูล Snapshot เป็นหลัก เพื่อให้เอกสารเก่าไม่เปลี่ยนเมื่อมีการเปลี่ยนกรรมการในอนาคต
   const docVillageTitle = bill.snapshot_village_name || villageInfo.village_title || 'หมู่บ้านประปาชุมชน';
   const docVillageAddr = bill.snapshot_village_address || villageInfo.village_full_address || '';
   const docPresidentName = bill.snapshot_president_name || settings.president_name || villageInfo.president_name || '-';
@@ -292,7 +282,8 @@ const generateWaterDocumentJpgFile = async ({ bill, villageInfo, settings, sched
   const currentTotal = Number(bill.total_amount || 0);
   const grandTotal = currentTotal + arrearsTotal;
 
-  const meterImg = await loadImageForCanvas(bill.reading_photo_url);
+  // แสดงภาพถ่ายมิเตอร์พร้อมลายน้ำ + QR เฉพาะ "ใบแจ้งหนี้" — ใบเสร็จรับเงินไม่ต้องมีภาพ
+  const meterImg = !isReceipt ? await loadImageForCanvas(bill.reading_photo_url) : null;
   const qrUrl = !isReceipt ? buildPromptPayQRUrl(settings.promptpay_id, grandTotal) : null;
   const qrImg = qrUrl ? await loadImageForCanvas(qrUrl) : null;
 
@@ -343,7 +334,6 @@ const generateWaterDocumentJpgFile = async ({ bill, villageInfo, settings, sched
 
   let y = PAD;
 
-  // --- 1. หัวเอกสาร (เขียวสำหรับใบเสร็จรับเงิน / น้ำเงิน-อำพันสำหรับใบแจ้งหนี้) ---
   const grad = ctx.createLinearGradient(PAD, y, PAD, y + headerH);
   grad.addColorStop(0, isReceipt ? '#ecfdf5' : '#eff6ff');
   grad.addColorStop(1, '#ffffff');
@@ -438,7 +428,6 @@ const generateWaterDocumentJpgFile = async ({ bill, villageInfo, settings, sched
 
   y += headerH + 18;
 
-  // --- 2. ข้อมูลผู้ใช้น้ำ ---
   drawRoundedRect(ctx, PAD, y, CONTENT_W, userBoxH, 16);
   ctx.fillStyle = '#f8fafc';
   ctx.fill();
@@ -483,7 +472,6 @@ const generateWaterDocumentJpgFile = async ({ bill, villageInfo, settings, sched
 
   y += userBoxH + 18;
 
-  // --- 3. ตารางคำนวณค่าน้ำ ---
   drawRoundedRect(ctx, PAD, y, CONTENT_W, tableBoxH, 16);
   ctx.fillStyle = '#ffffff';
   ctx.fill();
@@ -573,7 +561,6 @@ const generateWaterDocumentJpgFile = async ({ bill, villageInfo, settings, sched
 
   y += tableBoxH + 18;
 
-  // --- 4. ภาพถ่ายหน้าปัดมิเตอร์หลักฐาน ---
   if (meterImg) {
     ctx.textAlign = 'left';
     ctx.font = `bold 18px ${FONT}`;
@@ -597,7 +584,6 @@ const generateWaterDocumentJpgFile = async ({ bill, villageInfo, settings, sched
     y += photoSectionH + 18;
   }
 
-  // --- 5. QR พร้อมเพย์ (แสดงเฉพาะบนใบแจ้งหนี้เท่านั้น) ---
   if (qrImg) {
     drawRoundedRect(ctx, PAD, y, CONTENT_W, qrSectionH, 16);
     ctx.fillStyle = '#eff6ff';
@@ -627,7 +613,6 @@ const generateWaterDocumentJpgFile = async ({ bill, villageInfo, settings, sched
     y += qrSectionH + 18;
   }
 
-  // --- 6. ลายเซ็นท้ายเอกสาร (แยกผู้จดมิเตอร์ และ ผู้รับเงินชัดเจน) ---
   y += 6;
   ctx.save();
   ctx.setLineDash([8, 6]);
@@ -681,7 +666,6 @@ const WaterBilling = () => {
   const villageId = userData.village_id || 1;
   const accountId = userData.account_id || userData.id;
 
-  // ตรวจสิทธิ์แสดงปุ่มตั้งค่า / ยกเลิกเอกสารตามแม่แบบสิทธิ์จริง (ซ่อนจากคนจดมิเตอร์)
   const roleTemplates = Array.isArray(userData.role_templates) ? userData.role_templates : [];
   const roleUpper = String(userData.role || '').toUpperCase();
   const isSuperAdmin = Boolean(userData.isSuperAdmin || userData.is_super_admin || roleUpper === 'SUPER_ADMIN');
@@ -714,7 +698,33 @@ const WaterBilling = () => {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const billingMonth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
-  const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1, now.getFullYear() + 2];
+
+  const yearOptions = Array.from(
+    new Set([now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1, now.getFullYear() + 2, selectedYear])
+  ).sort((a, b) => a - b);
+
+  const nextY = selectedMonth === 12 ? selectedYear + 1 : selectedYear;
+  const nextM = selectedMonth === 12 ? 1 : selectedMonth + 1;
+  const nextMonthLabel = `${THAI_MONTHS_SHORT[nextM - 1]} ${nextY + 543}`;
+
+  const goToPrevMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedYear((y) => y - 1);
+      setSelectedMonth(12);
+    } else {
+      setSelectedMonth((m) => m - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (selectedMonth === 12) {
+      setSelectedYear((y) => y + 1);
+      setSelectedMonth(1);
+    } else {
+      setSelectedMonth((m) => m + 1);
+    }
+    setTabFilter('ALL');
+  };
 
   const [items, setItems] = useState([]);
   const [voidedBills, setVoidedBills] = useState([]);
@@ -769,7 +779,6 @@ const WaterBilling = () => {
   const [docModalItem, setDocModalItem] = useState(null);
   const [sharingImage, setSharingImage] = useState(false);
 
-  // Modal ยกเลิกเอกสารพร้อมเหตุผล (Void) แทนการลบใบเสร็จ
   const [voidTarget, setVoidTarget] = useState(null);
   const [voidReason, setVoidReason] = useState('');
   const [voidPin, setVoidPin] = useState('');
@@ -853,9 +862,8 @@ const WaterBilling = () => {
     const rFeeVal = item.bill_id ? Number(item.reader_fee ?? settings.reader_fee ?? 0) : Number(settings.reader_fee ?? 0);
 
     let defaultAction = 'UNPAID';
-    if (item.bill_id) {
-      if (item.visit_status === 'NOT_FOUND') defaultAction = 'NOT_FOUND';
-      else defaultAction = 'UNPAID';
+    if (item.bill_id && item.visit_status === 'NOT_FOUND') {
+      defaultAction = 'NOT_FOUND';
     }
 
     setReadingForm({
@@ -979,7 +987,6 @@ const WaterBilling = () => {
     }
   };
 
-  // รับชำระเงินจากใบแจ้งหนี้ -> เปลี่ยนเป็นออก "ใบเสร็จรับเงิน" ทันที + ล็อกห้ามลบ
   const handleMarkPaid = async (bill, method) => {
     if (
       !window.confirm(
@@ -1015,7 +1022,6 @@ const WaterBilling = () => {
     }
   };
 
-  // ลบใบแจ้งหนี้ที่ยังไม่ชำระเท่านั้น (กติกา: ใบเสร็จห้ามลบเด็ดขาด)
   const handleDeleteUnpaidInvoice = async (item) => {
     if (item.is_locked || item.bill_payment_status === 'PAID' || item.receipt_no) {
       return alert('ใบเสร็จรับเงินที่ชำระแล้วถูกล็อกห้ามลบ กรุณาใช้การยกเลิกเอกสารพร้อมระบุเหตุผลแทน');
@@ -1035,7 +1041,6 @@ const WaterBilling = () => {
     }
   };
 
-  // ยกเลิกเอกสารพร้อมเหตุผล (Void) แทนการลบ -> เก็บหลักฐานถาวรในรายงาน
   const handleSubmitVoid = async (e) => {
     e.preventDefault();
     if (!voidReason.trim() || voidReason.trim().length < 3) {
@@ -1135,7 +1140,6 @@ const WaterBilling = () => {
     (it) => (it.bill_id && it.bill_payment_status !== 'PAID') || Number(it.arrears_total || 0) > 0
   );
 
-  // ค่าแสดงผลบน Modal เอกสาร (ยึด Snapshot เป็นหลัก)
   const modalIsReceipt = Boolean(docModalItem && (docModalItem.bill_payment_status === 'PAID' || docModalItem.document_stage === 'RECEIPT'));
   const modalVillageTitle = docModalItem?.snapshot_village_name || villageInfo.village_title;
   const modalVillageAddr = docModalItem?.snapshot_village_address || villageInfo.village_full_address;
@@ -1172,7 +1176,7 @@ const WaterBilling = () => {
           </div>
         )}
 
-        {/* ส่วนหัว + เลือกเดือน/ปี พ.ศ. + ปุ่มตั้งค่า (แสดงเฉพาะผู้มีสิทธิ์ ซ่อนจากคนจดมิเตอร์) */}
+        {/* ส่วนหัว + ตัวเลือกเดือนแบบมีปุ่มกดสลับรอบเดือนก่อน/ถัดไปได้ทันที */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-5">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><Droplets size={24} /></div>
@@ -1194,26 +1198,47 @@ const WaterBilling = () => {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 w-full lg:w-auto">
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-700 bg-white"
-            >
-              {THAI_MONTHS_FULL.map((name, idx) => (
-                <option key={name} value={idx + 1}>{name}</option>
-              ))}
-            </select>
+          <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={goToPrevMonth}
+                className="p-2 hover:bg-white rounded-lg text-slate-600"
+                title="รอบเดือนก่อนหน้า"
+              >
+                <ChevronLeft size={16} />
+              </button>
 
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-700 bg-white"
-            >
-              {yearOptions.map((y) => (
-                <option key={y} value={y}>พ.ศ. {y + 543}</option>
-              ))}
-            </select>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 bg-white"
+              >
+                {THAI_MONTHS_FULL.map((name, idx) => (
+                  <option key={name} value={idx + 1}>{name}</option>
+                ))}
+              </select>
+
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 bg-white"
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>พ.ศ. {y + 543}</option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={goToNextMonth}
+                className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1"
+                title={`ไปจดรอบเดือน ${nextMonthLabel}`}
+              >
+                <span>รอบ {nextMonthLabel}</span>
+                <ChevronRight size={15} />
+              </button>
+            </div>
 
             {canApproveRates && (
               <button
@@ -1240,10 +1265,10 @@ const WaterBilling = () => {
         {/* แถบอธิบายกติกาเอกสารและสิทธิ์การลบในรายงาน */}
         <div className="bg-slate-900 text-slate-100 rounded-2xl px-4 py-2.5 mb-5 text-[11.5px] flex flex-wrap items-center gap-x-5 gap-y-1.5">
           <span className="font-bold text-amber-300 flex items-center gap-1">
-            <FileText size={13} /> ค้างชำระ = ออกใบแจ้งหนี้ (แก้ไข/ลบได้)
+            <FileText size={13} /> ค้างชำระ = ออกใบแจ้งหนี้ (มีภาพมิเตอร์ลายน้ำ • แก้ไข/ลบได้)
           </span>
           <span className="font-bold text-emerald-300 flex items-center gap-1">
-            <Lock size={13} /> ชำระแล้ว = ออกใบเสร็จรับเงิน (ล็อกห้ามลบเด็ดขาด • แก้ไขได้โดยยกเลิกพร้อมเหตุผลเท่านั้น)
+            <Lock size={13} /> ชำระแล้ว = ออกใบเสร็จรับเงิน (ล็อกห้ามลบเด็ดขาด • ยกเลิกพร้อมเหตุผลเท่านั้น)
           </span>
         </div>
 
@@ -1267,14 +1292,26 @@ const WaterBilling = () => {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-blue-200 shadow-sm">
-            <div className="text-xs font-bold text-blue-700">ความคืบหน้า & ค่าจ้างจดมิเตอร์</div>
-            <div className="text-2xl font-extrabold text-blue-700 mt-1">
-              {summary.recorded_count} / {summary.total_meters} หลัง
+          <div className="bg-white p-4 rounded-2xl border border-blue-200 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="text-xs font-bold text-blue-700">ความคืบหน้า & ค่าจ้างจดมิเตอร์</div>
+              <div className="text-2xl font-extrabold text-blue-700 mt-1">
+                {summary.recorded_count} / {summary.total_meters} หลัง
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">
+                ค่าจ้างจดมิเตอร์รวม: <strong className="text-blue-700">฿{(summary.total_reader_fee || 0).toLocaleString()}</strong>
+              </div>
             </div>
-            <div className="text-[11px] text-slate-500 mt-1">
-              ค่าจ้างจดมิเตอร์รวม: <strong className="text-blue-700">฿{(summary.total_reader_fee || 0).toLocaleString()}</strong>
-            </div>
+            {summary.total_meters > 0 && summary.unrecorded_count === 0 && (
+              <button
+                type="button"
+                onClick={goToNextMonth}
+                className="mt-2 w-full py-1.5 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1"
+              >
+                <span>จดครบแล้ว • ไปจดรอบ {nextMonthLabel}</span>
+                <ArrowRight size={13} />
+              </button>
+            )}
           </div>
 
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
@@ -1308,7 +1345,7 @@ const WaterBilling = () => {
           </div>
         </div>
 
-        {/* แถบค้นหาและตัวกรอง (เพิ่มแท็บ เอกสารที่ยกเลิก เพื่อตรวจบัญชี) */}
+        {/* แถบค้นหาและตัวกรอง */}
         <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm mb-5 flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1345,7 +1382,7 @@ const WaterBilling = () => {
           </div>
         </div>
 
-        {/* แสดงผลรายการ: แยกแท็บ "เอกสารยกเลิก (Voided)" vs รายการเดินจดปกติ */}
+        {/* รายการเดินจดมิเตอร์ หรือ เอกสารยกเลิก */}
         {loading ? (
           <div className="text-center py-12 text-slate-400">กำลังโหลดข้อมูลการจดมิเตอร์...</div>
         ) : tabFilter === 'VOIDED' ? (
@@ -1437,7 +1474,6 @@ const WaterBilling = () => {
                       )}
                     </div>
 
-                    {/* ป้ายกำกับกติกา ลบได้ / ห้ามลบ */}
                     {isRecorded && (
                       <div className="mb-2.5 flex items-center justify-between text-[10.5px]">
                         <span className="font-mono text-slate-500">
@@ -1509,7 +1545,6 @@ const WaterBilling = () => {
                     )}
                   </div>
 
-                  {/* ปุ่มดำเนินการตามกติกา ลบได้ / ล็อกห้ามลบ */}
                   <div className="pt-3 border-t border-slate-100 flex flex-wrap gap-1.5">
                     {!isRecorded ? (
                       <button
@@ -1675,7 +1710,7 @@ const WaterBilling = () => {
         </div>
       )}
 
-      {/* Modal 2: จดมิเตอร์ -> ออกใบแจ้งหนี้ (ค้างจ่าย) หรือ ออกใบเสร็จรับเงิน (จ่ายทันที) */}
+      {/* Modal 2: จดมิเตอร์ -> ออกใบแจ้งหนี้ หรือ ออกใบเสร็จรับเงิน */}
       {readingTarget && (
         <div className="fixed inset-0 bg-black/65 flex items-center justify-center p-3 sm:p-4 z-[9999]">
           <form onSubmit={handleSaveReading} className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
@@ -1845,7 +1880,7 @@ const WaterBilling = () => {
         </div>
       )}
 
-      {/* Modal 3: เอกสารทางการ — แยกหน้าตาชัดเจน "ใบแจ้งหนี้" (สีน้ำเงิน/อำพัน) vs "ใบเสร็จรับเงิน" (สีเขียว) */}
+      {/* Modal 3: เอกสารทางการ (ใบแจ้งหนี้มีภาพมิเตอร์+QR / ใบเสร็จรับเงินสะอาดไม่มีภาพ) */}
       {docModalItem && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-3 sm:p-4 z-[9999]">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
@@ -1965,15 +2000,16 @@ const WaterBilling = () => {
                 )}
               </div>
 
-              {/* แสดงสลิปโอนเงินที่ลูกบ้านแนบมา (กรณีรอตรวจสลิปหรือชำระผ่าน QR) */}
-              {docModalItem.slip_url && (
+              {/* แสดงสลิปโอนเงินที่แนบมา เฉพาะตอนรอตรวจบนใบแจ้งหนี้ */}
+              {!modalIsReceipt && docModalItem.slip_url && (
                 <div>
                   <div className="text-[11px] font-bold text-blue-700 mb-1">หลักฐานสลิปโอนเงินที่แนบมา:</div>
                   <img src={docModalItem.slip_url} alt="Transfer Slip" className="mx-auto block max-h-56 w-auto rounded-xl border border-blue-200" />
                 </div>
               )}
 
-              {docModalItem.reading_photo_url && (
+              {/* แสดงภาพถ่ายหน้าปัดมิเตอร์พร้อมลายน้ำ เฉพาะ "ใบแจ้งหนี้" — ใบเสร็จรับเงินไม่ต้องมีภาพ */}
+              {!modalIsReceipt && docModalItem.reading_photo_url && (
                 <div>
                   <div className="text-[11px] font-bold text-slate-500 mb-1.5">ภาพถ่ายหน้าปัดมิเตอร์หลักฐาน:</div>
                   <img
@@ -1984,7 +2020,7 @@ const WaterBilling = () => {
                 </div>
               )}
 
-              {/* แสดง QR พร้อมเพย์เฉพาะบน "ใบแจ้งหนี้" เท่านั้น (ไม่แสดงบนใบเสร็จรับเงิน) */}
+              {/* แสดง QR พร้อมเพย์เฉพาะบนใบแจ้งหนี้ */}
               {!modalIsReceipt &&
                 buildPromptPayQRUrl(
                   settings.promptpay_id,
@@ -2027,7 +2063,6 @@ const WaterBilling = () => {
                 )}
               </div>
 
-              {/* ปุ่มรับชำระเงินจากใบแจ้งหนี้ -> เปลี่ยนเป็นออกใบเสร็จรับเงินทันที */}
               {!modalIsReceipt && (
                 <div className="grid grid-cols-2 gap-2 pt-1 no-print">
                   <button
@@ -2047,7 +2082,6 @@ const WaterBilling = () => {
                 </div>
               )}
 
-              {/* ปุ่มยกเลิกใบเสร็จพร้อมเหตุผล (สำหรับผู้ใหญ่บ้าน/ประธาน/เหรัญญิก) */}
               {modalIsReceipt && canVoidReceipt && (
                 <div className="pt-1 no-print">
                   <button
@@ -2091,7 +2125,7 @@ const WaterBilling = () => {
         </div>
       )}
 
-      {/* Modal 4: ยกเลิกเอกสารพร้อมเหตุผล (Void) แทนการลบใบเสร็จที่ชำระแล้ว */}
+      {/* Modal 4: ยกเลิกเอกสารพร้อมเหตุผล (Void) */}
       {voidTarget && (
         <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-[10000]">
           <form onSubmit={handleSubmitVoid} className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
@@ -2146,7 +2180,6 @@ const WaterBilling = () => {
         </div>
       )}
 
-      {/* Modal ตั้งราคาค่าน้ำ (เฉพาะผู้มีสิทธิ์) */}
       {canApproveRates && (
         <WaterPricingModal
           isOpen={isPricingOpen}

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Users, Edit, Camera, Save, X, UserPlus, Search, Plus, Trash2,
-  FolderPlus, ShieldCheck, KeyRound, CheckCircle, Clock, Lock, UserCheck
+  Users, Edit, Save, X, UserPlus, Search, Plus, Trash2, FolderPlus,
+  ShieldCheck, KeyRound, CheckCircle, Clock, Lock, UserCheck,
+  RefreshCw, History, ArrowRight
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
+import { authFetch } from '../utils/authFetch';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
@@ -16,6 +18,19 @@ const COMMITTEE_TYPES = [
   { code: 'PLACE_GOV', label: 'สถานศึกษา / วัด / หน่วยงานราชการ' },
   { code: 'CUSTOM', label: 'คณะทำงานเฉพาะกิจ / กลุ่มอื่นๆ' }
 ];
+
+const THAI_MONTHS_SHORT = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+];
+
+const formatThaiDateTime = (dateStr) => {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getDate()} ${THAI_MONTHS_SHORT[d.getMonth()]} ${d.getFullYear() + 543} เวลา ${pad(d.getHours())}:${pad(d.getMinutes())} น.`;
+};
 
 const calcAgeText = (dobStr) => {
   if (!dobStr) return null;
@@ -29,10 +44,7 @@ const calcAgeText = (dobStr) => {
   return `${years} ปี ${months} เดือน`;
 };
 
-// ==========================================
-// 1. Component ก้อน Node ในผังองค์กร (รองรับป้ายรออนุมัติ / อนุมัติแล้ว + กดง่ายบนมือถือ)
-// ==========================================
-const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode }) => {
+const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode, onHandoverNode }) => {
   if (!node) return null;
   const hasPerson = Boolean(node.account_id || node.member_id || node.citizen_id || node.first_name);
   const isPending = !node.isRoot && node.status === 'PENDING_APPROVAL';
@@ -42,11 +54,10 @@ const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode }) =
     <div className="flex flex-col items-center">
       <div className="relative group m-1.5 md:m-2 mt-4">
         <div
-          className={`bg-white border-2 shadow-sm hover:shadow-md transition-all rounded-2xl p-3 md:p-4 w-44 sm:w-52 md:w-60 flex flex-col items-center z-10 relative overflow-hidden ${
+          className={`bg-white border-2 shadow-sm hover:shadow-md transition-all rounded-2xl p-3 md:p-4 w-48 sm:w-56 md:w-64 flex flex-col items-center z-10 relative overflow-hidden ${
             isPending ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'
           }`}
         >
-          {/* แถบสีด้านบน */}
           <div
             className={`absolute top-0 left-0 w-full h-1.5 ${
               node.isRoot
@@ -57,7 +68,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode }) =
             }`}
           />
 
-          {/* ป้ายสถานะการอนุมัติ */}
           {!node.isRoot && (
             <div className="w-full flex justify-center mt-1 mb-1.5">
               {isPending ? (
@@ -78,24 +88,20 @@ const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode }) =
             className="w-14 h-14 md:w-16 md:h-16 rounded-xl object-cover border-2 border-slate-100 shadow-sm mb-2"
           />
 
-          {/* ชื่อตำแหน่งที่หมู่บ้านตั้งเอง */}
           <span className="text-[10px] md:text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full mb-1 text-center w-full truncate">
             {node.role_name || 'ตำแหน่งใหม่'}
           </span>
 
-          {/* ชื่อ-นามสกุล */}
           <h3 className="font-bold text-slate-800 text-xs md:text-sm truncate w-full text-center">
             {hasPerson ? `${node.first_name || ''} ${node.last_name || ''}`.trim() : 'คลิกระบุบุคลากร'}
           </h3>
 
-          {/* ชุดสิทธิ์ระบบ */}
           {!node.isRoot && node.template_name_th && (
             <div className="text-[10px] text-indigo-700 font-semibold mt-0.5 truncate w-full text-center">
               สิทธิ์: {node.template_name_th}
             </div>
           )}
 
-          {/* สถานะบัญชีแอป */}
           {!node.isRoot && (
             <div className={`text-[9.5px] mt-0.5 font-medium ${node.has_app_account ? 'text-emerald-600' : 'text-slate-400'}`}>
               {node.has_app_account ? '• เชื่อมบัญชีเข้าแอปแล้ว' : '• ยังไม่สมัครแอป (เชื่อมอัตโนมัติเมื่อสมัคร)'}
@@ -106,7 +112,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode }) =
             {node.responsibilities || 'ยังไม่ระบุหน้าที่'}
           </p>
 
-          {/* ปุ่มจัดการ (กดได้ทั้งมือถือและคอม) */}
+          {/* ปุ่มจัดการ */}
           <div className="w-full mt-2.5 pt-2 border-t border-slate-100 flex flex-wrap justify-center gap-1.5">
             {isPending && (
               <button
@@ -116,6 +122,16 @@ const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode }) =
                 title="ผู้ใหญ่บ้านอนุมัติด้วย PIN"
               >
                 <ShieldCheck size={12} /> อนุมัติ
+              </button>
+            )}
+            {!node.isRoot && isApproved && hasPerson && (
+              <button
+                type="button"
+                onClick={() => onHandoverNode(node)}
+                className="px-2 py-1 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors"
+                title="เปลี่ยนตัวกรรมการ / ส่งมอบงานและปรับกลับเป็นประชาชน"
+              >
+                <RefreshCw size={11} /> ส่งมอบงาน
               </button>
             )}
             {!node.isRoot && (
@@ -149,7 +165,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode }) =
           </div>
         </div>
 
-        {/* ปุ่มเพิ่มเพื่อนร่วมระดับซ้าย-ขวา */}
         {!node.isRoot && hasPerson && (
           <>
             <button
@@ -172,7 +187,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode }) =
         )}
       </div>
 
-      {/* สายเชื่อมไปยังลูกน้อง */}
       {Array.isArray(node.children) && node.children.length > 0 && (
         <div className="flex flex-col items-center w-full">
           <div className="w-px h-5 bg-slate-300" />
@@ -188,6 +202,7 @@ const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode }) =
                     onEditNode={onEditNode}
                     onRevokeNode={onRevokeNode}
                     onApproveNode={onApproveNode}
+                    onHandoverNode={onHandoverNode}
                   />
                 </div>
               );
@@ -199,9 +214,6 @@ const OrgNode = ({ node, onAddNode, onEditNode, onRevokeNode, onApproveNode }) =
   );
 };
 
-// ==========================================
-// 2. Main Component: ทำเนียบผู้นำและอนุมัติสิทธิ์ด้วย PIN ผู้ใหญ่บ้าน
-// ==========================================
 const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   const villageId = userData.village_id || '';
@@ -223,13 +235,11 @@ const CommunityLeaders = () => {
   const [orgTree, setOrgTree] = useState(null);
   const [leadersFlat, setLeadersFlat] = useState([]);
 
-  // Modal เพิ่ม/แก้ไขแท็บผัง
   const [isCommitteeModalOpen, setIsCommitteeModalOpen] = useState(false);
   const [isEditCommitteeModalOpen, setIsEditCommitteeModalOpen] = useState(false);
   const [editingCommitteeId, setEditingCommitteeId] = useState(null);
   const [committeeForm, setCommitteeForm] = useState({ name: '', description: '', type_code: 'CUSTOM' });
 
-  // Modal เพิ่ม/แก้ไขบุคลากรในผัง
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
   const [searchCitizenId, setSearchCitizenId] = useState('');
@@ -248,22 +258,35 @@ const CommunityLeaders = () => {
     previewUrl: '/profile-img.jpg'
   });
 
-  // Modal ตั้งรหัส PIN ผู้ใหญ่บ้าน
   const [isPinSetupOpen, setIsPinSetupOpen] = useState(false);
   const [pinSetupForm, setPinSetupForm] = useState({ old_pin: '', new_pin: '', confirm_pin: '' });
   const [savingPin, setSavingPin] = useState(false);
 
-  // Modal อนุมัติ / ถอดถอน ด้วย PIN ผู้ใหญ่บ้าน
   const [approvalModal, setApprovalModal] = useState(null);
-  // approvalModal = { mode: 'APPROVE_ONE' | 'APPROVE_ALL' | 'REVOKE_ONE', targetNode?, pendingCount? }
   const [approvalPin, setApprovalPin] = useState('');
   const [approvalNote, setApprovalNote] = useState('');
   const [processingApproval, setProcessingApproval] = useState(false);
 
-  // โหลดที่อยู่เต็ม + แม่แบบสิทธิ์ + สถานะ PIN ผู้ใหญ่บ้าน
+  // Modal ผลัดเปลี่ยนกรรมการ / ส่งมอบงาน (ปรับคนเดิมกลับเป็นประชาชน + ตั้งคนใหม่รับช่วงต่อ)
+  const [handoverTarget, setHandoverTarget] = useState(null);
+  const [handoverMode, setHandoverMode] = useState('REPLACE'); // REPLACE | STEP_DOWN_ONLY
+  const [handoverSearchCid, setHandoverSearchCid] = useState('');
+  const [handoverIncoming, setHandoverIncoming] = useState(null);
+  const [handoverSearching, setHandoverSearching] = useState(false);
+  const [handoverReason, setHandoverReason] = useState('');
+  const [handoverStartDate, setHandoverStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [handoverEndDate, setHandoverEndDate] = useState('');
+  const [handoverPin, setHandoverPin] = useState('');
+  const [handoverSubmitting, setHandoverSubmitting] = useState(false);
+
+  // Modal ประวัติการส่งมอบงานถาวร (อ่านอย่างเดียว ห้ามลบ)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [handoverLogs, setHandoverLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
   useEffect(() => {
     if (currentAccountId) {
-      fetch(`${API_URL}/api/user/profile/${currentAccountId}`)
+      authFetch(`${API_URL}/api/user/profile/${currentAccountId}`)
         .then((res) => res.json())
         .then((result) => {
           if (result.success && result.data) {
@@ -280,13 +303,13 @@ const CommunityLeaders = () => {
         .catch(() => {});
     }
 
-    fetch(`${API_URL}/api/v3/role-templates`)
+    authFetch(`${API_URL}/api/v3/role-templates`)
       .then((res) => res.json())
       .then((res) => { if (res.success) setRoleTemplates(res.data || []); })
       .catch(() => {});
 
     if (villageId) {
-      fetch(`${API_URL}/api/v3/headman-pin/${villageId}`)
+      authFetch(`${API_URL}/api/v3/headman-pin/${villageId}`)
         .then((res) => res.json())
         .then((res) => { if (res.success && res.data) setPinInfo(res.data); })
         .catch(() => {});
@@ -316,7 +339,7 @@ const CommunityLeaders = () => {
   const fetchCommittees = async () => {
     if (!villageId) return;
     try {
-      const res = await fetch(`${API_URL}/api/v3/committees/${villageId}`);
+      const res = await authFetch(`${API_URL}/api/v3/committees/${villageId}`);
       const result = await res.json();
       if (result.success && result.data.length > 0) {
         const sorted = result.data.sort((a, b) => {
@@ -340,12 +363,9 @@ const CommunityLeaders = () => {
   const fetchLeaders = async (committeeId) => {
     if (!committeeId) return;
     try {
-      const res = await fetch(`${API_URL}/api/v3/committees/${committeeId}/leaders?village_id=${villageId}`);
+      const res = await authFetch(`${API_URL}/api/v3/committees/${committeeId}/leaders?village_id=${villageId}`);
       const result = await res.json();
-      if (!result.success) {
-        console.error(result.message);
-        return;
-      }
+      if (!result.success) return;
 
       const list = result.data || [];
       setLeadersFlat(list);
@@ -367,18 +387,32 @@ const CommunityLeaders = () => {
     }
   };
 
+  const fetchHandoverHistory = async () => {
+    if (!villageId) return;
+    setIsHistoryOpen(true);
+    setLoadingLogs(true);
+    try {
+      const res = await authFetch(`${API_URL}/api/v3/committee-handovers/${villageId}`);
+      const result = await res.json();
+      if (result.success) setHandoverLogs(result.data || []);
+    } catch (err) {
+      console.error('Fetch handover history error:', err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
   useEffect(() => { fetchCommittees(); }, [villageId]);
   useEffect(() => {
     if (activeTab) fetchLeaders(activeTab);
     else setOrgTree(null);
   }, [activeTab, fullAddress.village_name]);
 
-  // จัดการแท็บคณะทำงาน
   const handleSaveCommittee = async (e) => {
     e.preventDefault();
     if (!committeeForm.name.trim()) return alert('กรุณากรอกชื่อคณะทำงาน');
     try {
-      const res = await fetch(`${API_URL}/api/v3/committees`, {
+      const res = await authFetch(`${API_URL}/api/v3/committees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -416,7 +450,7 @@ const CommunityLeaders = () => {
   const handleUpdateCommittee = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_URL}/api/v3/committees/${editingCommitteeId}`, {
+      const res = await authFetch(`${API_URL}/api/v3/committees/${editingCommitteeId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -440,7 +474,7 @@ const CommunityLeaders = () => {
   const handleDeleteCommittee = async (id, name) => {
     if (!window.confirm(`ต้องการลบผัง "${name}" ใช่หรือไม่?\nบุคลากรในผังนี้จะถูกถอดถอนตำแหน่งและปรับสิทธิ์อัตโนมัติ`)) return;
     try {
-      const res = await fetch(`${API_URL}/api/v3/committees/${id}?village_id=${villageId}`, { method: 'DELETE' });
+      const res = await authFetch(`${API_URL}/api/v3/committees/${id}?village_id=${villageId}`, { method: 'DELETE' });
       const result = await res.json();
       if (result.success) {
         alert(result.message);
@@ -452,7 +486,6 @@ const CommunityLeaders = () => {
     }
   };
 
-  // ค้นหาลูกบ้าน 13 หลัก (เฉพาะหมู่บ้านตัวเอง)
   const formatCitizenId = (value) => {
     const n = value.replace(/\D/g, '');
     let out = '';
@@ -469,7 +502,7 @@ const CommunityLeaders = () => {
     if (raw.length !== 13) return alert('กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก');
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/v3/search-citizen/${villageId}/${raw}`);
+      const res = await authFetch(`${API_URL}/api/v3/search-citizen/${villageId}/${raw}`);
       const result = await res.json();
       if (result.success && result.data) {
         setFoundUser(result.data);
@@ -497,7 +530,6 @@ const CommunityLeaders = () => {
       ? (node.isRoot ? null : (node.position_record_id || node.id))
       : (node.parent_id || null);
 
-    // แนะนำชุดสิทธิ์เริ่มต้นตามประเภทผังที่กำลังเปิดอยู่
     const currentComm = committees.find((c) => c.committee_id === activeTab);
     let defaultTemplate = 'COMMITTEE_GENERAL';
     if (currentComm?.committee_type_code === 'WATER') defaultTemplate = 'WATER_READER';
@@ -542,11 +574,7 @@ const CommunityLeaders = () => {
       first_name: node.first_name,
       last_name: node.last_name,
       dob: node.dob,
-      has_app_account: node.has_app_account,
-      village_name: fullAddress.village_name,
-      tambon_name_th: fullAddress.tambon,
-      amphure_name_th: fullAddress.amphure,
-      province_name_th: fullAddress.province
+      has_app_account: node.has_app_account
     });
     setIsModalOpen(true);
   };
@@ -578,7 +606,7 @@ const CommunityLeaders = () => {
         : `${API_URL}/api/v3/committee-leaders/${editingSlot.recordId}`;
       const method = editingSlot.isNew ? 'POST' : 'PUT';
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -597,7 +625,6 @@ const CommunityLeaders = () => {
     }
   };
 
-  // ตั้งรหัส PIN ผู้ใหญ่บ้าน
   const handleSaveHeadmanPin = async (e) => {
     e.preventDefault();
     if (pinSetupForm.new_pin.trim().length < 4) return alert('กรุณากำหนดรหัส PIN อย่างน้อย 4-6 หลัก');
@@ -605,7 +632,7 @@ const CommunityLeaders = () => {
 
     setSavingPin(true);
     try {
-      const res = await fetch(`${API_URL}/api/v3/headman-pin/${villageId}/setup`, {
+      const res = await authFetch(`${API_URL}/api/v3/headman-pin/${villageId}/setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -630,7 +657,6 @@ const CommunityLeaders = () => {
     }
   };
 
-  // เปิด Modal อนุมัติ / ถอดถอน
   const openApproveSingle = (node) => {
     if (!pinInfo.has_pin) {
       alert('ยังไม่ได้ตั้งรหัส PIN ผู้ใหญ่บ้าน กรุณาตั้งรหัส PIN ก่อนทำการอนุมัติครับ');
@@ -654,7 +680,6 @@ const CommunityLeaders = () => {
   };
 
   const openRevokeSingle = (node) => {
-    // ถ้ายังรออนุมัติอยู่ ลบได้เลยโดยไม่ต้องกรอก PIN
     if (node.status === 'PENDING_APPROVAL') {
       if (!window.confirm(`ลบ "${node.first_name} ${node.last_name}" ที่รออนุมัติออกจากผังใช่หรือไม่?`)) return;
       executeRevoke(node, '', 'ยกเลิกรายการรออนุมัติ');
@@ -673,7 +698,7 @@ const CommunityLeaders = () => {
   const executeRevoke = async (node, pin, reasonText) => {
     setProcessingApproval(true);
     try {
-      const res = await fetch(`${API_URL}/api/v3/committee-leaders/revoke`, {
+      const res = await authFetch(`${API_URL}/api/v3/committee-leaders/revoke`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -721,7 +746,7 @@ const CommunityLeaders = () => {
           : { committee_id: activeTab })
       };
 
-      const res = await fetch(`${API_URL}/api/v3/committee-leaders/approve`, {
+      const res = await authFetch(`${API_URL}/api/v3/committee-leaders/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -742,6 +767,93 @@ const CommunityLeaders = () => {
     }
   };
 
+  // เปิดหน้าต่างผลัดเปลี่ยนกรรมการ / ส่งมอบงาน
+  const openHandoverModal = (node) => {
+    if (!pinInfo.has_pin) {
+      alert('กรุณาตั้งรหัส PIN ผู้ใหญ่บ้านก่อนทำการส่งมอบงานหรือเปลี่ยนตัวกรรมการครับ');
+      setIsPinSetupOpen(true);
+      return;
+    }
+    setHandoverTarget(node);
+    setHandoverMode('REPLACE');
+    setHandoverSearchCid('');
+    setHandoverIncoming(null);
+    setHandoverReason('');
+    setHandoverStartDate(new Date().toISOString().split('T')[0]);
+    setHandoverEndDate('');
+    setHandoverPin('');
+  };
+
+  const handleSearchHandoverIncoming = async () => {
+    const raw = handoverSearchCid.replace(/\D/g, '');
+    if (raw.length !== 13) return alert('กรุณากรอกเลขบัตรประชาชนคนใหม่ให้ครบ 13 หลัก');
+    setHandoverSearching(true);
+    try {
+      const res = await authFetch(`${API_URL}/api/v3/search-citizen/${villageId}/${raw}`);
+      const result = await res.json();
+      if (result.success && result.data) {
+        setHandoverIncoming(result.data);
+      } else {
+        alert(result.message || 'ไม่พบข้อมูลลูกบ้านในหมู่บ้านนี้');
+        setHandoverIncoming(null);
+      }
+    } catch (err) {
+      alert('เกิดข้อผิดพลาดในการค้นหา');
+    } finally {
+      setHandoverSearching(false);
+    }
+  };
+
+  const handleSubmitHandover = async (e) => {
+    e.preventDefault();
+    if (handoverMode === 'REPLACE' && !handoverIncoming) {
+      return alert('กรุณาค้นหาและเลือกผู้ที่จะมารับช่วงต่อก่อนครับ');
+    }
+    if (!handoverPin.trim()) {
+      return alert('กรุณากรอกรหัส PIN อนุมัติของผู้ใหญ่บ้าน');
+    }
+
+    setHandoverSubmitting(true);
+    try {
+      const payload = {
+        village_id: villageId,
+        approver_account_id: currentAccountId,
+        pin_code: handoverPin.trim(),
+        outgoing_record_id: handoverTarget.id || handoverTarget.position_record_id,
+        handover_reason: handoverReason.trim() || (handoverMode === 'REPLACE' ? 'ผลัดเปลี่ยนกรรมการและส่งมอบงาน' : 'พ้นวาระ / ปรับกลับเป็นประชาชน'),
+        start_date: handoverStartDate,
+        end_date: handoverEndDate || null,
+        ...(handoverMode === 'REPLACE' && handoverIncoming
+          ? {
+              incoming_account_id: handoverIncoming.account_id || null,
+              incoming_member_id: handoverIncoming.member_id || null,
+              incoming_citizen_id: handoverIncoming.citizen_id || handoverSearchCid.replace(/\D/g, ''),
+              incoming_full_name: `${handoverIncoming.first_name || ''} ${handoverIncoming.last_name || ''}`.trim()
+            }
+          : {})
+      };
+
+      const res = await authFetch(`${API_URL}/api/v3/committee-leaders/handover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert(result.message);
+        setHandoverTarget(null);
+        await fetchCommittees();
+        await fetchLeaders(activeTab);
+      } else {
+        alert(result.message || 'ส่งมอบงานไม่สำเร็จ');
+      }
+    } catch (err) {
+      alert('เกิดข้อผิดพลาดในการส่งมอบงาน');
+    } finally {
+      setHandoverSubmitting(false);
+    }
+  };
+
   const activeCommitteeInfo = committees.find((c) => c.committee_id === activeTab);
   const pendingInTab = leadersFlat.filter((x) => x.status === 'PENDING_APPROVAL');
   const selectedTemplateObj = roleTemplates.find((t) => t.role_template_code === formData.role_template_code);
@@ -751,7 +863,7 @@ const CommunityLeaders = () => {
       <TopNavbar userData={userData} />
 
       <div className="max-w-7xl mx-auto p-4 pt-20">
-        {/* ส่วนหัว + ปุ่มตั้งรหัส PIN ผู้ใหญ่บ้าน + ปุ่มอนุมัติทั้งผัง */}
+        {/* ส่วนหัว + ปุ่มประวัติส่งมอบงาน + ปุ่มตั้งรหัส PIN */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-white p-4 rounded-2xl shadow-sm mb-6 border border-slate-200">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-blue-100 rounded-xl text-blue-600"><Users size={24} /></div>
@@ -780,6 +892,14 @@ const CommunityLeaders = () => {
                 <ShieldCheck size={16} /> อนุมัติทั้งผังนี้ ({pendingInTab.length} คนรออนุมัติ)
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={fetchHandoverHistory}
+              className="px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-bold flex items-center gap-1.5"
+            >
+              <History size={15} /> ประวัติส่งมอบงาน (ห้ามลบ)
+            </button>
 
             <button
               type="button"
@@ -825,15 +945,15 @@ const CommunityLeaders = () => {
                   >
                     <Edit size={12} />
                   </button>
-                      {(c.committee_name !== 'ผังผู้นำชุมชน' || committees.filter((x) => x.committee_name === 'ผังผู้นำชุมชน').length > 1) && (
+                  {(c.committee_name !== 'ผังผู้นำชุมชน' || committees.filter((x) => x.committee_name === 'ผังผู้นำชุมชน').length > 1) && (
                     <button
-                    onClick={() => handleDeleteCommittee(c.committee_id, c.committee_name)}
-                    className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white shadow-sm border border-red-200"
-                    title="ลบแท็บนี้"
-                     >
-                     <Trash2 size={12} />
+                      onClick={() => handleDeleteCommittee(c.committee_id, c.committee_name)}
+                      className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white shadow-sm border border-red-200"
+                      title="ลบแท็บนี้"
+                    >
+                      <Trash2 size={12} />
                     </button>
-                    )}
+                  )}
                 </div>
               )}
             </div>
@@ -847,7 +967,7 @@ const CommunityLeaders = () => {
           </button>
         </div>
 
-        {/* คำอธิบายคณะทำงานที่เลือก */}
+        {/* คำอธิบายคณะทำงาน */}
         {activeCommitteeInfo && (
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mb-6 text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500" />
@@ -855,7 +975,7 @@ const CommunityLeaders = () => {
             <p className="text-xs md:text-sm text-slate-500 mt-1 max-w-2xl mx-auto">
               {activeCommitteeInfo.description || 'ยังไม่มีคำอธิบายหน้าที่ของคณะทำงานนี้'}
             </p>
-            <div className="mt-2.5 flex justify-center gap-3 text-xs font-bold">
+            <div className="mt-2.5 flex justify-center gap-3 text-xs font-bold flex-wrap">
               <span className="text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full">
                 อนุมัติแล้ว {leadersFlat.filter((x) => x.status === 'ACTIVE').length} คน
               </span>
@@ -879,6 +999,7 @@ const CommunityLeaders = () => {
               onEditNode={handleEditNode}
               onRevokeNode={openRevokeSingle}
               onApproveNode={openApproveSingle}
+              onHandoverNode={openHandoverModal}
             />
           ) : (
             <div className="text-slate-400 py-10 text-sm">กำลังโหลดข้อมูลผังองค์กร...</div>
@@ -910,7 +1031,7 @@ const CommunityLeaders = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อคณะทำงาน / กลุ่ม (ตั้งชื่อตามหมู่บ้านได้เลย) *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อคณะทำงาน / กลุ่ม *</label>
                 <input
                   type="text"
                   required
@@ -940,7 +1061,7 @@ const CommunityLeaders = () => {
         </div>
       )}
 
-      {/* Modal 2: เพิ่ม / แก้ไขบุคลากรในผัง (ตั้งชื่อตำแหน่งอิสระ + เลือกชุดสิทธิ์มาตรฐาน) */}
+      {/* Modal 2: เพิ่ม / แก้ไขบุคลากรในผัง */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/65 flex items-center justify-center p-3 sm:p-4 z-[9999]">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
@@ -953,20 +1074,18 @@ const CommunityLeaders = () => {
             </div>
 
             <div className="p-5 overflow-y-auto flex-1 space-y-4">
-              {/* ชื่อตำแหน่งที่หมู่บ้านตั้งเอง */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อตำแหน่งที่แสดงในผัง (หมู่บ้านตั้งเองได้) *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อตำแหน่งที่แสดงในผัง *</label>
                 <input
                   type="text"
                   required
                   value={formData.role_name}
                   onChange={(e) => setFormData({ ...formData, role_name: e.target.value })}
-                  placeholder="เช่น ประธานกลุ่มน้ำ, คนเก็บค่าน้ำสายเหนือ, เหรัญญิก..."
+                  placeholder="เช่น ประธานกลุ่มน้ำ, คนเก็บค่าน้ำ, เหรัญญิก..."
                   className="w-full p-2.5 border-2 border-blue-200 bg-blue-50/40 rounded-xl text-sm font-bold text-blue-900"
                 />
               </div>
 
-              {/* ชุดสิทธิ์มาตรฐานของระบบ (ตัวคุมเมนูและสิทธิ์จริงทั้ง 80,000 หมู่บ้าน) */}
               <div className="bg-indigo-50/70 p-3 rounded-xl border border-indigo-200">
                 <label className="block text-xs font-bold text-indigo-900 mb-1 flex items-center gap-1.5">
                   <ShieldCheck size={14} /> ชุดสิทธิ์ในระบบ (กำหนดเมนูที่คนนี้จะเห็นหลังอนุมัติ) *
@@ -989,7 +1108,6 @@ const CommunityLeaders = () => {
                 )}
               </div>
 
-              {/* ค้นหาลูกบ้านด้วยเลขบัตร 13 หลัก */}
               {editingSlot?.isNew && !foundUser && (
                 <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
                   <label className="block text-xs font-bold text-slate-700 mb-2">ค้นหาลูกบ้านในหมู่บ้านนี้ (เลขบัตร 13 หลัก) *</label>
@@ -1054,7 +1172,7 @@ const CommunityLeaders = () => {
                   </div>
 
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[11px] text-amber-900">
-                    *หลังบันทึกแล้ว บุคคลนี้จะอยู่ในสถานะ <strong>รออนุมัติ</strong> จนกว่าผู้ใหญ่บ้านจะกดอนุมัติด้วยรหัส PIN จึงจะได้รับสิทธิ์และเห็นเมนูตามตำแหน่ง
+                    *หลังบันทึกแล้ว บุคคลนี้จะอยู่ในสถานะ <strong>รออนุมัติ</strong> จนกว่าผู้ใหญ่บ้านจะกดอนุมัติด้วยรหัส PIN
                   </div>
                 </form>
               )}
@@ -1075,7 +1193,7 @@ const CommunityLeaders = () => {
         </div>
       )}
 
-      {/* Modal 3: ตั้ง / เปลี่ยนรหัส PIN อนุมัติของผู้ใหญ่บ้าน */}
+      {/* Modal 3: ตั้ง / เปลี่ยนรหัส PIN ผู้ใหญ่บ้าน */}
       {isPinSetupOpen && (
         <div className="fixed inset-0 bg-black/65 flex items-center justify-center p-4 z-[9999]">
           <form onSubmit={handleSaveHeadmanPin} className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
@@ -1085,7 +1203,7 @@ const CommunityLeaders = () => {
             </div>
             <div className="p-5 space-y-3">
               <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border">
-                ใช้สำหรับยืนยันการ <strong>อนุมัติแต่งตั้ง</strong> หรือ <strong>ถอดถอนตำแหน่ง</strong> ในผังผู้นำและคณะกรรมการทุกชุดของหมู่บ้านนี้
+                ใช้ยืนยันการ <strong>อนุมัติแต่งตั้ง</strong>, <strong>ส่งมอบงาน/เปลี่ยนตัวกรรมการ</strong>, <strong>ถอดถอนตำแหน่ง</strong> และ <strong>ยกเลิกใบเสร็จ</strong> ของหมู่บ้านนี้
               </div>
               {pinInfo.has_pin && (
                 <div>
@@ -1112,7 +1230,7 @@ const CommunityLeaders = () => {
         </div>
       )}
 
-      {/* Modal 4: ยืนยันรหัส PIN ผู้ใหญ่บ้าน (อนุมัติรายคน / อนุมัติทั้งผัง / ถอดถอน) */}
+      {/* Modal 4: ยืนยันรหัส PIN (อนุมัติรายคน / อนุมัติทั้งผัง / ถอดถอน) */}
       {approvalModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[9999]">
           <form onSubmit={handleConfirmApprovalSubmit} className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
@@ -1134,16 +1252,13 @@ const CommunityLeaders = () => {
                   <div className="font-bold flex items-center gap-1.5"><UserCheck size={14} /> {approvalModal.targetNode.first_name} {approvalModal.targetNode.last_name}</div>
                   <div>ตำแหน่งในผัง: <strong>{approvalModal.targetNode.role_name}</strong></div>
                   <div>ชุดสิทธิ์ที่ได้รับ: <strong>{approvalModal.targetNode.template_name_th}</strong></div>
-                  <div className="text-[11px] text-emerald-700 pt-1">
-                    *เมื่ออนุมัติแล้ว ระบบจะปรับสถานะจากประชาชนเป็นผู้ปฏิบัติงานและเปิดเมนูตามสิทธิ์ให้อัตโนมัติ
-                  </div>
                 </div>
               )}
 
               {approvalModal.mode === 'APPROVE_ALL' && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-950">
                   ยืนยันอนุมัติบุคลากรที่รออนุมัติทั้งหมด <strong>{approvalModal.pendingCount} คน</strong> ในผัง{' '}
-                  <strong>"{activeCommitteeInfo?.committee_name}"</strong> และปรับสิทธิ์การใช้งานให้ทุกคนทันที
+                  <strong>"{activeCommitteeInfo?.committee_name}"</strong>
                 </div>
               )}
 
@@ -1152,7 +1267,7 @@ const CommunityLeaders = () => {
                   ยืนยันถอดถอน <strong>{approvalModal.targetNode.first_name} {approvalModal.targetNode.last_name}</strong> ออกจากตำแหน่ง{' '}
                   <strong>"{approvalModal.targetNode.role_name}"</strong>
                   <div className="text-[11px] mt-1">
-                    *หากบุคคลนี้ไม่มีตำแหน่งอื่นในหมู่บ้าน ระบบจะปรับสถานะกลับเป็นประชาชนทั่วไป (CITIZEN) ทันที
+                    *ระบบจะปรับสถานะกลับเป็นประชาชนทั่วไป (CITIZEN) และเก็บประวัติการทำงานเดิมไว้ครบถ้วน
                   </div>
                 </div>
               )}
@@ -1197,6 +1312,200 @@ const CommunityLeaders = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Modal 5: ผลัดเปลี่ยนกรรมการ / ส่งมอบงาน (ปรับคนเดิมกลับเป็นประชาชน + ไม่กระทบประวัติเดิม) */}
+      {handoverTarget && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-3 sm:p-4 z-[9999]">
+          <form onSubmit={handleSubmitHandover} className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="bg-gradient-to-r from-indigo-700 to-blue-700 p-4 text-white flex justify-between items-center shrink-0">
+              <h2 className="text-base font-bold flex items-center gap-2">
+                <RefreshCw size={18} /> ผลัดเปลี่ยนกรรมการ / ส่งมอบงาน
+              </h2>
+              <button type="button" onClick={() => setHandoverTarget(null)}><X size={20} /></button>
+            </div>
+
+            <div className="p-5 overflow-y-auto flex-1 space-y-3.5 text-xs">
+              {/* ข้อมูลกรรมการเดิมที่จะพ้นวาระ */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
+                <div className="text-[11px] font-bold text-slate-500">กรรมการเดิม (จะถูกปรับสถานะกลับเป็นประชาชน)</div>
+                <div className="font-bold text-slate-900 text-sm">
+                  {handoverTarget.first_name} {handoverTarget.last_name}
+                </div>
+                <div>ตำแหน่ง: <strong className="text-blue-700">{handoverTarget.role_name}</strong> ({handoverTarget.template_name_th})</div>
+                <div className="text-[11px] text-emerald-700 pt-1">
+                  ✓ ประวัติการจดมิเตอร์ บิล ใบเสร็จ และรายงานย้อนหลังทั้งหมดยังคงชื่อเดิมแบบ Snapshot ไม่เปลี่ยนตามคนใหม่
+                </div>
+              </div>
+
+              {/* เลือกรูปแบบการส่งมอบ */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHandoverMode('REPLACE')}
+                  className={`p-2.5 rounded-xl border-2 font-bold text-left ${
+                    handoverMode === 'REPLACE' ? 'border-indigo-600 bg-indigo-50 text-indigo-900' : 'border-slate-200 text-slate-600'
+                  }`}
+                >
+                  ตั้งคนใหม่รับช่วงต่อทันที
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setHandoverMode('STEP_DOWN_ONLY'); setHandoverIncoming(null); }}
+                  className={`p-2.5 rounded-xl border-2 font-bold text-left ${
+                    handoverMode === 'STEP_DOWN_ONLY' ? 'border-amber-600 bg-amber-50 text-amber-900' : 'border-slate-200 text-slate-600'
+                  }`}
+                >
+                  ปรับกลับเป็นประชาชนอย่างเดียว
+                </button>
+              </div>
+
+              {/* ค้นหาคนใหม่มารับช่วงต่อ */}
+              {handoverMode === 'REPLACE' && (
+                <div className="bg-indigo-50/60 border border-indigo-200 rounded-xl p-3 space-y-2.5">
+                  <label className="block font-bold text-indigo-900">ค้นหาผู้มารับตำแหน่งแทน (เลขบัตร 13 หลักในหมู่บ้านนี้) *</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      maxLength="17"
+                      value={handoverSearchCid}
+                      onChange={(e) => setHandoverSearchCid(formatCitizenId(e.target.value))}
+                      placeholder="X-XXXX-XXXXX-XX-X"
+                      className="w-full p-2 border border-indigo-300 rounded-lg text-sm font-mono bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSearchHandoverIncoming}
+                      disabled={handoverSearching}
+                      className="px-3.5 py-2 bg-indigo-700 text-white rounded-lg font-bold shrink-0 flex items-center gap-1"
+                    >
+                      <Search size={14} /> {handoverSearching ? '...' : 'ค้นหา'}
+                    </button>
+                  </div>
+
+                  {handoverIncoming && (
+                    <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-indigo-200">
+                      <img src={handoverIncoming.user_image || '/profile-img.jpg'} alt="" className="w-11 h-11 rounded-lg object-cover border" />
+                      <div>
+                        <div className="font-bold text-slate-900 text-sm">
+                          {handoverIncoming.first_name} {handoverIncoming.last_name}
+                        </div>
+                        <div className="text-[11px] text-emerald-700 font-semibold">
+                          พร้อมรับช่วงต่อในตำแหน่ง "{handoverTarget.role_name}" ทันที
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">วันเริ่มงานคนใหม่</label>
+                      <input type="date" value={handoverStartDate} onChange={(e) => setHandoverStartDate(e.target.value)} className="w-full p-2 border rounded-lg bg-white" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">วันหมดวาระ (ถ้ามี)</label>
+                      <input type="date" value={handoverEndDate} onChange={(e) => setHandoverEndDate(e.target.value)} className="w-full p-2 border rounded-lg bg-white" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">เหตุผลการผลัดเปลี่ยน / เลขคำสั่ง</label>
+                <input
+                  type="text"
+                  placeholder="เช่น ครบวาระปี 2569 / ลาออก / ส่งมอบหน้าที่ตามมติที่ประชุม"
+                  value={handoverReason}
+                  onChange={(e) => setHandoverReason(e.target.value)}
+                  className="w-full p-2.5 border rounded-lg text-xs"
+                />
+              </div>
+
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-300">
+                <label className="block font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+                  <Lock size={14} className="text-red-600" /> กรอกรหัส PIN ผู้ใหญ่บ้านเพื่อยืนยันส่งมอบงาน *
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="กรอกรหัส PIN ผู้ใหญ่บ้าน..."
+                  value={handoverPin}
+                  onChange={(e) => setHandoverPin(e.target.value)}
+                  className="w-full p-2.5 border border-slate-300 rounded-lg text-sm font-mono bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t flex gap-2 shrink-0">
+              <button type="button" onClick={() => setHandoverTarget(null)} className="flex-1 py-2.5 rounded-xl border font-bold text-slate-600 text-sm">ยกเลิก</button>
+              <button
+                type="submit"
+                disabled={handoverSubmitting || (handoverMode === 'REPLACE' && !handoverIncoming)}
+                className="flex-1 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-sm disabled:bg-slate-300"
+              >
+                {handoverSubmitting ? 'กำลังบันทึก...' : 'ยืนยันส่งมอบงาน'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal 6: ประวัติการผลัดเปลี่ยนกรรมการและส่งมอบงานถาวร (อ่านอย่างเดียว ล็อกห้ามลบ) */}
+      {isHistoryOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-3 sm:p-4 z-[9999]">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="bg-slate-900 p-4 text-white flex justify-between items-center shrink-0">
+              <div>
+                <h2 className="text-base font-bold flex items-center gap-2"><History size={18} /> ประวัติการผลัดเปลี่ยนกรรมการและส่งมอบงาน</h2>
+                <div className="text-[11px] text-slate-300 flex items-center gap-1 mt-0.5">
+                  <Lock size={11} /> บันทึกถาวรระดับฐานข้อมูล • ล็อกห้ามลบทุกกรณี
+                </div>
+              </div>
+              <button type="button" onClick={() => setIsHistoryOpen(false)}><X size={20} /></button>
+            </div>
+
+            <div className="p-5 overflow-y-auto flex-1 space-y-3">
+              {loadingLogs ? (
+                <div className="text-center py-10 text-slate-400 text-sm">กำลังโหลดประวัติ...</div>
+              ) : handoverLogs.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-sm">ยังไม่มีประวัติการผลัดเปลี่ยนกรรมการในหมู่บ้านนี้</div>
+              ) : (
+                handoverLogs.map((log) => (
+                  <div key={log.handover_id} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs space-y-1.5">
+                    <div className="flex flex-wrap justify-between items-center gap-2">
+                      <span className="font-bold text-indigo-800">
+                        {log.committee_name || 'คณะทำงาน'} • ตำแหน่ง: {log.position_title}
+                      </span>
+                      <span className="text-[11px] text-slate-500">{formatThaiDateTime(log.handover_at)}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-800">
+                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-xs">
+                        เดิม: {log.outgoing_full_name} → ปรับเป็น {log.outgoing_new_role || 'CITIZEN'}
+                      </span>
+                      {log.incoming_full_name && (
+                        <>
+                          <ArrowRight size={14} className="text-slate-400" />
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 text-xs">
+                            คนใหม่: {log.incoming_full_name}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-slate-600">เหตุผล: {log.handover_reason || '-'}</div>
+                    <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-200">
+                      <span>อนุมัติโดย: <strong>{log.approved_by_name || 'ผู้ใหญ่บ้าน'}</strong></span>
+                      <span className="inline-flex items-center gap-1 text-slate-600 font-semibold"><Lock size={10} /> ห้ามลบ</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-3.5 bg-slate-50 border-t text-right shrink-0">
+              <button type="button" onClick={() => setIsHistoryOpen(false)} className="px-5 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold">ปิดหน้าต่าง</button>
+            </div>
+          </div>
         </div>
       )}
 

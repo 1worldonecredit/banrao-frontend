@@ -179,7 +179,6 @@ const MyWaterBills = () => {
       <TopNavbar userData={userData} />
 
       <div className="max-w-3xl mx-auto p-4 pt-20">
-        {/* ส่วนหัวสรุปค่าน้ำของบ้าน */}
         <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-5 rounded-2xl shadow-md mb-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 bg-white/20 rounded-xl"><Droplets size={24} /></div>
@@ -284,7 +283,8 @@ const MyWaterBills = () => {
                     </div>
                   </div>
 
-                  {b.reading_photo_url && (
+                  {/* แสดงรูปถ่ายหน้าปัดมิเตอร์พร้อมลายน้ำ เฉพาะใบแจ้งหนี้ที่รอชำระ */}
+                  {!isPaid && b.reading_photo_url && (
                     <div>
                       <div className="text-[11px] font-bold text-slate-500 mb-1">รูปถ่ายหน้าปัดมิเตอร์:</div>
                       <img
@@ -322,7 +322,6 @@ const MyWaterBills = () => {
               );
             })}
 
-            {/* ส่วนประวัติเอกสารที่ถูกยกเลิก (Voided) เพื่อความโปร่งใส */}
             {voidedBills.length > 0 && (
               <div className="pt-3 space-y-2.5">
                 <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5 px-1">
@@ -350,7 +349,7 @@ const MyWaterBills = () => {
         )}
       </div>
 
-      {/* Modal ดูเอกสารทางการ: แยก "ใบแจ้งหนี้" vs "ใบเสร็จรับเงิน" + ใช้ Snapshot เดิม */}
+      {/* Modal ดูเอกสารทางการ: ใบแจ้งหนี้มีภาพมิเตอร์ลายน้ำ+QR / ใบเสร็จรับเงินสะอาดไม่มีภาพ */}
       {docModalBill && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-3 sm:p-4 z-[9999]">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
@@ -413,6 +412,33 @@ const MyWaterBills = () => {
                   <span>฿{Number(docModalBill.total_amount).toLocaleString()}</span>
                 </div>
               </div>
+
+              {/* แสดงภาพถ่ายมิเตอร์พร้อมลายน้ำและ QR เฉพาะ "ใบแจ้งหนี้" — ใบเสร็จรับเงินไม่ต้องมีภาพ */}
+              {!modalIsReceipt && docModalBill.reading_photo_url && (
+                <div>
+                  <div className="text-[11px] font-bold text-slate-500 mb-1.5">ภาพถ่ายหน้าปัดมิเตอร์หลักฐาน:</div>
+                  <img
+                    src={docModalBill.reading_photo_url}
+                    alt="Meter Evidence"
+                    className="mx-auto block max-h-72 w-auto max-w-full rounded-xl border border-slate-200 shadow-sm"
+                  />
+                </div>
+              )}
+
+              {!modalIsReceipt && buildPromptPayQRUrl(settings?.promptpay_id, docModalBill.total_amount) && (
+                <div className="text-center bg-blue-50/70 p-3 rounded-xl border border-blue-200">
+                  <div className="text-xs font-bold text-blue-900 mb-1">สแกน QR พร้อมเพย์เพื่อชำระค่าน้ำ</div>
+                  <img
+                    src={buildPromptPayQRUrl(settings?.promptpay_id, docModalBill.total_amount)}
+                    alt="QR"
+                    className="mx-auto w-40 h-40 rounded-lg bg-white p-1.5 border"
+                  />
+                  <div className="text-[11px] text-slate-600 mt-1">
+                    {settings?.bank_name ? `${settings.bank_name} • ` : ''}
+                    {settings?.account_name || modalVillageTitle} ({settings?.promptpay_id})
+                  </div>
+                </div>
+              )}
 
               <div className="border-t-2 border-dashed border-slate-300 pt-3 text-center space-y-1">
                 {modalIsReceipt ? (
