@@ -825,15 +825,15 @@ const CommunityLeaders = () => {
                   >
                     <Edit size={12} />
                   </button>
-                  {c.committee_name !== 'ผังผู้นำชุมชน' && (
+                      {(c.committee_name !== 'ผังผู้นำชุมชน' || committees.filter((x) => x.committee_name === 'ผังผู้นำชุมชน').length > 1) && (
                     <button
-                      onClick={() => handleDeleteCommittee(c.committee_id, c.committee_name)}
-                      className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white shadow-sm border border-red-200"
-                      title="ลบแท็บนี้"
-                    >
-                      <Trash2 size={12} />
+                    onClick={() => handleDeleteCommittee(c.committee_id, c.committee_name)}
+                    className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-600 hover:text-white shadow-sm border border-red-200"
+                    title="ลบแท็บนี้"
+                     >
+                     <Trash2 size={12} />
                     </button>
-                  )}
+                    )}
                 </div>
               )}
             </div>
