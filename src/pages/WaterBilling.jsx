@@ -9,6 +9,7 @@ import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 import WaterPricingModal from '../components/WaterPricingModal';
 import { authFetch } from '../utils/authFetch';
+import { uploadToR2, compressImageToBlob } from '../utils/uploadToR2';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
@@ -73,7 +74,7 @@ const stampMeterPhoto = (file, { billingMonthLabel, houseNo, meterCode }) => {
 
     img.onload = () => {
       try {
-        const MAX_SIDE = 1280;
+        const MAX_SIDE = 800;
         let width = img.naturalWidth || img.width;
         let height = img.naturalHeight || img.height;
 
@@ -142,9 +143,16 @@ const stampMeterPhoto = (file, { billingMonthLabel, houseNo, meterCode }) => {
         ctx.fillStyle = '#ffffff';
         ctx.fillText(line2, marginX, y2);
 
-        const stampedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        URL.revokeObjectURL(objectUrl);
-        resolve(stampedDataUrl);
+       
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(objectUrl);
+            if (!blob) return reject(new Error('สร้างไฟล์ภาพลายน้ำไม่สำเร็จ'));
+            resolve(blob);
+          },
+          'image/jpeg',
+          0.74
+        );
       } catch (err) {
         URL.revokeObjectURL(objectUrl);
         reject(err);
@@ -882,25 +890,34 @@ const WaterBilling = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (field === 'reading_photo_url') {
-      try {
-        const stampedUrl = await stampMeterPhoto(file, {
+    try {
+      if (field === 'reading_photo_url') {
+        const stampedBlob = await stampMeterPhoto(file, {
           billingMonthLabel: formatThaiMonth(billingMonth),
           houseNo: readingTarget?.house_no,
           meterCode: readingTarget?.meter_code
         });
-        setReadingForm((prev) => ({ ...prev, reading_photo_url: stampedUrl }));
-      } catch (err) {
-        alert('ไม่สามารถประมวลผลภาพถ่ายมิเตอร์ได้ กรุณาลองใหม่อีกครั้ง');
+        const r2Url = await uploadToR2(
+          stampedBlob,
+          'water/bills',
+          `meter-${readingTarget?.meter_code || 'reading'}`
+        );
+        setReadingForm((prev) => ({ ...prev, reading_photo_url: r2Url }));
+      } else {
+        const slipBlob = await compressImageToBlob(file, { maxSide: 900, quality: 0.75 });
+        const r2Url = await uploadToR2(
+          slipBlob,
+          'water/slips',
+          `slip-${readingTarget?.meter_code || 'pay'}`
+        );
+        setReadingForm((prev) => ({ ...prev, [field]: r2Url }));
       }
+    } catch (err) {
+      console.error('Upload to R2 error:', err);
+      alert('อัปโหลดรูปขึ้น Cloudflare R2 ไม่สำเร็จ: ' + err.message);
+    } finally {
       e.target.value = '';
-      return;
     }
-
-    const reader = new FileReader();
-    reader.onloadend = () => setReadingForm((prev) => ({ ...prev, [field]: reader.result }));
-    reader.readAsDataURL(file);
-    e.target.value = '';
   };
 
   const calcPrev = Number(readingForm.previous_reading || 0);
