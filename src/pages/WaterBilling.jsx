@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   Droplets, Search, Camera, CheckCircle, AlertTriangle, Clock, UserX,
-  Share2, Printer, Settings, QrCode, Banknote, X, Save, FileText, MapPin, Phone, Calendar, UserCheck
+  Share2, Printer, Settings, QrCode, Banknote, X, Save, FileText, MapPin,
+  Phone, Calendar, UserCheck, ShieldCheck, Download
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
+import WaterPricingModal from '../components/WaterPricingModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
@@ -57,7 +59,7 @@ const computeScheduleDates = (ymStr, readingDay = 25, dueDay = 5, dueNextMonth =
 };
 
 // =========================================================================
-// ฟิลเตอร์ประทับลายน้ำลงบนภาพถ่ายมิเตอร์ (รอบเดือน + วันที่ไทย + เวลาจริง)
+// 1. ฟิลเตอร์ประทับลายน้ำ "ทับบนตัวภาพโดยตรง" (ไม่มีกรอบ/แถบดำทึบ คมชัดเห็นง่าย)
 // =========================================================================
 const stampMeterPhoto = (file, { billingMonthLabel, houseNo, meterCode }) => {
   return new Promise((resolve, reject) => {
@@ -66,13 +68,14 @@ const stampMeterPhoto = (file, { billingMonthLabel, houseNo, meterCode }) => {
 
     img.onload = () => {
       try {
-        const MAX_WIDTH = 1200;
+        const MAX_SIDE = 1280;
         let width = img.naturalWidth || img.width;
         let height = img.naturalHeight || img.height;
 
-        if (width > MAX_WIDTH) {
-          height = Math.round((height * MAX_WIDTH) / width);
-          width = MAX_WIDTH;
+        if (width > MAX_SIDE || height > MAX_SIDE) {
+          const ratio = Math.min(MAX_SIDE / width, MAX_SIDE / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
         }
 
         const canvas = document.createElement('canvas');
@@ -80,7 +83,7 @@ const stampMeterPhoto = (file, { billingMonthLabel, houseNo, meterCode }) => {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
 
-        // วาดภาพต้นฉบับ
+        // วาดภาพต้นฉบับเต็มพื้นที่
         ctx.drawImage(img, 0, 0, width, height);
 
         // วัน เดือน ปี พ.ศ. และเวลาที่ถ่ายจริง
@@ -93,51 +96,54 @@ const stampMeterPhoto = (file, { billingMonthLabel, houseNo, meterCode }) => {
           meterCode ? `มิเตอร์ ${meterCode}` : ''
         ].filter(Boolean).join(' | ');
 
-        const line1 = `ภาพมิเตอร์น้ำรอบเดือน ${billingMonthLabel}${metaSuffix ? ` (${metaSuffix})` : ''}`;
-        const line2 = `วันที่ถ่าย: ${thaiDateTime}`;
+        const line1 = `ภาพมิเตอร์น้ำรอบเดือน ${billingMonthLabel}`;
+        const line2 = metaSuffix ? `${metaSuffix} • ${thaiDateTime}` : `วันที่ถ่าย: ${thaiDateTime}`;
 
-        // คำนวณขนาดฟอนต์ให้พอดี ไม่ใหญ่เกินไปแต่คมชัด และไม่ล้นขอบภาพ
-        const padX = Math.max(12, Math.round(width * 0.02));
-        const padY = Math.max(8, Math.round(width * 0.014));
-        let fontSize = Math.max(13, Math.round(width * 0.022));
-        const maxTextWidth = width - padX * 2;
+        // คำนวณขนาดตัวอักษรให้เด่นชัดทั้งภาพแนวตั้งและแนวนอน (ทับบนภาพโดยตรง)
+        const marginX = Math.max(16, Math.round(width * 0.035));
+        const marginBottom = Math.max(16, Math.round(height * 0.035));
+        let fontSize = Math.max(20, Math.round(width * 0.042));
+        const maxTextWidth = width - marginX * 2;
 
         ctx.font = `bold ${fontSize}px Tahoma, "Noto Sans Thai", sans-serif`;
         while (
           (ctx.measureText(line1).width > maxTextWidth || ctx.measureText(line2).width > maxTextWidth) &&
-          fontSize > 10
+          fontSize > 13
         ) {
           fontSize -= 1;
           ctx.font = `bold ${fontSize}px Tahoma, "Noto Sans Thai", sans-serif`;
         }
 
-        const lineHeight = Math.round(fontSize * 1.45);
-        const barHeight = lineHeight * 2 + padY * 2;
-        const barY = height - barHeight;
+        const lineHeight = Math.round(fontSize * 1.42);
+        const y2 = height - marginBottom;
+        const y1 = y2 - lineHeight;
 
-        // แถบพื้นหลังสีดำโปร่งแสงด้านล่าง (ไม่บังหน้าปัดมิเตอร์)
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.68)';
-        ctx.fillRect(0, barY, width, barHeight);
-
-        // เส้นคั่นสีฟ้าบางๆ ด้านบนแถบ
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
-        ctx.fillRect(0, barY, width, Math.max(2, Math.round(height * 0.003)));
-
-        ctx.textBaseline = 'top';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.lineJoin = 'round';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-        ctx.shadowBlur = 3;
+        ctx.shadowBlur = 6;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 2;
 
-        // บรรทัดที่ 1: รอบเดือนและข้อมูลมิเตอร์ (สีเหลืองอ่อน)
+        // บรรทัดที่ 1: รอบเดือน (สีเหลืองสด ขอบดำคมชัด ทับบนภาพโดยตรง ไม่มีแถบดำ)
         ctx.font = `bold ${fontSize}px Tahoma, "Noto Sans Thai", sans-serif`;
+        ctx.lineWidth = Math.max(4, Math.round(fontSize * 0.22));
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.strokeText(line1, marginX, y1);
         ctx.fillStyle = '#fde047';
-        ctx.fillText(line1, padX, barY + padY);
+        ctx.fillText(line1, marginX, y1);
 
-        // บรรทัดที่ 2: วันที่ เดือน ปี พ.ศ. และเวลาที่ถ่าย (สีขาว)
-        ctx.font = `600 ${Math.max(11, fontSize - 1)}px Tahoma, "Noto Sans Thai", sans-serif`;
+        // บรรทัดที่ 2: บ้านเลขที่ + มิเตอร์ + วันเวลาไทย (สีขาว ขอบดำคมชัด)
+        const fontSize2 = Math.max(12, Math.round(fontSize * 0.88));
+        ctx.font = `bold ${fontSize2}px Tahoma, "Noto Sans Thai", sans-serif`;
+        ctx.lineWidth = Math.max(3.5, Math.round(fontSize2 * 0.22));
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.strokeText(line2, marginX, y2);
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(line2, padX, barY + padY + lineHeight);
+        ctx.fillText(line2, marginX, y2);
 
-        const stampedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        const stampedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
         URL.revokeObjectURL(objectUrl);
         resolve(stampedDataUrl);
       } catch (err) {
@@ -192,6 +198,454 @@ const buildPromptPayQRUrl = (promptpayId, amount) => {
   const rawPayload = `0002010102${numAmount > 0 ? '12' : '11'}${tag29}5802TH5303764${amountTag}6304`;
   const fullPayload = rawPayload + crc16CCITT(rawPayload);
   return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(fullPayload)}`;
+};
+
+// =========================================================================
+// 2. สร้างไฟล์ภาพสลิปทางการทั้งใบ (.JPG) ด้วย HTML5 Canvas (พร้อมแชร์เข้า LINE / Chat)
+// =========================================================================
+const loadImageForCanvas = (src) =>
+  new Promise((resolve) => {
+    if (!src) return resolve(null);
+    const img = new Image();
+    if (!src.startsWith('data:')) img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+
+const wrapCanvasText = (ctx, text, maxWidth) => {
+  const words = String(text || '').split(' ');
+  const lines = [];
+  let current = '';
+
+  for (const word of words) {
+    const testLine = current ? `${current} ${word}` : word;
+    if (ctx.measureText(testLine).width <= maxWidth) {
+      current = testLine;
+    } else {
+      if (current) lines.push(current);
+      // กรณีคำภาษาไทยยาวเกินบรรทัดให้ตัดทีละตัวอักษร
+      if (ctx.measureText(word).width > maxWidth) {
+        let chunk = '';
+        for (const ch of word) {
+          if (ctx.measureText(chunk + ch).width > maxWidth) {
+            if (chunk) lines.push(chunk);
+            chunk = ch;
+          } else {
+            chunk += ch;
+          }
+        }
+        current = chunk;
+      } else {
+        current = word;
+      }
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [''];
+};
+
+const drawRoundedRect = (ctx, x, y, w, h, r) => {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+};
+
+const generateWaterSlipJpgFile = async ({ bill, villageInfo, settings, schedule, staffFullName }) => {
+  const W = 800;
+  const PAD = 36;
+  const CONTENT_W = W - PAD * 2;
+  const FONT = 'Tahoma, "Noto Sans Thai", sans-serif';
+
+  const isPaid = bill.bill_payment_status === 'PAID';
+  const statusText = isPaid
+    ? `ชำระแล้ว (${bill.payment_method === 'CASH' ? 'เงินสด' : 'โอน/QR'})`
+    : bill.visit_status === 'NOT_FOUND'
+    ? 'ค้างชำระ (ไม่พบผู้ใช้น้ำ)'
+    : 'ค้างชำระ';
+
+  const presidentName = settings.president_name || villageInfo.president_name || '-';
+  const readerName = bill.recorded_by || staffFullName;
+  const readingDisplay = bill.reading_date ? formatThaiDate(bill.reading_date) : schedule.readingThai;
+  const dueDisplay = bill.due_date ? formatThaiDate(bill.due_date) : schedule.dueThai;
+  const arrearsList = Array.isArray(bill.arrears_list) ? bill.arrears_list : [];
+  const arrearsTotal = Number(bill.arrears_total || 0);
+  const currentTotal = Number(bill.total_amount || 0);
+  const grandTotal = currentTotal + arrearsTotal;
+
+  // โหลดรูปมิเตอร์และรูป QR ล่วงหน้า
+  const meterImg = await loadImageForCanvas(bill.reading_photo_url);
+  const qrUrl = !isPaid ? buildPromptPayQRUrl(settings.promptpay_id, grandTotal) : null;
+  const qrImg = qrUrl ? await loadImageForCanvas(qrUrl) : null;
+
+  // คำนวณขนาดรูปมิเตอร์ตามสัดส่วนจริง (ไม่มีกรอบดำ)
+  let meterDrawW = 0;
+  let meterDrawH = 0;
+  if (meterImg) {
+    const maxW = CONTENT_W - 24;
+    const maxH = 440;
+    const ratio = Math.min(maxW / meterImg.width, maxH / meterImg.height, 1);
+    meterDrawW = Math.round(meterImg.width * ratio);
+    meterDrawH = Math.round(meterImg.height * ratio);
+  }
+
+  // ใช้ Canvas ชั่วคราววัดจำนวนบรรทัดข้อความที่ตัดคำ
+  const measureCanvas = document.createElement('canvas');
+  const mCtx = measureCanvas.getContext('2d');
+  mCtx.font = `600 20px ${FONT}`;
+  const villageAddrLines = villageInfo.village_full_address
+    ? wrapCanvasText(mCtx, villageInfo.village_full_address, CONTENT_W - 48)
+    : [];
+  mCtx.font = `normal 20px ${FONT}`;
+  const userAddrLines = wrapCanvasText(mCtx, bill.full_address || '-', CONTENT_W - 160);
+
+  // คำนวณความสูงรวมของสลิปทั้งหมด
+  const headerH = 235 + villageAddrLines.length * 28;
+  const userBoxH = 104 + userAddrLines.length * 28;
+  const tableBaseH = 305;
+  const arrearsH = arrearsList.length > 0 ? 115 + arrearsList.length * 30 : 0;
+  const tableBoxH = tableBaseH + arrearsH;
+  const photoSectionH = meterImg ? meterDrawH + 54 : 0;
+  const qrSectionH = qrImg ? 290 : 0;
+  const footerH = 140;
+
+  const totalH =
+    PAD +
+    headerH +
+    18 +
+    userBoxH +
+    18 +
+    tableBoxH +
+    (photoSectionH ? 18 + photoSectionH : 0) +
+    (qrSectionH ? 18 + qrSectionH : 0) +
+    22 +
+    footerH +
+    PAD;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = totalH;
+  const ctx = canvas.getContext('2d');
+
+  // พื้นหลังสีขาวสะอาด
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, totalH);
+
+  // กรอบนอกบางๆ
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
+  drawRoundedRect(ctx, 12, 12, W - 24, totalH - 24, 24);
+  ctx.stroke();
+
+  let y = PAD;
+
+  // --- 1. หัวสลิปทางการ ---
+  const grad = ctx.createLinearGradient(PAD, y, PAD, y + headerH);
+  grad.addColorStop(0, '#eff6ff');
+  grad.addColorStop(1, '#ffffff');
+  drawRoundedRect(ctx, PAD, y, CONTENT_W, headerH, 20);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = '#bfdbfe';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // แถบสีน้ำเงินด้านบนหัวสลิป
+  ctx.save();
+  drawRoundedRect(ctx, PAD, y, CONTENT_W, headerH, 20);
+  ctx.clip();
+  const topBarGrad = ctx.createLinearGradient(PAD, y, PAD + CONTENT_W, y);
+  topBarGrad.addColorStop(0, '#2563eb');
+  topBarGrad.addColorStop(0.5, '#06b6d4');
+  topBarGrad.addColorStop(1, '#4f46e5');
+  ctx.fillStyle = topBarGrad;
+  ctx.fillRect(PAD, y, CONTENT_W, 10);
+  ctx.restore();
+
+  let hy = y + 48;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.font = `bold 27px ${FONT}`;
+  ctx.fillStyle = '#0f172a';
+  ctx.fillText(`สลิปบิลค่าน้ำประปา ${villageInfo.village_title}`, W / 2, hy);
+  hy += 34;
+
+  ctx.font = `normal 19px ${FONT}`;
+  ctx.fillStyle = '#475569';
+  for (const line of villageAddrLines) {
+    ctx.fillText(line, W / 2, hy);
+    hy += 27;
+  }
+
+  hy += 8;
+  ctx.font = `bold 20px ${FONT}`;
+  ctx.fillStyle = '#1e3a8a';
+  ctx.fillText(`ประธานกรรมการ: ${presidentName}`, W / 2, hy);
+  hy += 24;
+
+  // เส้นประคั่น
+  ctx.save();
+  ctx.setLineDash([6, 6]);
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(PAD + 28, hy);
+  ctx.lineTo(W - PAD - 28, hy);
+  ctx.stroke();
+  ctx.restore();
+  hy += 26;
+
+  ctx.font = `bold 19px ${FONT}`;
+  ctx.fillStyle = '#334155';
+  ctx.fillText(`เลขที่บิล: ${bill.bill_no}  •  รอบเดือน ${formatThaiMonth(bill.billing_month)}`, W / 2, hy);
+  hy += 28;
+
+  ctx.font = `normal 18px ${FONT}`;
+  ctx.fillStyle = '#475569';
+  ctx.fillText(`วันที่จดมิเตอร์: ${readingDisplay}   •   กำหนดชำระภายใน: ${dueDisplay}`, W / 2, hy);
+  hy += 36;
+
+  // ป้ายสถานะ (ชำระแล้ว / ค้างชำระ)
+  ctx.font = `bold 19px ${FONT}`;
+  const pillW = Math.max(210, ctx.measureText(statusText).width + 46);
+  drawRoundedRect(ctx, W / 2 - pillW / 2, hy - 18, pillW, 36, 18);
+  ctx.fillStyle = isPaid ? '#d1fae5' : '#fef3c7';
+  ctx.fill();
+  ctx.strokeStyle = isPaid ? '#6ee7b7' : '#fcd34d';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = isPaid ? '#047857' : '#92400e';
+  ctx.fillText(statusText, W / 2, hy + 1);
+
+  y += headerH + 18;
+
+  // --- 2. ข้อมูลผู้ใช้น้ำ ---
+  drawRoundedRect(ctx, PAD, y, CONTENT_W, userBoxH, 16);
+  ctx.fillStyle = '#f8fafc';
+  ctx.fill();
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  let uy = y + 32;
+  const leftX = PAD + 22;
+  const rightX = W - PAD - 22;
+
+  const drawKeyVal = (label, val, rowY, valColor = '#0f172a', valBold = true) => {
+    ctx.textAlign = 'left';
+    ctx.font = `normal 19px ${FONT}`;
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(label, leftX, rowY);
+
+    ctx.textAlign = 'right';
+    ctx.font = `${valBold ? 'bold' : 'normal'} 20px ${FONT}`;
+    ctx.fillStyle = valColor;
+    ctx.fillText(String(val), rightX, rowY);
+  };
+
+  drawKeyVal('ผู้ใช้น้ำ:', bill.full_name || '-', uy);
+  uy += 32;
+
+  ctx.textAlign = 'left';
+  ctx.font = `normal 19px ${FONT}`;
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('ที่อยู่:', leftX, uy);
+
+  ctx.textAlign = 'right';
+  ctx.font = `normal 19px ${FONT}`;
+  ctx.fillStyle = '#1e293b';
+  for (const line of userAddrLines) {
+    ctx.fillText(line, rightX, uy);
+    uy += 27;
+  }
+
+  uy += 6;
+  drawKeyVal('เลขมิเตอร์:', bill.meter_code || '-', uy, '#1d4ed8', true);
+
+  y += userBoxH + 18;
+
+  // --- 3. ตารางคำนวณค่าน้ำ ---
+  drawRoundedRect(ctx, PAD, y, CONTENT_W, tableBoxH, 16);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  let ty = y + 34;
+  drawKeyVal('เลขมิเตอร์ครั้งก่อน', Number(bill.previous_reading || 0).toFixed(2), ty, '#334155', false);
+  ty += 34;
+  drawKeyVal('เลขมิเตอร์ครั้งนี้', Number(bill.current_reading || 0).toFixed(2), ty, '#0f172a', true);
+  ty += 22;
+
+  ctx.save();
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.beginPath();
+  ctx.moveTo(leftX, ty);
+  ctx.lineTo(rightX, ty);
+  ctx.stroke();
+  ctx.restore();
+  ty += 28;
+
+  drawKeyVal('จำนวนน้ำที่ใช้', `${Number(bill.units_used || 0).toFixed(2)} หน่วย`, ty, '#0f172a', true);
+  ty += 34;
+  drawKeyVal(
+    `ค่าน้ำ (${Number(bill.units_used || 0).toFixed(2)} × ${Number(bill.unit_rate || 0).toFixed(2)} บ.)`,
+    `฿${(Number(bill.units_used || 0) * Number(bill.unit_rate || 0)).toLocaleString()}`,
+    ty,
+    '#334155',
+    false
+  );
+  ty += 34;
+  drawKeyVal('ค่ารักษามิเตอร์', `฿${Number(bill.meter_fee || 0).toLocaleString()}`, ty, '#334155', false);
+  ty += 34;
+  drawKeyVal('ค่าจ้างคนจดมิเตอร์', `฿${Number(bill.reader_fee || 0).toLocaleString()}`, ty, '#047857', true);
+  ty += 24;
+
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(leftX, ty);
+  ctx.lineTo(rightX, ty);
+  ctx.stroke();
+  ty += 34;
+
+  ctx.textAlign = 'left';
+  ctx.font = `bold 23px ${FONT}`;
+  ctx.fillStyle = '#1d4ed8';
+  ctx.fillText('ยอดรวมรอบเดือนนี้', leftX, ty);
+  ctx.textAlign = 'right';
+  ctx.fillText(`฿${currentTotal.toLocaleString()}`, rightX, ty);
+
+  if (arrearsList.length > 0) {
+    ty += 26;
+    ctx.save();
+    ctx.setLineDash([6, 6]);
+    ctx.strokeStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.moveTo(leftX, ty);
+    ctx.lineTo(rightX, ty);
+    ctx.stroke();
+    ctx.restore();
+    ty += 26;
+
+    ctx.textAlign = 'left';
+    ctx.font = `bold 19px ${FONT}`;
+    ctx.fillStyle = '#92400e';
+    ctx.fillText('รายการค้างชำระรอบเดือนก่อน:', leftX, ty);
+    ty += 28;
+
+    for (const a of arrearsList) {
+      drawKeyVal(`  • รอบเดือน ${formatThaiMonth(a.billing_month, true)}`, `฿${Number(a.total_amount).toLocaleString()}`, ty, '#92400e', false);
+      ty += 28;
+    }
+
+    drawKeyVal('ยอดค้างชำระรวม', `฿${arrearsTotal.toLocaleString()}`, ty, '#92400e', true);
+    ty += 34;
+
+    ctx.textAlign = 'left';
+    ctx.font = `bold 24px ${FONT}`;
+    ctx.fillStyle = '#b91c1c';
+    ctx.fillText('ยอดรวมสุทธิทั้งสิ้น', leftX, ty);
+    ctx.textAlign = 'right';
+    ctx.fillText(`฿${grandTotal.toLocaleString()}`, rightX, ty);
+  }
+
+  y += tableBoxH + 18;
+
+  // --- 4. ภาพถ่ายหน้าปัดมิเตอร์ (แสดงตามสัดส่วนจริง ไม่มีกรอบดำ) ---
+  if (meterImg) {
+    ctx.textAlign = 'left';
+    ctx.font = `bold 18px ${FONT}`;
+    ctx.fillStyle = '#475569';
+    ctx.fillText('ภาพถ่ายหน้าปัดมิเตอร์หลักฐาน:', PAD + 4, y + 14);
+
+    const imgX = Math.round((W - meterDrawW) / 2);
+    const imgY = y + 34;
+
+    ctx.save();
+    drawRoundedRect(ctx, imgX, imgY, meterDrawW, meterDrawH, 16);
+    ctx.clip();
+    ctx.drawImage(meterImg, imgX, imgY, meterDrawW, meterDrawH);
+    ctx.restore();
+
+    drawRoundedRect(ctx, imgX, imgY, meterDrawW, meterDrawH, 16);
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    y += photoSectionH + 18;
+  }
+
+  // --- 5. QR พร้อมเพย์ (กรณีค้างชำระ) ---
+  if (qrImg) {
+    drawRoundedRect(ctx, PAD, y, CONTENT_W, qrSectionH, 16);
+    ctx.fillStyle = '#eff6ff';
+    ctx.fill();
+    ctx.strokeStyle = '#bfdbfe';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.font = `bold 19px ${FONT}`;
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillText(`สแกน QR พร้อมเพย์เพื่อชำระค่าน้ำ (฿${grandTotal.toLocaleString()})`, W / 2, y + 30);
+
+    const qrSize = 190;
+    const qrX = Math.round(W / 2 - qrSize / 2);
+    const qrY = y + 50;
+    ctx.fillStyle = '#ffffff';
+    drawRoundedRect(ctx, qrX - 8, qrY - 8, qrSize + 16, qrSize + 16, 12);
+    ctx.fill();
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+    ctx.font = `normal 17px ${FONT}`;
+    ctx.fillStyle = '#475569';
+    const bankLine = `${settings.bank_name ? `${settings.bank_name} • ` : ''}${settings.account_name || villageInfo.village_title} (${settings.promptpay_id})`;
+    ctx.fillText(bankLine, W / 2, y + 266);
+
+    y += qrSectionH + 18;
+  }
+
+  // --- 6. กรอบลงท้าย: ชื่อ-นามสกุล ผู้จดมิเตอร์ ---
+  y += 6;
+  ctx.save();
+  ctx.setLineDash([8, 6]);
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(PAD, y);
+  ctx.lineTo(W - PAD, y);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.textAlign = 'center';
+  ctx.font = `normal 18px ${FONT}`;
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('ลงชื่อผู้จดมิเตอร์ / ผู้ออกเอกสาร', W / 2, y + 34);
+
+  ctx.font = `bold 24px ${FONT}`;
+  ctx.fillStyle = '#0f172a';
+  ctx.fillText(`( ${readerName} )`, W / 2, y + 72);
+
+  ctx.font = `normal 18px ${FONT}`;
+  ctx.fillStyle = '#64748b';
+  ctx.fillText(`ผู้จดมิเตอร์น้ำประปา • ${villageInfo.village_title}`, W / 2, y + 106);
+
+  // แปลง Canvas เป็นไฟล์ .jpg
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+  const fileName = `slip-${bill.bill_no || 'water'}.jpg`;
+  return {
+    file: new File([blob], fileName, { type: 'image/jpeg' }),
+    blob,
+    fileName
+  };
 };
 
 const WaterBilling = () => {
@@ -258,6 +712,7 @@ const WaterBilling = () => {
   const [tabFilter, setTabFilter] = useState('ALL');
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [settingsForm, setSettingsForm] = useState({ ...settings });
 
   const [readingTarget, setReadingTarget] = useState(null);
@@ -274,6 +729,7 @@ const WaterBilling = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const [receiptItem, setReceiptItem] = useState(null);
+  const [sharingImage, setSharingImage] = useState(false);
 
   const schedule = computeScheduleDates(
     billingMonth,
@@ -368,7 +824,6 @@ const WaterBilling = () => {
     });
   };
 
-  // จัดการรูปภาพ: หากเป็นภาพมิเตอร์ จะประทับลายน้ำวันเวลาไทย + รอบเดือนอัตโนมัติ
   const handleFileBase64 = (field) => async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -400,7 +855,7 @@ const WaterBilling = () => {
   const calcUnits = Math.max(0, Number((calcCurr - calcPrev).toFixed(2)));
   const calcWaterPrice = Number((calcUnits * Number(settings.unit_rate || 0)).toFixed(2));
   const calcMeterFee = Number(settings.meter_fee || 0);
-  const calcReaderFee = Number(readingForm.reader_fee || 0);
+  const calcReaderFee = Number(settings.reader_fee || 0);
   const calcCurrentTotal = Number((calcWaterPrice + calcMeterFee + calcReaderFee).toFixed(2));
   const calcArrearsTotal = Number(readingTarget?.arrears_total || 0);
   const calcGrandTotal = Number((calcCurrentTotal + calcArrearsTotal).toFixed(2));
@@ -498,62 +953,46 @@ const WaterBilling = () => {
     }
   };
 
-  const handleShareReceipt = async (bill) => {
-    const isPaid = bill.bill_payment_status === 'PAID';
-    const statusText = isPaid
-      ? `ชำระแล้ว (${bill.payment_method === 'CASH' ? 'เงินสด' : 'โอน/QR'})`
-      : 'รอชำระ / ค้างชำระ';
+  // แชร์สลิปเป็นไฟล์รูปภาพ .JPG (ส่งเข้า LINE / WhatsApp / ระบบ Chat ได้ทันที)
+  const handleShareSlipImage = async (bill, downloadOnly = false) => {
+    setSharingImage(true);
+    try {
+      const { file, blob, fileName } = await generateWaterSlipJpgFile({
+        bill,
+        villageInfo,
+        settings,
+        schedule,
+        staffFullName
+      });
 
-    const arrearsLines =
-      Array.isArray(bill.arrears_list) && bill.arrears_list.length > 0
-        ? [
-            `ยอดค้างชำระเดือนก่อน:`,
-            ...bill.arrears_list.map(
-              (a) => `  - รอบ ${formatThaiMonth(a.billing_month, true)}: ${Number(a.total_amount).toLocaleString()} บาท`
-            ),
-            `รวมยอดค้างชำระเดิม: ${Number(bill.arrears_total || 0).toLocaleString()} บาท`
-          ]
-        : [];
-
-    const dueDisplay = bill.due_date ? formatThaiDate(bill.due_date) : schedule.dueThai;
-    const readingDisplay = bill.reading_date ? formatThaiDate(bill.reading_date) : schedule.readingThai;
-    const grandTotal = Number(bill.total_amount || 0) + Number(bill.arrears_total || 0);
-    const presidentName = settings.president_name || villageInfo.president_name || '-';
-    const readerName = bill.recorded_by || staffFullName;
-
-    const text = [
-      `💧 สลิปบิลค่าน้ำประปา ${villageInfo.village_title}`,
-      villageInfo.village_full_address ? `ที่อยู่: ${villageInfo.village_full_address}` : '',
-      `ประธานกรรมการ: ${presidentName}`,
-      `────────────────────`,
-      `ประเภทเอกสาร: ${isPaid ? 'ใบเสร็จรับเงินค่าน้ำประปา' : 'ใบแจ้งหนี้ค่าน้ำประปา'}`,
-      `เลขที่บิล: ${bill.bill_no} | รอบเดือน: ${formatThaiMonth(bill.billing_month)}`,
-      `วันที่จดมิเตอร์: ${readingDisplay} | กำหนดชำระภายใน: ${dueDisplay}`,
-      `ผู้ใช้น้ำ: ${bill.full_name}`,
-      `ที่อยู่ผู้ใช้น้ำ: ${bill.full_address}`,
-      `เลขมิเตอร์: ${bill.meter_code}`,
-      `เลขเดิม ${bill.previous_reading} → เลขใหม่ ${bill.current_reading} = ใช้ไป ${bill.units_used} หน่วย`,
-      `- ค่าน้ำ (${bill.units_used} x ${bill.unit_rate} บ.): ${(Number(bill.units_used) * Number(bill.unit_rate)).toLocaleString()} บาท`,
-      `- ค่ารักษามิเตอร์: ${Number(bill.meter_fee || 0).toLocaleString()} บาท`,
-      `- ค่าจ้างคนจดมิเตอร์: ${Number(bill.reader_fee || 0).toLocaleString()} บาท`,
-      `ยอดรวมรอบเดือนนี้: ${Number(bill.total_amount).toLocaleString()} บาท`,
-      ...arrearsLines,
-      `ยอดรวมสุทธิทั้งหมด: ${grandTotal.toLocaleString()} บาท`,
-      `สถานะ: ${statusText}`,
-      settings.promptpay_id ? `พร้อมเพย์: ${settings.promptpay_id} (${settings.account_name || villageInfo.village_title})` : '',
-      `────────────────────`,
-      `ผู้จดมิเตอร์: ${readerName}`,
-      `ดูบิล/สแกนจ่ายได้ที่: https://banrao.life/my-water-bills`
-    ].filter(Boolean).join('\n');
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `สลิปบิลค่าน้ำ ${bill.bill_no}`, text });
+      if (!downloadOnly && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `สลิปบิลค่าน้ำประปา ${bill.bill_no}`
+        });
         return;
-      } catch (e) {}
+      }
+
+      // กรณีเบราว์เซอร์ไม่รองรับแชร์ไฟล์ (หรือกดปุ่มบันทึกรูปโดยตรง) ให้ดาวน์โหลด .JPG ทันที
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      if (!downloadOnly) {
+        alert('บันทึกรูปภาพสลิป (.JPG) ลงเครื่องเรียบร้อยแล้ว สามารถส่งรูปให้เจ้าของบ้านได้เลยครับ');
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        console.error('Share slip image error:', err);
+        alert('ไม่สามารถสร้างรูปภาพสลิปได้ กรุณาลองใหม่อีกครั้ง');
+      }
+    } finally {
+      setSharingImage(false);
     }
-    navigator.clipboard?.writeText(text);
-    alert('คัดลอกสลิปบิลค่าน้ำเรียบร้อยแล้ว สามารถวางส่งใน LINE ให้เจ้าของบ้านได้เลย');
   };
 
   const filteredItems = items.filter((it) => {
@@ -608,7 +1047,7 @@ const WaterBilling = () => {
           </div>
         )}
 
-        {/* ส่วนหัว + ตัวเลือกเดือน/ปี พ.ศ. ไทย + ปุ่มตั้งค่า */}
+        {/* ส่วนหัว + เลือกเดือน/ปี พ.ศ. + ปุ่มตั้งราคา (รหัสประธาน) + ปุ่มตั้งค่ารอบ/บัญชี */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-5">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><Droplets size={24} /></div>
@@ -617,7 +1056,7 @@ const WaterBilling = () => {
                 จดมิเตอร์และออกบิลค่าน้ำประปา • {villageInfo.village_title}
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                ค่าน้ำ <strong>{settings.unit_rate}</strong> บ./หน่วย • รักษามิเตอร์ <strong>{settings.meter_fee}</strong> บ. • ค่าจ้างจด <strong>{settings.reader_fee || 0}</strong> บ.
+                ค่าน้ำ <strong>{settings.unit_rate}</strong> บ./หน่วย • รักษามิเตอร์ <strong>{settings.meter_fee}</strong> บ. • ค่าเก็บ <strong>{settings.reader_fee || 0}</strong> บ.
               </p>
               <div className="text-xs text-blue-700 font-semibold mt-1 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-md">
@@ -653,10 +1092,18 @@ const WaterBilling = () => {
 
             <button
               type="button"
+              onClick={() => setIsPricingOpen(true)}
+              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
+            >
+              <ShieldCheck size={16} /> ตั้งราคาค่าน้ำ (รหัสประธาน)
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsSettingsOpen(true)}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
             >
-              <Settings size={16} /> ตั้งค่าค่าน้ำ / หัวสลิป / บัญชี
+              <Settings size={16} /> รอบวันเก็บ / บัญชี
             </button>
           </div>
         </div>
@@ -876,17 +1323,32 @@ const WaterBilling = () => {
       </div>
 
       {/* ================================================================= */}
-      {/* Modal 1: ตั้งค่าค่าน้ำ / ประธานกรรมการหัวสลิป / รอบวันเก็บ / บัญชี */}
+      {/* Modal 1: ตั้งค่ารอบวันเก็บ / ประธานหัวสลิป / บัญชีรับเงิน */}
       {/* ================================================================= */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <form onSubmit={handleSaveSettings} className="bg-white rounded-2xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="bg-slate-800 p-4 text-white flex justify-between items-center">
-              <h2 className="font-bold text-base flex items-center gap-2"><Settings size={18} /> ตั้งค่าค่าน้ำ / หัวสลิป / บัญชีรับเงิน</h2>
+        <div className="fixed inset-0 bg-black/65 flex items-center justify-center p-3 sm:p-4 z-[9999]">
+          <form onSubmit={handleSaveSettings} className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="bg-slate-800 p-4 text-white flex justify-between items-center shrink-0">
+              <h2 className="font-bold text-base flex items-center gap-2"><Settings size={18} /> ตั้งค่ารอบวันเก็บ / หัวสลิป / บัญชี</h2>
               <button type="button" onClick={() => setIsSettingsOpen(false)}><X size={20} /></button>
             </div>
 
             <div className="p-5 overflow-y-auto space-y-3">
+              {/* แสดงราคาปัจจุบันแบบล็อก (ต้องกดปุ่มรหัสประธานเพื่อเปลี่ยน) */}
+              <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 flex justify-between items-center gap-2">
+                <div className="text-xs text-amber-900">
+                  <div className="font-bold">อัตราปัจจุบัน: {settings.unit_rate} บ./หน่วย • มิเตอร์ {settings.meter_fee} บ. • ค่าเก็บ {settings.reader_fee} บ.</div>
+                  <div className="text-[11px] text-amber-700">การปรับราคาต้องใช้รหัสอนุมัติของประธาน</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setIsSettingsOpen(false); setIsPricingOpen(true); }}
+                  className="px-2.5 py-1.5 bg-amber-600 text-white rounded-lg text-[11px] font-bold shrink-0"
+                >
+                  เปลี่ยนราคา
+                </button>
+              </div>
+
               <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
                 <label className="block text-xs font-bold text-emerald-900 mb-1">
                   ชื่อประธานกรรมการ (แสดงบนหัวสลิปบิลค่าน้ำ)
@@ -903,23 +1365,8 @@ const WaterBilling = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">ค่าน้ำ/หน่วย (บ.) *</label>
-                  <input type="number" step="0.01" required value={settingsForm.unit_rate} onChange={(e) => setSettingsForm({ ...settingsForm, unit_rate: e.target.value })} className="w-full p-2 border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">รักษามิเตอร์ (บ.)</label>
-                  <input type="number" step="0.01" value={settingsForm.meter_fee} onChange={(e) => setSettingsForm({ ...settingsForm, meter_fee: e.target.value })} className="w-full p-2 border rounded-lg text-sm" />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-blue-800 mb-1">ค่าจ้างจดมิเตอร์ (บ.)</label>
-                  <input type="number" step="0.01" value={settingsForm.reader_fee ?? 0} onChange={(e) => setSettingsForm({ ...settingsForm, reader_fee: e.target.value })} className="w-full p-2 border border-blue-300 rounded-lg text-sm bg-blue-50/40" />
-                </div>
-              </div>
-
-              <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 space-y-2">
-                <div className="text-xs font-bold text-amber-900">รอบวันที่จดมิเตอร์และกำหนดชำระเงิน</div>
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                <div className="text-xs font-bold text-slate-800">รอบวันที่จดมิเตอร์และกำหนดชำระเงิน</div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">เก็บทุกวันที่ (1-31)</label>
@@ -958,7 +1405,7 @@ const WaterBilling = () => {
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 border-t flex gap-2">
+            <div className="p-4 bg-slate-50 border-t flex gap-2 shrink-0">
               <button type="button" onClick={() => setIsSettingsOpen(false)} className="flex-1 py-2.5 rounded-xl border font-bold text-slate-600 text-sm">ยกเลิก</button>
               <button type="submit" className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center gap-1.5"><Save size={16} /> บันทึกตั้งค่า</button>
             </div>
@@ -967,12 +1414,12 @@ const WaterBilling = () => {
       )}
 
       {/* ================================================================= */}
-      {/* Modal 2: จดมิเตอร์ + ถ่ายภาพพร้อมฟิลเตอร์ประทับวันเวลาไทยและรอบเดือน */}
+      {/* Modal 2: จดมิเตอร์ + ถ่ายภาพพร้อมลายน้ำทับบนภาพโดยตรง (ไร้กรอบดำ) */}
       {/* ================================================================= */}
       {readingTarget && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <form onSubmit={handleSaveReading} className="bg-white rounded-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/65 flex items-center justify-center p-3 sm:p-4 z-[9999]">
+          <form onSubmit={handleSaveReading} className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shrink-0">
               <div>
                 <h2 className="font-bold text-base">จดมิเตอร์: บ้านเลขที่ {readingTarget.house_no}</h2>
                 <div className="text-xs text-blue-100">
@@ -988,18 +1435,14 @@ const WaterBilling = () => {
                 <span>จ่ายภายใน: <strong className="text-amber-700">{schedule.dueThai}</strong></span>
               </div>
 
-              <div className="grid grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">เลขเดือนก่อน</label>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">เลขมิเตอร์เดือนก่อน</label>
                   <input type="number" step="0.01" value={readingForm.previous_reading} onChange={(e) => setReadingForm({ ...readingForm, previous_reading: e.target.value })} className="w-full p-2.5 border rounded-lg text-sm bg-slate-100 font-mono" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-blue-800 mb-1">เลขที่จดวันนี้ *</label>
-                  <input required type="number" step="0.01" min={calcPrev} placeholder="กรอกเลข..." value={readingForm.current_reading} onChange={(e) => setReadingForm({ ...readingForm, current_reading: e.target.value })} className="w-full p-2.5 border-2 border-blue-400 rounded-lg text-sm font-extrabold font-mono" />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-emerald-800 mb-1">ค่าจ้างคนจด (บ.)</label>
-                  <input type="number" step="0.01" min="0" value={readingForm.reader_fee} onChange={(e) => setReadingForm({ ...readingForm, reader_fee: e.target.value })} className="w-full p-2.5 border border-emerald-300 rounded-lg text-sm font-bold bg-emerald-50/40" />
+                  <label className="block text-[11px] font-bold text-blue-800 mb-1">เลขมิเตอร์ที่จดวันนี้ *</label>
+                  <input required type="number" step="0.01" min={calcPrev} placeholder="กรอกเลข..." value={readingForm.current_reading} onChange={(e) => setReadingForm({ ...readingForm, current_reading: e.target.value })} className="w-full p-2.5 border-2 border-blue-400 rounded-lg text-base font-extrabold font-mono" />
                 </div>
               </div>
 
@@ -1009,11 +1452,11 @@ const WaterBilling = () => {
                   <strong>฿{calcWaterPrice.toLocaleString()}</strong>
                 </div>
                 <div className="flex justify-between text-blue-900">
-                  <span>ค่ารักษามิเตอร์</span>
+                  <span>ค่ารักษามิเตอร์ (อนุมัติโดยประธาน)</span>
                   <span>฿{calcMeterFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-emerald-800 font-bold">
-                  <span>ค่าจ้างคนจดมิเตอร์</span>
+                  <span>ค่าจ้างคนจดมิเตอร์ (อนุมัติโดยประธาน)</span>
                   <span>฿{calcReaderFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between border-t border-blue-200 pt-1.5 text-sm font-extrabold text-blue-800">
@@ -1048,10 +1491,10 @@ const WaterBilling = () => {
                 />
               </div>
 
-              {/* ถ่ายรูปหน้าปัดมิเตอร์พร้อมประทับลายน้ำป้องกันปลอมแปลง */}
+              {/* ถ่ายรูปหน้าปัดมิเตอร์พร้อมประทับลายน้ำทับบนภาพโดยตรง (ไม่มีกรอบดำ) */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  ภาพถ่ายหน้าปัดมิเตอร์ (ประทับวัน-เวลาไทยและรอบเดือนอัตโนมัติ)
+                  ภาพถ่ายหน้าปัดมิเตอร์ (ประทับลายน้ำวัน-เวลาไทยและรอบเดือนทับบนภาพ)
                 </label>
                 <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-blue-300 bg-blue-50/30 rounded-xl cursor-pointer hover:bg-blue-50 text-sm font-semibold text-blue-700">
                   <Camera size={18} /> ถ่ายรูปหน้าปัดมิเตอร์
@@ -1061,7 +1504,7 @@ const WaterBilling = () => {
                   <img
                     src={readingForm.reading_photo_url}
                     alt="Meter Evidence"
-                    className="mt-2 w-full max-h-56 object-contain bg-slate-900 rounded-xl border border-slate-300"
+                    className="mt-2.5 mx-auto block max-h-72 w-auto max-w-full rounded-xl border border-slate-200 shadow-sm"
                   />
                 )}
               </div>
@@ -1106,7 +1549,7 @@ const WaterBilling = () => {
                     <Camera size={14} /> แนบรูปสลิปการโอน (ถ้ามี)
                     <input type="file" accept="image/*" onChange={handleFileBase64('slip_url')} className="hidden" />
                   </label>
-                  {readingForm.slip_url && <img src={readingForm.slip_url} alt="Slip" className="mx-auto h-28 rounded-lg border" />}
+                  {readingForm.slip_url && <img src={readingForm.slip_url} alt="Slip" className="mx-auto max-h-40 w-auto rounded-lg border" />}
                 </div>
               )}
 
@@ -1116,7 +1559,7 @@ const WaterBilling = () => {
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 border-t flex gap-2">
+            <div className="p-4 bg-slate-50 border-t flex gap-2 shrink-0">
               <button type="button" onClick={() => setReadingTarget(null)} className="flex-1 py-2.5 rounded-xl border font-bold text-slate-600 text-sm">ยกเลิก</button>
               <button type="submit" disabled={submitting} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center gap-1.5">
                 <Save size={16} /> {submitting ? 'กำลังบันทึก...' : 'บันทึกและออกสลิป'}
@@ -1127,20 +1570,22 @@ const WaterBilling = () => {
       )}
 
       {/* ================================================================= */}
-      {/* Modal 3: สลิปบิลค่าน้ำประปา (รูปแบบทางการ) */}
+      {/* Modal 3: สลิปบิลค่าน้ำประปา (แชร์เป็นรูป .JPG + ไร้กรอบดำ + ไม่โดนแถบเมนูบัง) */}
       {/* ================================================================= */}
       {receiptItem && (
-        <div className="fixed inset-0 bg-black/65 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
-            <div className="bg-gradient-to-r from-slate-900 to-blue-950 p-3.5 text-white flex justify-between items-center no-print">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-3 sm:p-4 z-[9999]">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="bg-gradient-to-r from-slate-900 to-blue-950 p-3.5 text-white flex justify-between items-center shrink-0 no-print">
               <span className="font-bold text-sm flex items-center gap-2">
                 <FileText size={16} />
                 {receiptItem.bill_payment_status === 'PAID' ? 'สลิปใบเสร็จรับเงินค่าน้ำประปา' : 'สลิปใบแจ้งหนี้ค่าน้ำประปา'}
               </span>
-              <button type="button" onClick={() => setReceiptItem(null)}><X size={20} /></button>
+              <button type="button" onClick={() => setReceiptItem(null)} className="p-1 hover:bg-white/20 rounded-lg">
+                <X size={20} />
+              </button>
             </div>
 
-            <div id="water-slip-printable" className="p-5 overflow-y-auto space-y-3.5 text-sm bg-white">
+            <div id="water-slip-printable" className="p-4 sm:p-5 overflow-y-auto space-y-3.5 text-sm bg-white flex-1">
               <div className="bg-gradient-to-b from-blue-50/90 to-white border border-blue-200 rounded-2xl p-4 text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-600" />
                 <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white shadow-sm mb-2">
@@ -1224,14 +1669,14 @@ const WaterBilling = () => {
                 )}
               </div>
 
-              {/* ภาพถ่ายหน้าปัดมิเตอร์พร้อมลายน้ำครบเต็มภาพ ไม่ถูกครอป */}
+              {/* ภาพถ่ายหน้าปัดมิเตอร์หลักฐาน (ไร้กรอบดำ แสดงเต็มสัดส่วนภาพจริง) */}
               {receiptItem.reading_photo_url && (
                 <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-1">ภาพถ่ายหน้าปัดมิเตอร์หลักฐาน:</div>
+                  <div className="text-[11px] font-bold text-slate-500 mb-1.5">ภาพถ่ายหน้าปัดมิเตอร์หลักฐาน:</div>
                   <img
                     src={receiptItem.reading_photo_url}
                     alt="Evidence"
-                    className="w-full max-h-56 object-contain bg-slate-900 rounded-xl border border-slate-200"
+                    className="mx-auto block max-h-72 w-auto max-w-full rounded-xl border border-slate-200 shadow-sm"
                   />
                 </div>
               )}
@@ -1276,17 +1721,45 @@ const WaterBilling = () => {
               )}
             </div>
 
-            <div className="p-3.5 bg-slate-50 border-t flex gap-2 no-print">
-              <button type="button" onClick={() => handleShareReceipt(receiptItem)} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
-                <Share2 size={15} /> แชร์ให้เจ้าของบ้าน
+            {/* ปุ่มแชร์รูปสลิป .JPG / บันทึกรูป / พิมพ์ */}
+            <div className="p-3 bg-slate-50 border-t flex gap-2 shrink-0 no-print">
+              <button
+                type="button"
+                disabled={sharingImage}
+                onClick={() => handleShareSlipImage(receiptItem, false)}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-60"
+              >
+                <Share2 size={15} /> {sharingImage ? 'กำลังสร้างรูป...' : 'แชร์รูปสลิป (.JPG)'}
               </button>
-              <button type="button" onClick={() => window.print()} className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1">
+              <button
+                type="button"
+                disabled={sharingImage}
+                onClick={() => handleShareSlipImage(receiptItem, true)}
+                className="px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 disabled:opacity-60"
+                title="บันทึกรูปภาพสลิป (.JPG)"
+              >
+                <Download size={15} /> บันทึก
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-3 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-1"
+              >
                 <Printer size={15} /> พิมพ์
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Modal ตั้งราคาค่าน้ำ (อนุมัติด้วยรหัสประธาน) */}
+      <WaterPricingModal
+        isOpen={isPricingOpen}
+        onClose={() => setIsPricingOpen(false)}
+        villageId={villageId}
+        staffName={staffFullName}
+        onUpdated={() => fetchBillingData()}
+      />
 
       <BottomNavbar />
     </div>

@@ -6,6 +6,8 @@ import {
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 import WaterMeterMap from '../components/WaterMeterMap';
+import { ShieldCheck } from 'lucide-react'; // หรือรวม ShieldCheck ใน import เดิมจาก lucide-react
+import WaterPricingModal from '../components/WaterPricingModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
@@ -35,8 +37,11 @@ const WaterUsers = () => {
 
   // Modal เพิ่ม/แก้ไข
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [editingMeter, setEditingMeter] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+
 
   const [form, setForm] = useState({
     household_id: '',
@@ -231,6 +236,13 @@ const WaterUsers = () => {
                 <MapIcon size={15} /> แผนที่ (1 กม.)
               </button>
             </div>
+                <button
+              type="button"
+              onClick={() => setIsPricingOpen(true)}
+              className="px-3.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-sm flex items-center justify-center gap-1.5 text-xs sm:text-sm"
+            >
+              <ShieldCheck size={17} /> ตั้งราคาค่าน้ำ
+            </button>
 
             <button
               onClick={openAddModal}
@@ -556,6 +568,12 @@ const WaterUsers = () => {
           </form>
         </div>
       )}
+      <WaterPricingModal
+        isOpen={isPricingOpen}
+        onClose={() => setIsPricingOpen(false)}
+        villageId={villageId}
+        staffName={userData.full_name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.username || 'ADMIN'}
+      />
 
       <BottomNavbar />
     </div>

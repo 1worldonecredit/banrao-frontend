@@ -250,10 +250,10 @@ const MyWaterBills = () => {
                   {b.reading_photo_url && (
                     <div>
                       <div className="text-[11px] font-bold text-slate-500 mb-1">รูปถ่ายหน้าปัดมิเตอร์:</div>
-                      <img
+                        <img
                         src={b.reading_photo_url}
                          alt="Meter"
-                         className="w-full max-h-56 object-contain bg-slate-900 rounded-xl border"
+                        className="mx-auto block max-h-72 w-auto max-w-full rounded-xl border border-slate-200 shadow-sm"
                         />
                     </div>
                   )}
