@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Droplets, QrCode, CheckCircle, AlertTriangle, Clock, Camera,
-  X, Upload, CreditCard, Calendar
+  X, Upload, CreditCard, Calendar, FileText, Printer
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
@@ -67,9 +67,15 @@ const MyWaterBills = () => {
 
   const [bills, setBills] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [villageInfo, setVillageInfo] = useState({
+    village_title: 'หมู่บ้านประปาชุมชน',
+    village_full_address: '',
+    president_name: ''
+  });
   const [loading, setLoading] = useState(true);
 
   const [payModalBill, setPayModalBill] = useState(null);
+  const [slipModalBill, setSlipModalBill] = useState(null);
   const [slipBase64, setSlipBase64] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -82,6 +88,7 @@ const MyWaterBills = () => {
       if (result.success) {
         setBills(result.data || []);
         setSettings(result.settings || null);
+        if (result.village_info) setVillageInfo(result.village_info);
       }
     } catch (err) {
       console.error('Fetch my water bills error:', err);
@@ -130,23 +137,43 @@ const MyWaterBills = () => {
 
   const unpaidBills = bills.filter((b) => b.payment_status !== 'PAID');
   const totalUnpaid = unpaidBills.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+  const displayPresidentName = settings?.president_name || villageInfo?.president_name || '-';
 
   return (
     <div className="bg-slate-50 min-h-screen pb-24 font-sans">
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #my-water-slip-printable, #my-water-slip-printable * { visibility: visible; }
+          #my-water-slip-printable {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 16px;
+            background: white !important;
+          }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+
       <TopNavbar userData={userData} />
 
       <div className="max-w-3xl mx-auto p-4 pt-20">
-        {/* สรุปยอดค้างชำระและรอบเดือนที่ค้าง */}
+        {/* ส่วนหัวสรุปค่าน้ำของบ้าน */}
         <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-5 rounded-2xl shadow-md mb-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2.5 bg-white/20 rounded-xl"><Droplets size={24} /></div>
             <div>
-              <h1 className="text-lg font-bold">ค่าน้ำประปาของฉัน</h1>
+              <h1 className="text-lg font-bold">ค่าน้ำประปา • {villageInfo.village_title}</h1>
               <p className="text-xs text-blue-100">
-                {settings
-                  ? `รอบจดมิเตอร์ทุกวันที่ ${settings.reading_day || 25} • ชำระภายในวันที่ ${settings.due_day || 5} ${settings.due_next_month ? 'ของเดือนถัดไป' : 'ของเดือน'}`
-                  : 'ตรวจสอบยอดใช้น้ำ หลักฐานหน้าปัดมิเตอร์ และสแกนจ่ายค่าน้ำ'}
+                {villageInfo.village_full_address || 'ตรวจสอบยอดใช้น้ำ หลักฐานหน้าปัดมิเตอร์ และสแกนจ่ายค่าน้ำ'}
               </p>
+              {settings && (
+                <p className="text-[11px] text-blue-50 mt-0.5">
+                  รอบจดทุกวันที่ {settings.reading_day || 25} • ชำระภายในวันที่ {settings.due_day || 5} {settings.due_next_month ? 'ของเดือนถัดไป' : 'ของเดือน'}
+                </p>
+              )}
             </div>
           </div>
 
@@ -227,21 +254,105 @@ const MyWaterBills = () => {
                     </div>
                   )}
 
-                  {!isPaid && !isPending && (
+                  <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => { setPayModalBill(b); setSlipBase64(''); }}
-                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2"
+                      onClick={() => setSlipModalBill(b)}
+                      className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
                     >
-                      <QrCode size={18} /> สแกน QR ชำระค่าน้ำ (฿{Number(b.total_amount).toLocaleString()})
+                      <FileText size={15} /> ดูสลิปทางการ
                     </button>
-                  )}
+
+                    {!isPaid && !isPending && (
+                      <button
+                        type="button"
+                        onClick={() => { setPayModalBill(b); setSlipBase64(''); }}
+                        className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2"
+                      >
+                        <QrCode size={17} /> สแกน QR ชำระ (฿{Number(b.total_amount).toLocaleString()})
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Modal ดูสลิปบิลค่าน้ำประปาทางการ (หัวหมู่บ้าน + ที่อยู่เต็ม + ประธาน + ผู้จดมิเตอร์) */}
+      {slipModalBill && (
+        <div className="fixed inset-0 bg-black/65 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="bg-gradient-to-r from-slate-900 to-blue-950 p-3.5 text-white flex justify-between items-center no-print">
+              <span className="font-bold text-sm flex items-center gap-2">
+                <FileText size={16} />
+                {slipModalBill.payment_status === 'PAID' ? 'สลิปใบเสร็จรับเงินค่าน้ำประปา' : 'สลิปใบแจ้งหนี้ค่าน้ำประปา'}
+              </span>
+              <button type="button" onClick={() => setSlipModalBill(null)}><X size={20} /></button>
+            </div>
+
+            <div id="my-water-slip-printable" className="p-5 overflow-y-auto space-y-3.5 text-sm bg-white">
+              <div className="bg-gradient-to-b from-blue-50/90 to-white border border-blue-200 rounded-2xl p-4 text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-600" />
+                <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white shadow-sm mb-2">
+                  <Droplets size={20} />
+                </div>
+                <div className="font-extrabold text-[15px] text-slate-900">
+                  สลิปบิลค่าน้ำประปา {villageInfo.village_title}
+                </div>
+                {villageInfo.village_full_address && (
+                  <div className="text-[11.5px] text-slate-600 mt-1">{villageInfo.village_full_address}</div>
+                )}
+                <div className="text-xs font-bold text-blue-900 mt-1.5 pt-1.5 border-t border-blue-100">
+                  ประธานกรรมการ: <span className="text-slate-900">{displayPresidentName}</span>
+                </div>
+                <div className="mt-2 pt-2 border-t border-dashed border-slate-300 text-[11px] text-slate-600 space-y-0.5">
+                  <div>เลขที่บิล: <strong className="font-mono text-slate-900">{slipModalBill.bill_no}</strong> • รอบ {formatThaiMonth(slipModalBill.billing_month)}</div>
+                  <div>
+                    วันที่จด: <strong>{formatThaiDate(slipModalBill.reading_date)}</strong> • ชำระภายใน: <strong className="text-amber-700">{formatThaiDate(slipModalBill.due_date)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border rounded-xl p-3 text-xs space-y-1 text-slate-700">
+                <div className="flex justify-between"><span className="text-slate-500">ผู้ใช้น้ำ:</span><strong>{slipModalBill.full_name}</strong></div>
+                <div className="flex justify-between gap-2"><span className="text-slate-500 shrink-0">ที่อยู่:</span><span className="text-right">{slipModalBill.full_address}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">เลขมิเตอร์:</span><strong className="font-mono text-blue-800">{slipModalBill.meter_code}</strong></div>
+              </div>
+
+              <div className="bg-white border rounded-xl p-3.5 text-xs space-y-1.5">
+                <div className="flex justify-between"><span>เลขมิเตอร์ครั้งก่อน</span><span className="font-mono">{slipModalBill.previous_reading}</span></div>
+                <div className="flex justify-between"><span>เลขมิเตอร์ครั้งนี้</span><span className="font-mono font-bold">{slipModalBill.current_reading}</span></div>
+                <div className="flex justify-between border-t border-dashed pt-1.5"><span>จำนวนน้ำที่ใช้</span><strong>{slipModalBill.units_used} หน่วย</strong></div>
+                <div className="flex justify-between"><span>ค่าน้ำ ({slipModalBill.units_used} × {slipModalBill.unit_rate} บ.)</span><span>฿{(Number(slipModalBill.units_used) * Number(slipModalBill.unit_rate)).toLocaleString()}</span></div>
+                <div className="flex justify-between"><span>ค่ารักษามิเตอร์</span><span>฿{Number(slipModalBill.meter_fee || 0).toLocaleString()}</span></div>
+                <div className="flex justify-between font-bold text-emerald-800"><span>ค่าจ้างคนจดมิเตอร์</span><span>฿{Number(slipModalBill.reader_fee || 0).toLocaleString()}</span></div>
+                <div className="flex justify-between border-t pt-2 text-sm font-extrabold text-blue-700">
+                  <span>ยอดรวมสุทธิ</span><span>฿{Number(slipModalBill.total_amount).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-dashed border-slate-300 pt-3 text-center space-y-1">
+                <div className="text-[11px] text-slate-500">ลงชื่อผู้จดมิเตอร์ / ผู้ออกเอกสาร</div>
+                <div className="text-sm font-extrabold text-slate-900">
+                  ( {slipModalBill.recorded_by || '-'} )
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  ผู้จดมิเตอร์น้ำประปา • {villageInfo.village_title}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 border-t flex gap-2 no-print">
+              <button type="button" onClick={() => setSlipModalBill(null)} className="flex-1 py-2.5 border rounded-xl text-xs font-bold text-slate-600">ปิด</button>
+              <button type="button" onClick={() => window.print()} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+                <Printer size={15} /> พิมพ์สลิป
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal สแกนจ่าย QR + แนบสลิป */}
       {payModalBill && (
