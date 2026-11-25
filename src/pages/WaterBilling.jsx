@@ -1952,10 +1952,14 @@ const WaterBilling = () => {
                 </div>
               </div>
 
-              <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3 text-xs space-y-1 text-slate-700">
+                      <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3 text-xs space-y-1 text-slate-700">
                 <div className="flex justify-between gap-2">
                   <span className="text-slate-500">ผู้ใช้น้ำ:</span>
-                  <strong className="text-slate-900 text-right">{docModalItem.full_name}</strong>
+                  <strong className="text-slate-900 text-right">{docModalItem.full_name || '-'}</strong>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-500">เบอร์โทร:</span>
+                  <strong className="font-mono text-slate-800 text-right">{docModalItem.phone || '-'}</strong>
                 </div>
                 <div className="flex justify-between gap-2">
                   <span className="text-slate-500 shrink-0">ที่อยู่:</span>
@@ -2009,14 +2013,19 @@ const WaterBilling = () => {
               )}
 
               {/* แสดงภาพถ่ายหน้าปัดมิเตอร์พร้อมลายน้ำ เฉพาะ "ใบแจ้งหนี้" — ใบเสร็จรับเงินไม่ต้องมีภาพ */}
-              {!modalIsReceipt && docModalItem.reading_photo_url && (
+                {!modalIsReceipt && docModalItem.reading_photo_url && (
                 <div>
                   <div className="text-[11px] font-bold text-slate-500 mb-1.5">ภาพถ่ายหน้าปัดมิเตอร์หลักฐาน:</div>
-                  <img
-                    src={docModalItem.reading_photo_url}
-                    alt="Evidence"
-                    className="mx-auto block max-h-72 w-auto max-w-full rounded-xl border border-slate-200 shadow-sm"
-                  />
+                  <div className="relative mx-auto w-fit max-w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                    <img
+                      src={docModalItem.reading_photo_url}
+                      alt="Evidence"
+                      className="block max-h-72 w-auto max-w-full"
+                    />
+                  </div>
+                  <div className="text-[10.5px] text-center text-slate-500 mt-1 font-medium">
+                    รอบเดือน {formatThaiMonth(docModalItem.billing_month)} • บ้านเลขที่ {docModalItem.house_no} • มิเตอร์ {docModalItem.snapshot_meter_no || docModalItem.meter_code} • จดวันที่ {docModalItem.reading_date ? formatThaiDate(docModalItem.reading_date) : schedule.readingThai}
+                  </div>
                 </div>
               )}
 

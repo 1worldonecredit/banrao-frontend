@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Droplets, QrCode, CheckCircle, AlertTriangle, Clock, Camera,
-  X, Upload, CreditCard, Calendar, FileText, Printer, Receipt, Lock, Ban
+  X, Upload, CreditCard, Calendar, FileText, Printer, Receipt, Lock, Ban, Phone, User
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
@@ -232,7 +232,18 @@ const MyWaterBills = () => {
                           ? `ใบเสร็จ: ${b.receipt_no || b.bill_no} • รอบเดือน ${formatThaiMonth(b.billing_month)}`
                           : `ใบแจ้งหนี้: ${b.bill_no} • รอบเดือน ${formatThaiMonth(b.billing_month)}`}
                       </div>
-                      <div className="font-bold text-slate-800">บ้านเลขที่ {b.house_no} (มิเตอร์ {b.meter_code})</div>
+                      <div className="font-bold text-slate-800">
+                        บ้านเลขที่ {b.house_no} (มิเตอร์ {b.meter_code})
+                      </div>
+                      {/* แสดงชื่อผู้ใช้น้ำและเบอร์โทรชัดเจนบนการ์ดทุกใบ */}
+                      <div className="text-xs text-slate-700 font-semibold flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                        <span className="inline-flex items-center gap-1 text-blue-800">
+                          <User size={12} /> ผู้ใช้น้ำ: {b.full_name || '-'}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-slate-600 font-mono">
+                          <Phone size={11} /> {b.phone || '-'}
+                        </span>
+                      </div>
                       <div className="text-[11px] text-slate-500 flex flex-wrap gap-2 mt-1">
                         {isPaid ? (
                           <span className="text-emerald-700 font-semibold">
@@ -292,6 +303,9 @@ const MyWaterBills = () => {
                         alt="Meter"
                         className="mx-auto block max-h-72 w-auto max-w-full rounded-xl border border-slate-200 shadow-sm"
                       />
+                      <div className="text-[10.5px] text-center text-slate-500 mt-1 font-medium">
+                        รอบเดือน {formatThaiMonth(b.billing_month)} • บ้านเลขที่ {b.house_no} • มิเตอร์ {b.meter_code} • จดวันที่ {formatThaiDate(b.reading_date)}
+                      </div>
                     </div>
                   )}
 
@@ -337,7 +351,7 @@ const MyWaterBills = () => {
                         ยกเลิกเอกสารแล้ว
                       </span>
                     </div>
-                    <div>ยอดเดิม: ฿{Number(vb.total_amount || 0).toLocaleString()} • เหตุผล: <strong>{vb.void_reason || '-'}</strong></div>
+                    <div>ผู้ใช้น้ำ: {vb.full_name || '-'} • ยอดเดิม: ฿{Number(vb.total_amount || 0).toLocaleString()} • เหตุผล: <strong>{vb.void_reason || '-'}</strong></div>
                     <div className="text-[11px] text-slate-500">
                       ยกเลิกโดย {vb.voided_by_name || '-'} เมื่อ {formatThaiDateTime(vb.voided_at)}
                     </div>
@@ -349,7 +363,7 @@ const MyWaterBills = () => {
         )}
       </div>
 
-      {/* Modal ดูเอกสารทางการ: ใบแจ้งหนี้มีภาพมิเตอร์ลายน้ำ+QR / ใบเสร็จรับเงินสะอาดไม่มีภาพ */}
+      {/* Modal ดูเอกสารทางการ: ใบแจ้งหนี้มีภาพมิเตอร์+QR / ใบเสร็จรับเงินสะอาดไม่มีภาพ */}
       {docModalBill && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-3 sm:p-4 z-[9999]">
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
@@ -394,8 +408,10 @@ const MyWaterBills = () => {
                 </div>
               </div>
 
+              {/* ข้อมูลผู้ใช้น้ำ + เบอร์โทรครบถ้วน */}
               <div className="bg-slate-50 border rounded-xl p-3 text-xs space-y-1 text-slate-700">
-                <div className="flex justify-between"><span className="text-slate-500">ผู้ใช้น้ำ:</span><strong>{docModalBill.full_name}</strong></div>
+                <div className="flex justify-between"><span className="text-slate-500">ผู้ใช้น้ำ:</span><strong className="text-slate-900">{docModalBill.full_name || '-'}</strong></div>
+                <div className="flex justify-between"><span className="text-slate-500">เบอร์โทร:</span><strong className="font-mono text-slate-800">{docModalBill.phone || '-'}</strong></div>
                 <div className="flex justify-between gap-2"><span className="text-slate-500 shrink-0">ที่อยู่:</span><span className="text-right">{docModalBill.full_address}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">เลขมิเตอร์:</span><strong className="font-mono text-blue-800">{docModalBill.meter_code}</strong></div>
               </div>
@@ -413,7 +429,7 @@ const MyWaterBills = () => {
                 </div>
               </div>
 
-              {/* แสดงภาพถ่ายมิเตอร์พร้อมลายน้ำและ QR เฉพาะ "ใบแจ้งหนี้" — ใบเสร็จรับเงินไม่ต้องมีภาพ */}
+              {/* แสดงภาพถ่ายมิเตอร์และ QR เฉพาะ "ใบแจ้งหนี้" — ใบเสร็จรับเงินไม่ต้องมีภาพ */}
               {!modalIsReceipt && docModalBill.reading_photo_url && (
                 <div>
                   <div className="text-[11px] font-bold text-slate-500 mb-1.5">ภาพถ่ายหน้าปัดมิเตอร์หลักฐาน:</div>
@@ -422,6 +438,9 @@ const MyWaterBills = () => {
                     alt="Meter Evidence"
                     className="mx-auto block max-h-72 w-auto max-w-full rounded-xl border border-slate-200 shadow-sm"
                   />
+                  <div className="text-[10.5px] text-center text-slate-500 mt-1 font-medium">
+                    รอบเดือน {formatThaiMonth(docModalBill.billing_month)} • บ้านเลขที่ {docModalBill.house_no} • มิเตอร์ {docModalBill.meter_code} • จดวันที่ {formatThaiDate(docModalBill.reading_date)}
+                  </div>
                 </div>
               )}
 
