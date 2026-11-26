@@ -9,18 +9,27 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 const mapContainerStyle = { width: '100%', height: '400px', borderRadius: '16px' };
 
+const isVillageRegistered = (v) => {
+    if (!v) return false;
+    return (
+        v.is_registered === true ||
+        String(v.registration_status || '').toUpperCase() === 'REGISTERED' ||
+        Boolean(v.headman_account_id)
+    );
+};
+
 const RegisterVillage = () => {
     const navigate = useNavigate();
     const userData = JSON.parse(localStorage.getItem('userData') || '{}');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+
     // State แผนที่
     const [mapInstance, setMapInstance] = useState(null);
     const [markerPos, setMarkerPos] = useState(null);
     const [userLocation, setUserLocation] = useState(null);
     const [locationStatus, setLocationStatus] = useState('กำลังค้นหาตำแหน่งของคุณ...');
     const [isLocating, setIsLocating] = useState(true);
-    
+
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -28,9 +37,9 @@ const RegisterVillage = () => {
     const [referrerInfo, setReferrerInfo] = useState(null);
     const [isCheckingReferrer, setIsCheckingReferrer] = useState(false);
 
-    const { isLoaded, loadError } = useJsApiLoader({ 
+    const { isLoaded, loadError } = useJsApiLoader({
         googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-        libraries: ['places', 'geometry'] 
+        libraries: ['places', 'geometry']
     });
 
     const onMapLoad = useCallback((map) => setMapInstance(map), []);
@@ -38,32 +47,32 @@ const RegisterVillage = () => {
 
     const [formData, setFormData] = useState({
         village_id: '', village_no: '', village_name: '', province: '', district: '', sub_district: '',
-        citizen_id: '', first_name: '', last_name: '', nickname: '', phone_number: '', password: '', confirm_password: '' , gender: '', dob_day: '', dob_month: '', dob_year: ''
+        citizen_id: '', first_name: '', last_name: '', nickname: '', phone_number: '', password: '', confirm_password: '', gender: '', dob_day: '', dob_month: '', dob_year: ''
     });
 
     const [villagesList, setVillagesList] = useState([]);
 
- useEffect(() => {
+    useEffect(() => {
         if (formData.sub_district) {
-            fetch(`${API_URL}/api/villages/by-tambon?tambon_name=${formData.sub_district}`)
+            fetch(`${API_URL}/api/villages/by-tambon?tambon_name=${encodeURIComponent(formData.sub_district)}`)
                 .then(res => res.json())
                 .then(data => {
-                    // 🌟 เพิ่มการจัดเรียง (Sort) ให้เป็นตัวเลขแบบคณิตศาสตร์ (1, 2, 3, ..., 10, 11)
-                    const sortedVillages = data.sort((a, b) => {
-                        return parseInt(a.village_no) - parseInt(b.village_no);
+                    const list = Array.isArray(data) ? data : (data?.data || []);
+                    const sortedVillages = [...list].sort((a, b) => {
+                        return parseInt(a.village_no, 10) - parseInt(b.village_no, 10);
                     });
                     setVillagesList(sortedVillages);
                 })
                 .catch(err => console.error("Error fetching villages:", err));
         } else {
-            setVillagesList([]); 
+            setVillagesList([]);
         }
     }, [formData.sub_district]);
 
     const fetchCurrentLocation = () => {
         setIsLocating(true);
         setLocationStatus('กำลังดึงตำแหน่ง GPS...');
-        
+
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
@@ -109,14 +118,14 @@ const RegisterVillage = () => {
         components.forEach(component => {
             const types = component.types;
             if (types.includes('sublocality_level_1') || types.includes('locality')) {
-                 const name = component.long_name.replace('แขวง', '').replace('ต.', '').trim();
-                 if(name !== 'กรุงเทพมหานคร') newAddress.sub_district = name;
+                const name = component.long_name.replace('แขวง', '').replace('ต.', '').trim();
+                if (name !== 'กรุงเทพมหานคร') newAddress.sub_district = name;
             }
             if (types.includes('administrative_area_level_2')) {
-                 newAddress.district = component.long_name.replace('เขต', '').replace('อ.', '').trim();
+                newAddress.district = component.long_name.replace('เขต', '').replace('อ.', '').trim();
             }
             if (types.includes('administrative_area_level_1')) {
-                 newAddress.province = component.long_name.replace('จ.', '').trim();
+                newAddress.province = component.long_name.replace('จ.', '').trim();
             }
         });
         setFormData(newAddress);
@@ -127,7 +136,7 @@ const RegisterVillage = () => {
         const clickedPos = { lat: event.latLng.lat(), lng: event.latLng.lng() };
         const userLatLng = new window.google.maps.LatLng(userLocation.lat, userLocation.lng);
         const distance = window.google.maps.geometry.spherical.computeDistanceBetween(userLatLng, event.latLng);
-        
+
         if (distance <= 500) {
             setMarkerPos(clickedPos);
             reverseGeocode(clickedPos);
@@ -142,24 +151,24 @@ const RegisterVillage = () => {
     };
 
     const handlePhoneChange = (e) => {
-        const value = e.target.value.replace(/\D/g, ''); 
+        const value = e.target.value.replace(/\D/g, '');
         if (value.length <= 10) setFormData({ ...formData, phone_number: value });
     };
 
     const handlePasswordChange = (e) => {
         const { name, value } = e.target;
-        const alphanumericValue = value.replace(/[^a-zA-Z0-9]/g, ''); 
+        const alphanumericValue = value.replace(/[^a-zA-Z0-9]/g, '');
         setFormData({ ...formData, [name]: alphanumericValue });
     };
 
     const formatCitizenId = (e) => {
         let val = e.target.value.replace(/\D/g, '');
         let formatted = '';
-        if(val.length > 0) formatted += val.substring(0,1);
-        if(val.length > 1) formatted += '-' + val.substring(1,5);
-        if(val.length > 5) formatted += '-' + val.substring(5,10);
-        if(val.length > 10) formatted += '-' + val.substring(10,12);
-        if(val.length > 12) formatted += '-' + val.substring(12,13);
+        if (val.length > 0) formatted += val.substring(0, 1);
+        if (val.length > 1) formatted += '-' + val.substring(1, 5);
+        if (val.length > 5) formatted += '-' + val.substring(5, 10);
+        if (val.length > 10) formatted += '-' + val.substring(10, 12);
+        if (val.length > 12) formatted += '-' + val.substring(12, 13);
         setFormData({ ...formData, citizen_id: formatted });
     };
 
@@ -176,7 +185,7 @@ const RegisterVillage = () => {
         try {
             const res = await fetch(`${API_URL}/api/users/referrer/${phone}`);
             const data = await res.json();
-            if(data.success) {
+            if (data.success) {
                 setReferrerInfo(data.data);
             } else {
                 setReferrerInfo({ notFound: true });
@@ -187,53 +196,62 @@ const RegisterVillage = () => {
         setIsCheckingReferrer(false);
     };
 
-   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.village_id) return alert("กรุณาเลือกหมู่บ้านจากรายการ");
-    if (formData.phone_number.length !== 10) return alert("กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก");
-    if (!formData.gender) return alert("กรุณาเลือกเพศ");
-    if (!formData.dob_day || !formData.dob_month || !formData.dob_year) return alert("กรุณาเลือกวันเดือนปีเกิดให้ครบถ้วน");
-    if (formData.password.length < 6) return alert("รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
-    if (formData.password !== formData.confirm_password) return alert("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน!");
-    if (!markerPos) return alert("กรุณาปักหมุดที่ตั้งหมู่บ้านบนแผนที่");
-    if (!formData.province || !formData.district || !formData.sub_district) return alert("กรุณากรอกข้อมูล ตำบล อำเภอ จังหวัด ให้ครบถ้วน");
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!formData.village_id) return alert("กรุณาเลือกหมู่บ้านจากรายการ");
 
-    const cleanCitizenId = formData.citizen_id.replace(/-/g, '');
-    if (cleanCitizenId && cleanCitizenId.length !== 13) return alert("เลขบัตรประชาชนต้องครบ 13 หลัก");
+        const selectedVillageObj = villagesList.find(v => String(v.village_id) === String(formData.village_id));
+        if (selectedVillageObj && isVillageRegistered(selectedVillageObj)) {
+            return alert(`หมู่ที่ ${selectedVillageObj.village_no} ${selectedVillageObj.village_name} ลงทะเบียนแล้ว ไม่สามารถลงทะเบียนซ้ำได้`);
+        }
 
-    // ✨ แปลง พ.ศ. เป็น ค.ศ. รูปแบบ YYYY-MM-DD
-    const ceYear = Number(formData.dob_year) - 543;
-    const finalDob = `${ceYear}-${String(formData.dob_month).padStart(2, '0')}-${String(formData.dob_day).padStart(2, '0')}`;
+        if (formData.phone_number.length !== 10) return alert("กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก");
+        if (!formData.gender) return alert("กรุณาเลือกเพศ");
+        if (!formData.dob_day || !formData.dob_month || !formData.dob_year) return alert("กรุณาเลือกวันเดือนปีเกิดให้ครบถ้วน");
+        if (formData.password.length < 6) return alert("รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร");
+        if (formData.password !== formData.confirm_password) return alert("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน!");
+        if (!markerPos) return alert("กรุณาปักหมุดที่ตั้งหมู่บ้านบนแผนที่");
+        if (!formData.province || !formData.district || !formData.sub_district) return alert("กรุณากรอกข้อมูล ตำบล อำเภอ จังหวัด ให้ครบถ้วน");
 
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        ...formData,
-        citizen_id: cleanCitizenId,
-        gender: formData.gender,
-        dob: finalDob,
-        latitude: markerPos.lat,
-        longitude: markerPos.lng,
-        referrer_account_id: (referrerInfo && !referrerInfo.notFound) ? referrerInfo.account_id : null
-      };
+        const cleanCitizenId = formData.citizen_id.replace(/-/g, '');
+        if (cleanCitizenId && cleanCitizenId.length !== 13) return alert("เลขบัตรประชาชนต้องครบ 13 หลัก");
 
-      const res = await fetch(`${API_URL}/api/villages/register`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
+        const ceYear = Number(formData.dob_year) - 543;
+        const finalDob = `${ceYear}-${String(formData.dob_month).padStart(2, '0')}-${String(formData.dob_day).padStart(2, '0')}`;
 
-      if (data.success) {
-        alert('ลงทะเบียนสำเร็จ! เข้าสู่ระบบด้วยเบอร์โทรศัพท์ได้เลยครับ');
-        navigate('/login');
-      } else {
-        alert('ลงทะเบียนล้มเหลว: ' + data.message);
-      }
-    } catch (error) {
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
-    }
-    setIsSubmitting(false);
-  };
+        setIsSubmitting(true);
+        try {
+            const payload = {
+                ...formData,
+                citizen_id: cleanCitizenId,
+                gender: formData.gender,
+                dob: finalDob,
+                latitude: markerPos.lat,
+                longitude: markerPos.lng,
+                referrer_account_id: (referrerInfo && !referrerInfo.notFound) ? referrerInfo.account_id : null
+            };
+
+            const res = await fetch(`${API_URL}/api/villages/register`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert('ลงทะเบียนสำเร็จ! เข้าสู่ระบบด้วยเบอร์โทรศัพท์ได้เลยครับ');
+                navigate('/login');
+            } else {
+                alert('ลงทะเบียนล้มเหลว: ' + data.message);
+            }
+        } catch (error) {
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+        }
+        setIsSubmitting(false);
+    };
+
+    const selectedVillage = villagesList.find(v => String(v.village_id) === String(formData.village_id)) || null;
+    const registeredCount = villagesList.filter(v => isVillageRegistered(v)).length;
+    const unregisteredCount = villagesList.length - registeredCount;
 
     const inputStyle = "w-full p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all text-slate-700 text-sm";
     const labelStyle = "block text-xs font-bold text-slate-500 mb-1.5";
@@ -249,10 +267,10 @@ const RegisterVillage = () => {
     return (
         <div className="flex flex-col min-h-screen overflow-hidden bg-slate-50 font-sans">
             <div className="flex-shrink-0 z-40 sticky top-0 w-full"><TopNavbar userData={userData} /></div>
-            
+
             <div className="flex-1 overflow-y-auto px-4 pt-[90px] pb-[100px] w-full">
                 <div className="max-w-3xl mx-auto">
-                    
+
                     {/* Header Banner */}
                     <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 text-white flex items-center gap-4 mb-6 shadow-md">
                         <button onClick={() => navigate(-1)} className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors">
@@ -270,7 +288,7 @@ const RegisterVillage = () => {
                         <div>
                             <strong className="text-amber-800 block text-sm mb-1">โปรดตรวจสอบตำแหน่งที่ตั้งและที่อยู่ให้ถูกต้อง!</strong>
                             <p className="text-xs text-amber-700 m-0 leading-relaxed">
-                                การปักหมุดที่แม่นยำจะช่วยให้ระบบระบุเขตการปกครองของคุณได้อย่างถูกต้อง
+                                การปักหมุดที่แม่นยำจะช่วยให้ระบบระบุเขตการปกครองของคุณได้อย่างถูกต้อง และ 1 หมู่บ้านลงทะเบียนได้เพียง 1 ครั้งเท่านั้น
                             </p>
                         </div>
                     </div>
@@ -278,19 +296,31 @@ const RegisterVillage = () => {
                     {/* Main Form Container */}
                     <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
                         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                            
+
                             {/* Section 1: ข้อมูลที่ตั้งหมู่บ้าน */}
                             <div>
-                                <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100">
-                                    <Home size={18} className="text-emerald-500" /> 1. ข้อมูลที่ตั้งหมู่บ้าน
-                                </h3>
-                                
+                                <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+                                    <h3 className="text-md font-bold text-slate-700 m-0 flex items-center gap-2">
+                                        <Home size={18} className="text-emerald-500" /> 1. ข้อมูลที่ตั้งหมู่บ้าน
+                                    </h3>
+                                    {villagesList.length > 0 && (
+                                        <div className="flex items-center gap-2 text-xs font-bold">
+                                            <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                ลงทะเบียนแล้ว {registeredCount} หมู่
+                                            </span>
+                                            <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                                ยังไม่ลงทะเบียน {unregisteredCount} หมู่
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="col-span-full">
                                         <label className={labelStyle}>หมู่ที่ และ ชื่อหมู่บ้าน / ชุมชน *</label>
-                                        <select 
-                                            name="village_id" 
-                                            value={formData.village_id || ''} 
+                                        <select
+                                            name="village_id"
+                                            value={formData.village_id || ''}
                                             onChange={(e) => {
                                                 const selected = villagesList.find(v => String(v.village_id) === String(e.target.value));
                                                 if (selected) {
@@ -300,24 +330,45 @@ const RegisterVillage = () => {
                                                 } else {
                                                     setFormData(prev => ({ ...prev, village_id: '', village_no: '', village_name: '' }));
                                                 }
-                                            }} 
+                                            }}
                                             className={inputStyle}
                                             disabled={!villagesList || villagesList.length === 0}
                                             required
                                         >
                                             <option value="">
-                                                {(!villagesList || villagesList.length === 0) 
-                                                    ? '-- กรุณารอระบบระบุตำบลก่อน หรือ กำลังโหลดข้อมูล... --' 
+                                                {(!villagesList || villagesList.length === 0)
+                                                    ? '-- กรุณารอระบบระบุตำบลก่อน หรือ กำลังโหลดข้อมูล... --'
                                                     : '-- เลือกหมู่บ้านของคุณ --'}
                                             </option>
-                                            {villagesList && villagesList.map(v => (
-                                                <option key={v.village_id} value={v.village_id}>
-                                                    หมู่ที่ {v.village_no} {v.village_name}
-                                                </option>
-                                            ))}
+                                            {villagesList && villagesList.map(v => {
+                                                const registered = isVillageRegistered(v);
+                                                return (
+                                                    <option
+                                                        key={v.village_id}
+                                                        value={v.village_id}
+                                                        disabled={registered}
+                                                    >
+                                                        หมู่ที่ {v.village_no} {v.village_name} — {registered ? '[ลงทะเบียนแล้ว]' : '[ยังไม่ลงทะเบียน]'}
+                                                    </option>
+                                                );
+                                            })}
                                         </select>
+
+                                        {selectedVillage && (
+                                            <div className="mt-2">
+                                                {isVillageRegistered(selectedVillage) ? (
+                                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-lg bg-red-50 text-red-600 border border-red-200">
+                                                        <XCircle size={14} /> สถานะ: ลงทะเบียนแล้ว (ไม่สามารถลงทะเบียนซ้ำได้)
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                        <CheckCircle size={14} /> สถานะ: ยังไม่ลงทะเบียน (พร้อมลงทะเบียน)
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                    
+
                                     <div className="col-span-full md:col-span-1">
                                         <label className={labelStyle}>ตำบล/แขวง *</label>
                                         <input required type="text" name="sub_district" value={formData.sub_district} onChange={handleChange} className={inputStyle} />
@@ -349,7 +400,7 @@ const RegisterVillage = () => {
                                         <GoogleMap
                                             mapContainerStyle={mapContainerStyle}
                                             center={userLocation}
-                                            zoom={18} 
+                                            zoom={18}
                                             onLoad={onMapLoad}
                                             onUnmount={onMapUnmount}
                                             onClick={handleMapClick}
@@ -368,7 +419,7 @@ const RegisterVillage = () => {
                                 <h3 className="text-md font-bold text-slate-700 mb-4 flex items-center gap-2 pb-3 border-b border-slate-100">
                                     <User size={18} className="text-blue-500" /> 2. บัญชีเข้าใช้งาน (ผู้ใหญ่บ้าน)
                                 </h3>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="col-span-full">
                                         <label className={labelStyle}>เบอร์โทรศัพท์ (ใช้เป็น Username สำหรับเข้าระบบ) *</label>
@@ -390,76 +441,71 @@ const RegisterVillage = () => {
                                         <label className={labelStyle}>ชื่อเรียก / ตำแหน่ง</label>
                                         <input type="text" name="nickname" onChange={handleChange} placeholder="เช่น ผู้ใหญ่สมชาย" className={inputStyle} />
                                     </div>
-                                    {/* ✨ เพศ */}
-              <div className="col-span-full">
-                <label className={labelStyle}>เพศ *</label>
-                <select
-                  required
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  className={inputStyle}
-                >
-                  <option value="">-- เลือก --</option>
-                  <option value="MALE">ชาย</option>
-                  <option value="FEMALE">หญิง</option>
-                </select>
-              </div>
+                                    <div className="col-span-full">
+                                        <label className={labelStyle}>เพศ *</label>
+                                        <select
+                                            required
+                                            name="gender"
+                                            value={formData.gender}
+                                            onChange={handleChange}
+                                            className={inputStyle}
+                                        >
+                                            <option value="">-- เลือก --</option>
+                                            <option value="MALE">ชาย</option>
+                                            <option value="FEMALE">หญิง</option>
+                                        </select>
+                                    </div>
 
-              {/* ✨ วันเดือนปีเกิด (แบบไทย) */}
-              <div className="col-span-full p-4 bg-slate-50/80 rounded-xl border border-slate-100">
-                <label className={labelStyle}>วันเดือนปีเกิด (แบบไทย) *</label>
-                <div className="grid grid-cols-3 gap-3 mt-1">
-                  {/* วันที่ */}
-                  <select
-                    required
-                    name="dob_day"
-                    value={formData.dob_day}
-                    onChange={handleChange}
-                    className={inputStyle}
-                  >
-                    <option value="">- วันที่ -</option>
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
+                                    <div className="col-span-full p-4 bg-slate-50/80 rounded-xl border border-slate-100">
+                                        <label className={labelStyle}>วันเดือนปีเกิด (แบบไทย) *</label>
+                                        <div className="grid grid-cols-3 gap-3 mt-1">
+                                            <select
+                                                required
+                                                name="dob_day"
+                                                value={formData.dob_day}
+                                                onChange={handleChange}
+                                                className={inputStyle}
+                                            >
+                                                <option value="">- วันที่ -</option>
+                                                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                                                    <option key={d} value={d}>{d}</option>
+                                                ))}
+                                            </select>
 
-                  {/* เดือน */}
-                  <select
-                    required
-                    name="dob_month"
-                    value={formData.dob_month}
-                    onChange={handleChange}
-                    className={inputStyle}
-                  >
-                    <option value="">- เดือน -</option>
-                    {[
-                      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-                      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-                    ].map((m, idx) => (
-                      <option key={idx + 1} value={idx + 1}>{m}</option>
-                    ))}
-                  </select>
+                                            <select
+                                                required
+                                                name="dob_month"
+                                                value={formData.dob_month}
+                                                onChange={handleChange}
+                                                className={inputStyle}
+                                            >
+                                                <option value="">- เดือน -</option>
+                                                {[
+                                                    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+                                                    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+                                                ].map((m, idx) => (
+                                                    <option key={idx + 1} value={idx + 1}>{m}</option>
+                                                ))}
+                                            </select>
 
-                  {/* พ.ศ. */}
-                  <select
-                    required
-                    name="dob_year"
-                    value={formData.dob_year}
-                    onChange={handleChange}
-                    className={inputStyle}
-                  >
-                    <option value="">- พ.ศ. -</option>
-                    {Array.from({ length: 100 }, (_, i) => (new Date().getFullYear() + 543) - i).map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                                            <select
+                                                required
+                                                name="dob_year"
+                                                value={formData.dob_year}
+                                                onChange={handleChange}
+                                                className={inputStyle}
+                                            >
+                                                <option value="">- พ.ศ. -</option>
+                                                {Array.from({ length: 100 }, (_, i) => (new Date().getFullYear() + 543) - i).map((y) => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="mt-5 p-4 bg-slate-50/80 rounded-xl border border-slate-100">
-                                    <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-3"><Key size={16} className="text-slate-400"/> ตั้งรหัสผ่าน (อังกฤษ/ตัวเลข)</h4>
+                                    <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-3"><Key size={16} className="text-slate-400" /> ตั้งรหัสผ่าน (อังกฤษ/ตัวเลข)</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="relative">
                                             <input required type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handlePasswordChange} placeholder="รหัสผ่าน (อย่างน้อย 6 ตัว)" className={inputStyle} />
@@ -475,7 +521,7 @@ const RegisterVillage = () => {
                                         </div>
                                     </div>
                                     {formData.confirm_password && formData.password !== formData.confirm_password && (
-                                        <p className="text-red-500 text-xs mt-2 font-bold flex items-center gap-1"><XCircle size={14}/> รหัสผ่านไม่ตรงกัน</p>
+                                        <p className="text-red-500 text-xs mt-2 font-bold flex items-center gap-1"><XCircle size={14} /> รหัสผ่านไม่ตรงกัน</p>
                                     )}
                                 </div>
                             </div>
@@ -488,39 +534,39 @@ const RegisterVillage = () => {
                                 <p className="text-xs text-slate-500 mb-4 font-medium">
                                     หากมีผู้ใหญ่บ้านท่านอื่นแนะนำคุณมา กรุณากรอกเบอร์โทรศัพท์ของท่าน เพื่อให้ท่านได้รับสิทธิ์ส่วนแบ่งรายได้
                                 </p>
-                                
-                                <input 
-                                    type="text" 
+
+                                <input
+                                    type="text"
                                     maxLength="10"
                                     className={`${inputStyle} border-blue-200 bg-white`}
                                     placeholder="08xxxxxxxx (กรอกเฉพาะตัวเลข 10 หลัก)"
                                     value={referrerPhone}
-                                    onChange={(e) => setReferrerPhone(e.target.value.replace(/\D/g, ''))} 
+                                    onChange={(e) => setReferrerPhone(e.target.value.replace(/\D/g, ''))}
                                 />
 
                                 {isCheckingReferrer ? (
-                                    <p className="text-xs text-blue-500 mt-2 font-bold flex items-center gap-1"><RefreshCcw size={12} className="animate-spin"/> กำลังค้นหาข้อมูล...</p>
+                                    <p className="text-xs text-blue-500 mt-2 font-bold flex items-center gap-1"><RefreshCcw size={12} className="animate-spin" /> กำลังค้นหาข้อมูล...</p>
                                 ) : referrerInfo && !referrerInfo.notFound ? (
                                     <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex flex-col gap-1">
-                                        <span className="text-xs font-bold text-emerald-700 flex items-center gap-1"><CheckCircle size={14}/> พบข้อมูลผู้แนะนำ</span>
+                                        <span className="text-xs font-bold text-emerald-700 flex items-center gap-1"><CheckCircle size={14} /> พบข้อมูลผู้แนะนำ</span>
                                         <span className="text-xs text-emerald-600 font-medium ml-5">คุณ {referrerInfo.first_name} {referrerInfo.last_name} (หมู่ {referrerInfo.village_no || '-'} {referrerInfo.village_name || ''})</span>
                                     </div>
                                 ) : referrerInfo && referrerInfo.notFound ? (
                                     <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                        <span className="text-xs font-bold text-red-600 flex items-center gap-1"><XCircle size={14}/> ไม่พบข้อมูลเบอร์โทรศัพท์นี้ในระบบ</span>
+                                        <span className="text-xs font-bold text-red-600 flex items-center gap-1"><XCircle size={14} /> ไม่พบข้อมูลเบอร์โทรศัพท์นี้ในระบบ</span>
                                     </div>
                                 ) : null}
                             </div>
 
-                            <button type="submit" disabled={isSubmitting} className="w-full py-4 mt-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                                {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />} 
+                            <button type="submit" disabled={isSubmitting || (selectedVillage && isVillageRegistered(selectedVillage))} className="w-full py-4 mt-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                                {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
                                 {isSubmitting ? 'กำลังบันทึกข้อมูล...' : 'สร้างข้อมูลหมู่บ้านและบัญชี'}
                             </button>
                         </form>
                     </div>
                 </div>
             </div>
-            
+
             <div className="flex-shrink-0 fixed bottom-0 w-full z-40"><BottomNavbar /></div>
         </div>
     );
