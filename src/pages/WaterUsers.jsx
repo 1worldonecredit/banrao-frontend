@@ -8,6 +8,7 @@ import BottomNavbar from '../components/BottomNavbar';
 import WaterMeterMap from '../components/WaterMeterMap';
 import { ShieldCheck } from 'lucide-react'; // หรือรวม ShieldCheck ใน import เดิมจาก lucide-react
 import WaterPricingModal from '../components/WaterPricingModal';
+import { uploadToR2, compressImageToBlob } from '../utils/uploadToR2';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
@@ -105,14 +106,24 @@ const WaterUsers = () => {
     setIsModalOpen(true);
   };
 
-  const handlePhotoUpload = (e) => {
+
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setForm((prev) => ({ ...prev, meter_photo_url: reader.result }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressedBlob = await compressImageToBlob(file, { maxSide: 800, quality: 0.72 });
+      const r2Url = await uploadToR2(
+        compressedBlob,
+        'water/meters',
+        `meter-${form.meter_code || 'register'}`
+      );
+      setForm((prev) => ({ ...prev, meter_photo_url: r2Url }));
+    } catch (err) {
+      console.error('Upload meter photo to R2 error:', err);
+      alert('อัปโหลดรูปมิเตอร์ขึ้น Cloudflare R2 ไม่สำเร็จ: ' + err.message);
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const handleGetGPS = () => {
