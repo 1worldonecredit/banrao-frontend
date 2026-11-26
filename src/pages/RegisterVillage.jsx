@@ -609,9 +609,35 @@ useEffect(() => {
                                 {isCheckingReferrer ? (
                                     <p className="text-xs text-blue-500 mt-2 font-bold flex items-center gap-1"><RefreshCcw size={12} className="animate-spin" /> กำลังค้นหาข้อมูล...</p>
                                 ) : referrerInfo && !referrerInfo.notFound ? (
-                                    <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex flex-col gap-1">
-                                        <span className="text-xs font-bold text-emerald-700 flex items-center gap-1"><CheckCircle size={14} /> พบข้อมูลผู้แนะนำ</span>
-                                        <span className="text-xs text-emerald-600 font-medium ml-5">คุณ {referrerInfo.first_name} {referrerInfo.last_name} (หมู่ {referrerInfo.village_no || '-'} {referrerInfo.village_name || ''})</span>
+                                       
+                                    <div className="mt-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3.5 shadow-xs">
+                                        {referrerInfo.profile_image ? (
+                                            <img
+                                                src={referrerInfo.profile_image}
+                                                alt={`${referrerInfo.first_name} ${referrerInfo.last_name}`}
+                                                className="w-14 h-14 rounded-full object-cover border-2 border-emerald-400 flex-shrink-0 bg-white"
+                                            />
+                                        ) : (
+                                            <div className="w-14 h-14 rounded-full bg-emerald-100 border-2 border-emerald-300 flex items-center justify-center text-emerald-700 font-bold text-lg flex-shrink-0">
+                                                {(referrerInfo.first_name || 'ผ').charAt(0)}
+                                            </div>
+                                        )}
+
+                                        <div className="flex flex-col gap-0.5 min-w-0">
+                                            <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
+                                                <CheckCircle size={14} /> พบข้อมูลผู้แนะนำ
+                                            </span>
+                                            <span className="text-sm font-extrabold text-slate-800 truncate">
+                                                ผู้ใหญ่ {referrerInfo.first_name} {referrerInfo.last_name}
+                                                {referrerInfo.nickname ? ` (${referrerInfo.nickname})` : ''}
+                                            </span>
+                                            <span className="text-xs text-emerald-800 font-medium leading-relaxed">
+                                                หมู่ {referrerInfo.village_no || '-'} {referrerInfo.village_name || ''}
+                                                {referrerInfo.sub_district ? ` ต.${referrerInfo.sub_district.replace(/^ต\.|^ตำบล/, '').trim()}` : ''}
+                                                {referrerInfo.district ? ` อ.${referrerInfo.district.replace(/^อ\.|^อำเภอ/, '').trim()}` : ''}
+                                                {referrerInfo.province ? ` จ.${referrerInfo.province.replace(/^จ\.|^จังหวัด/, '').trim()}` : ''}
+                                            </span>
+                                        </div>
                                     </div>
                                 ) : referrerInfo && referrerInfo.notFound ? (
                                     <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
