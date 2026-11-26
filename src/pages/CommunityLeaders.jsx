@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, Edit, Save, X, UserPlus, Search, Plus, Trash2, FolderPlus,
   ShieldCheck, KeyRound, CheckCircle, Clock, Lock, UserCheck,
-  RefreshCw, History, ArrowRight
+  RefreshCw, History, ArrowRight, Copy, Check, Link2
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
@@ -218,6 +218,7 @@ const CommunityLeaders = () => {
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   const villageId = userData.village_id || '';
   const currentAccountId = userData.account_id || userData.id || '';
+  const isHeadman = String(userData.role || '').toUpperCase() === 'HEADMAN';
 
   const [fullAddress, setFullAddress] = useState({
     village_name: userData?.villageName || userData?.village_name || '',
@@ -229,6 +230,32 @@ const CommunityLeaders = () => {
 
   const [roleTemplates, setRoleTemplates] = useState([]);
   const [pinInfo, setPinInfo] = useState({ has_pin: false, headman_name: 'ผู้ใหญ่บ้าน' });
+
+  // State ความพร้อม 5 ข้อ (100%) และ Copy Link สำหรับผู้ใหญ่บ้าน
+  const [readiness, setReadiness] = useState({
+    is_ready_to_share: false,
+    completed_steps: 0,
+    total_steps: 5,
+    completion_percent: 0,
+    share_link: null,
+    checklist: []
+  });
+  const [copiedInviteLink, setCopiedInviteLink] = useState(false);
+
+  // State ลำดับสายผังผู้นำชุมชน + ลงทะเบียนบัญชีเพื่อ Login
+  const [leadersLine, setLeadersLine] = useState([]);
+  const [accountRegTarget, setAccountRegTarget] = useState(null);
+  const [accountRegForm, setAccountRegForm] = useState({
+    phone_number: '',
+    password: '',
+    first_name: '',
+    last_name: '',
+    nickname: '',
+    citizen_id: '',
+    gender: '',
+    dob: ''
+  });
+  const [submittingAccountReg, setSubmittingAccountReg] = useState(false);
 
   const [committees, setCommittees] = useState([]);
   const [activeTab, setActiveTab] = useState(null);
@@ -284,6 +311,31 @@ const CommunityLeaders = () => {
   const [handoverLogs, setHandoverLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
 
+  const fetchReadinessAndLine = async () => {
+    if (!villageId) return;
+    try {
+      const [readinessRes, lineRes] = await Promise.all([
+        authFetch(`${API_URL}/api/villages/${villageId}/registration-readiness`).then((r) => r.json()).catch(() => null),
+        authFetch(`${API_URL}/api/villages/${villageId}/leaders-line`).then((r) => r.json()).catch(() => null)
+      ]);
+      if (readinessRes?.success) {
+        setReadiness({
+          is_ready_to_share: Boolean(readinessRes.is_ready_to_share),
+          completed_steps: Number(readinessRes.completed_steps || 0),
+          total_steps: Number(readinessRes.total_steps || 5),
+          completion_percent: Number(readinessRes.completion_percent || 0),
+          share_link: readinessRes.share_link || null,
+          checklist: Array.isArray(readinessRes.checklist) ? readinessRes.checklist : []
+        });
+      }
+      if (lineRes?.success && Array.isArray(lineRes.leaders)) {
+        setLeadersLine(lineRes.leaders);
+      }
+    } catch (err) {
+      console.error('Fetch readiness/line error:', err);
+    }
+  };
+
   useEffect(() => {
     if (currentAccountId) {
       authFetch(`${API_URL}/api/user/profile/${currentAccountId}`)
@@ -313,8 +365,60 @@ const CommunityLeaders = () => {
         .then((res) => res.json())
         .then((res) => { if (res.success && res.data) setPinInfo(res.data); })
         .catch(() => {});
+      fetchReadinessAndLine();
     }
   }, [currentAccountId, villageId]);
+
+  const handleCopyInviteLink = () => {
+    if (!readiness.is_ready_to_share || !readiness.share_link) return;
+    navigator.clipboard.writeText(readiness.share_link);
+    setCopiedInviteLink(true);
+    setTimeout(() => setCopiedInviteLink(false), 2000);
+  };
+
+  const openRegisterLeaderAccount = (leader) => {
+    const nameParts = String(leader?.full_name || '').trim().split(/\s+/);
+    setAccountRegTarget(leader);
+    setAccountRegForm({
+      phone_number: leader?.username_phone || '',
+      password: '',
+      first_name: nameParts[0] || '',
+      last_name: nameParts.slice(1).join(' ') || '',
+      nickname: leader?.nickname || '',
+      citizen_id: '',
+      gender: '',
+      dob: ''
+    });
+  };
+
+  const handleSubmitLeaderAccount = async (e) => {
+    e.preventDefault();
+    if (!villageId || !accountRegTarget) return;
+    setSubmittingAccountReg(true);
+    try {
+      const res = await authFetch(`${API_URL}/api/villages/${villageId}/leaders/register-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          committee_id: accountRegTarget.committee_id || null,
+          ...accountRegForm
+        })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert(result.message);
+        setAccountRegTarget(null);
+        await fetchReadinessAndLine();
+        if (activeTab) await fetchLeaders(activeTab);
+      } else {
+        alert(result.message || 'ลงทะเบียนบัญชีไม่สำเร็จ');
+      }
+    } catch (err) {
+      alert('เกิดข้อผิดพลาดในการลงทะเบียนบัญชี');
+    } finally {
+      setSubmittingAccountReg(false);
+    }
+  };
 
   const buildTree = (data) => {
     const lookup = {};
@@ -428,6 +532,7 @@ const CommunityLeaders = () => {
         setIsCommitteeModalOpen(false);
         setCommitteeForm({ name: '', description: '', type_code: 'CUSTOM' });
         await fetchCommittees();
+        await fetchReadinessAndLine();
         if (result.data?.committee_id) setActiveTab(result.data.committee_id);
       } else {
         alert(result.message || 'สร้างผังไม่สำเร็จ');
@@ -479,7 +584,8 @@ const CommunityLeaders = () => {
       if (result.success) {
         alert(result.message);
         if (activeTab === id) setActiveTab(null);
-        fetchCommittees();
+        await fetchCommittees();
+        await fetchReadinessAndLine();
       }
     } catch (err) {
       alert('ลบผังไม่สำเร็จ');
@@ -617,6 +723,7 @@ const CommunityLeaders = () => {
         setIsModalOpen(false);
         await fetchCommittees();
         await fetchLeaders(activeTab);
+        await fetchReadinessAndLine();
       } else {
         alert('บันทึกไม่สำเร็จ: ' + result.message);
       }
@@ -715,6 +822,7 @@ const CommunityLeaders = () => {
         setApprovalModal(null);
         await fetchCommittees();
         await fetchLeaders(activeTab);
+        await fetchReadinessAndLine();
       } else {
         alert(result.message || 'ถอดถอนตำแหน่งไม่สำเร็จ');
       }
@@ -757,6 +865,7 @@ const CommunityLeaders = () => {
         setApprovalModal(null);
         await fetchCommittees();
         await fetchLeaders(activeTab);
+        await fetchReadinessAndLine();
       } else {
         alert(result.message || 'อนุมัติไม่สำเร็จ');
       }
@@ -844,6 +953,7 @@ const CommunityLeaders = () => {
         setHandoverTarget(null);
         await fetchCommittees();
         await fetchLeaders(activeTab);
+        await fetchReadinessAndLine();
       } else {
         alert(result.message || 'ส่งมอบงานไม่สำเร็จ');
       }
@@ -915,6 +1025,110 @@ const CommunityLeaders = () => {
             </button>
           </div>
         </div>
+
+        {/* เฉพาะผู้ใหญ่บ้าน (HEADMAN): เช็กความพร้อม 5 ข้อ (100%) เพื่อปลดล็อก Copy Link เชิญผู้ใหญ่บ้านอื่น */}
+        {isHeadman && (
+          <div className="bg-white p-5 rounded-2xl shadow-sm mb-6 border border-slate-200">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Link2 size={18} className="text-emerald-600" />
+                  <h2 className="text-base font-extrabold text-slate-800">
+                    ลิงก์เชิญผู้ใหญ่บ้านอื่นลงทะเบียนหมู่บ้าน (ปลดล็อกเมื่อครบ 100%)
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  ความคืบหน้าข้อมูลหมู่บ้าน: <strong className="text-emerald-700">{readiness.completed_steps}/{readiness.total_steps} ข้อ ({readiness.completion_percent}%)</strong> — ต้องครบทั้ง 5 ข้อจึงจะคัดลอกลิงก์ส่งต่อได้
+                </p>
+              </div>
+
+              {readiness.is_ready_to_share && readiness.share_link ? (
+                <button
+                  type="button"
+                  onClick={handleCopyInviteLink}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm shrink-0"
+                >
+                  {copiedInviteLink ? <><Check size={16} /> คัดลอกลิงก์แล้ว</> : <><Copy size={16} /> Copy Link เชิญผู้ใหญ่บ้าน</>}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="px-4 py-2.5 bg-slate-100 text-slate-400 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-2 cursor-not-allowed shrink-0"
+                  title="ต้องทำข้อมูลครบทั้ง 5 ข้อ (100%) ก่อน"
+                >
+                  <Lock size={15} /> Copy Link ถูกล็อก (ยังไม่ครบ 100%)
+                </button>
+              )}
+            </div>
+
+            {readiness.checklist.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 mt-4">
+                {readiness.checklist.map((item) => (
+                  <div
+                    key={item.key || item.step}
+                    className={`p-3 rounded-xl border text-xs ${
+                      item.completed
+                        ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1 font-bold">
+                      <span>ข้อ {item.step}</span>
+                      {item.completed ? (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">ครบแล้ว</span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">ยังไม่ครบ</span>
+                      )}
+                    </div>
+                    <div className="font-bold text-slate-800 mt-1">{item.label}</div>
+                    {item.detail && <div className="text-[11px] text-slate-500 mt-0.5">{item.detail}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ลำดับสายผังผู้นำชุมชน + สถานะลงทะเบียนบัญชีเพื่อ Login */}
+        {leadersLine.length > 0 && (
+          <div className="bg-white p-4 rounded-2xl shadow-sm mb-6 border border-slate-200">
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
+              <div className="text-xs font-extrabold text-slate-800">
+                ลำดับสายผังผู้นำชุมชน & สถานะบัญชีสำหรับ Login (ผู้ใหญ่บ้าน → ผู้ช่วยผู้ใหญ่บ้าน 2 คน → ตำแหน่งอื่นๆ)
+              </div>
+              <span className="text-[11px] text-slate-500">
+                ผู้ช่วยผู้ใหญ่บ้านในผัง: <strong>{leadersLine.filter((l) => l.line_group === 'ASSISTANT_HEADMAN').length}/2 คน</strong>
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {leadersLine.map((item) => (
+                <div
+                  key={item.committee_id || `${item.line_no}-${item.position_name}`}
+                  className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2 text-xs"
+                >
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-800 truncate">
+                      {item.line_no}. {item.position_name} {item.full_name ? `— ${item.full_name}` : ''}
+                    </div>
+                    <div className={`text-[11px] font-semibold mt-0.5 ${item.can_login ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      {item.login_status_label}
+                    </div>
+                  </div>
+                  {!item.has_account && (
+                    <button
+                      type="button"
+                      onClick={() => openRegisterLeaderAccount(item)}
+                      className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shrink-0"
+                    >
+                      ลงทะเบียน Login
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* แถบเลือกคณะทำงาน */}
         <div className="flex overflow-x-auto gap-3 mb-6 pb-2 items-center px-1">
@@ -1006,6 +1220,94 @@ const CommunityLeaders = () => {
           )}
         </div>
       </div>
+
+      {/* Modal ลงทะเบียนบัญชีให้ผู้ช่วยผู้ใหญ่บ้าน / บุคคลในผัง เพื่อใช้ Login */}
+      {accountRegTarget && (
+        <div className="fixed inset-0 bg-black/65 flex items-center justify-center p-4 z-[9999]">
+          <form onSubmit={handleSubmitLeaderAccount} className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
+              <h2 className="text-base font-bold flex items-center gap-2">
+                <UserPlus size={18} /> ลงทะเบียนบัญชี Login ({accountRegTarget.position_name})
+              </h2>
+              <button type="button" onClick={() => setAccountRegTarget(null)}><X size={20} /></button>
+            </div>
+            <div className="p-5 space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">เบอร์โทรศัพท์ (ใช้ Login) *</label>
+                <input
+                  type="tel"
+                  required
+                  maxLength="10"
+                  value={accountRegForm.phone_number}
+                  onChange={(e) => setAccountRegForm({ ...accountRegForm, phone_number: e.target.value.replace(/\D/g, '') })}
+                  placeholder="08xxxxxxxx"
+                  className="w-full p-2.5 border rounded-lg text-sm font-mono"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">รหัสผ่าน (อย่างน้อย 6 ตัว) *</label>
+                <input
+                  type="password"
+                  required
+                  minLength="6"
+                  value={accountRegForm.password}
+                  onChange={(e) => setAccountRegForm({ ...accountRegForm, password: e.target.value })}
+                  className="w-full p-2.5 border rounded-lg text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">ชื่อจริง *</label>
+                  <input
+                    type="text"
+                    required
+                    value={accountRegForm.first_name}
+                    onChange={(e) => setAccountRegForm({ ...accountRegForm, first_name: e.target.value })}
+                    className="w-full p-2.5 border rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">นามสกุล *</label>
+                  <input
+                    type="text"
+                    required
+                    value={accountRegForm.last_name}
+                    onChange={(e) => setAccountRegForm({ ...accountRegForm, last_name: e.target.value })}
+                    className="w-full p-2.5 border rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">ชื่อเรียก</label>
+                  <input
+                    type="text"
+                    value={accountRegForm.nickname}
+                    onChange={(e) => setAccountRegForm({ ...accountRegForm, nickname: e.target.value })}
+                    className="w-full p-2.5 border rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">เลขบัตรประชาชน (ถ้ามี)</label>
+                  <input
+                    type="text"
+                    maxLength="17"
+                    value={accountRegForm.citizen_id}
+                    onChange={(e) => setAccountRegForm({ ...accountRegForm, citizen_id: formatCitizenId(e.target.value) })}
+                    className="w-full p-2.5 border rounded-lg text-sm font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t flex gap-2">
+              <button type="button" onClick={() => setAccountRegTarget(null)} className="flex-1 py-2.5 rounded-xl border font-bold text-slate-600 text-sm">ยกเลิก</button>
+              <button type="submit" disabled={submittingAccountReg} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm">
+                {submittingAccountReg ? 'กำลังบันทึก...' : 'ยืนยันลงทะเบียนบัญชี'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Modal 1: เพิ่ม / แก้ไขผังคณะทำงาน */}
       {(isCommitteeModalOpen || isEditCommitteeModalOpen) && (
@@ -1103,7 +1405,7 @@ const CommunityLeaders = () => {
                 </select>
                 {selectedTemplateObj && (
                   <div className="text-[11px] text-indigo-800 mt-1.5 leading-relaxed">
-                    • {selectedTemplateObj.description}
+- {selectedTemplateObj.description}
                   </div>
                 )}
               </div>
