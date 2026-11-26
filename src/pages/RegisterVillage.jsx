@@ -37,6 +37,8 @@ const RegisterVillage = () => {
     const [referrerInfo, setReferrerInfo] = useState(null);
     const [isCheckingReferrer, setIsCheckingReferrer] = useState(false);
 
+    const [isReferrerLocked, setIsReferrerLocked] = useState(false);
+
     const { isLoaded, loadError } = useJsApiLoader({
         googleMapsApiKey: GOOGLE_MAPS_API_KEY,
         libraries: ['places', 'geometry']
@@ -112,6 +114,53 @@ const RegisterVillage = () => {
             }
         });
     };
+
+
+    useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refParam = (params.get('ref') || '').trim();
+    if (!refParam) return;
+
+    const digitsOnly = refParam.replace(/\D/g, '');
+    if (/^0\d{9}$/.test(digitsOnly)) {
+        setReferrerPhone(digitsOnly);
+        setIsReferrerLocked(true);
+        return;
+    }
+
+    let cancelled = false;
+    setIsCheckingReferrer(true);
+
+    fetch(`${API_URL}/api/referrers/resolve?ref=${encodeURIComponent(refParam)}`)
+        .then((res) => res.json())
+        .then((data) => {
+            if (cancelled) return;
+            if (data?.success && data?.referrer_phone) {
+                const cleanPhone = String(data.referrer_phone).replace(/\D/g, '').slice(0, 10);
+                setReferrerPhone(cleanPhone);
+                setIsReferrerLocked(true);
+                if (data.data) {
+                    setReferrerInfo(data.data);
+                }
+            }
+        })
+        .catch((err) => console.error('Error resolving referrer:', err))
+        .finally(() => {
+            if (!cancelled) setIsCheckingReferrer(false);
+        });
+
+    return () => {
+        cancelled = true;
+    };
+}, []);
+
+useEffect(() => {
+    if (referrerPhone.length === 10) {
+        checkReferrer(referrerPhone);
+    } else {
+        setReferrerInfo(null);
+    }
+}, [referrerPhone]);
 
     const extractAddressComponents = (components) => {
         let newAddress = { ...formData };
@@ -535,14 +584,27 @@ const RegisterVillage = () => {
                                     หากมีผู้ใหญ่บ้านท่านอื่นแนะนำคุณมา กรุณากรอกเบอร์โทรศัพท์ของท่าน เพื่อให้ท่านได้รับสิทธิ์ส่วนแบ่งรายได้
                                 </p>
 
-                                <input
+                                        <input
                                     type="text"
                                     maxLength="10"
-                                    className={`${inputStyle} border-blue-200 bg-white`}
+                                    readOnly={isReferrerLocked}
+                                    disabled={isReferrerLocked}
+                                    className={`${inputStyle} border-blue-200 ${
+                                        isReferrerLocked ? 'bg-slate-100 text-slate-700 cursor-not-allowed' : 'bg-white'
+                                    }`}
                                     placeholder="08xxxxxxxx (กรอกเฉพาะตัวเลข 10 หลัก)"
                                     value={referrerPhone}
-                                    onChange={(e) => setReferrerPhone(e.target.value.replace(/\D/g, ''))}
+                                    onChange={(e) => {
+                                        if (!isReferrerLocked) {
+                                            setReferrerPhone(e.target.value.replace(/\D/g, ''));
+                                        }
+                                    }}
                                 />
+                                {isReferrerLocked && (
+                                    <p className="text-xs text-emerald-700 font-bold mt-1.5">
+                                        ฝังเบอร์ผู้แนะนำจากลิงก์เชิญแล้ว (ล็อกอัตโนมัติ แก้ไขไม่ได้)
+                                    </p>
+                                )}
 
                                 {isCheckingReferrer ? (
                                     <p className="text-xs text-blue-500 mt-2 font-bold flex items-center gap-1"><RefreshCcw size={12} className="animate-spin" /> กำลังค้นหาข้อมูล...</p>
