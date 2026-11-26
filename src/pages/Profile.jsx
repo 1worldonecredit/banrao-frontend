@@ -84,7 +84,6 @@ const Profile = () => {
   const [storyDesc, setStoryDesc] = useState('');
   const [storyCoverFile, setStoryCoverFile] = useState(null);
 
-
   const [isDraggingText, setIsDraggingText] = useState(false);
   const previewBoxRef = useRef(null);
 
@@ -380,7 +379,7 @@ const Profile = () => {
     if (res.success) fetchAllData();
   };
 
-// State & ฟังก์ชันจัดการคอมเมนต์บนหน้า My Story (ดู / ตอบกลับ / ลบ / บล็อก)
+  // State & ฟังก์ชันจัดการคอมเมนต์บนหน้า My Story (ดู / ตอบกลับ / ลบ / บล็อก)
   const [openCommentStoryId, setOpenCommentStoryId] = useState(null);
   const [storyComments, setStoryComments] = useState([]);
   const [commentText, setCommentText] = useState('');
@@ -441,7 +440,6 @@ const Profile = () => {
     if (res.success) alert('✅ ' + res.message);
   };
 
-
   const handleDeleteStory = async (storyId) => {
     if (!window.confirm('ต้องการลบ Story นี้ใช่หรือไม่?')) return;
     try {
@@ -485,8 +483,7 @@ const Profile = () => {
       </Layout>
     );
   }
-
-  return (
+return (
     <Layout>
       {/* ✨ เพิ่ม paddingTop: '80px' เพื่อไม่ให้ Top Navbar บังหัวข้อและปุ่มแก้ไข */}
       <div style={{ padding: '80px 16px 100px', maxWidth: '1150px', margin: '0 auto', color: '#0f172a' }}>
@@ -737,7 +734,7 @@ const Profile = () => {
           </div>
         </div>
 
-              {/* ================================================================= */}
+        {/* ================================================================= */}
         {/* 🎬 ส่วนที่ 3: MY STORY (แสดง/ซ่อน, แก้ไข, ลบ, ดู/ตอบคอมเมนต์) */}
         {/* ================================================================= */}
         <div style={{ ...cardStyle, marginTop: '22px' }}>
@@ -908,6 +905,7 @@ const Profile = () => {
             </div>
           )}
         </div>
+
         {/* ================================================================= */}
         {/* 👥 ส่วนที่ 4: รายชื่อผู้ที่เราแนะนำ (สไตล์การ์ดรายชื่อสะอาดตา) */}
         {/* ================================================================= */}
@@ -974,9 +972,6 @@ const Profile = () => {
 
       </div>
 
-      {/* ================================================================= */}
-      {/* 🎨 Modal สร้าง My Story (เลือกไฟล์ + ใส่ข้อความ + เลือกขนาด/สี + ความเป็นส่วนตัว) */}
-      {/* ================================================================= */}
       {/* ================================================================= */}
       {/* 🎨 Modal สร้าง / แก้ไข My Story (รองรับ ปกวิดีโอ + หัวข้อ + คำอธิบาย + ลากข้อความ + เบลอ) */}
       {/* ================================================================= */}
