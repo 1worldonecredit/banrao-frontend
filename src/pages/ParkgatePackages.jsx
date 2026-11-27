@@ -13,7 +13,9 @@ import {
     ShieldCheck,
     AlertTriangle,
     ArrowLeft,
-    Loader2
+    Loader2,
+    Megaphone,
+    Zap
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
@@ -58,6 +60,15 @@ const OWNER_TYPE_LABEL = {
     BUSINESS: 'กระเป๋าธุรกิจ'
 };
 
+// [PKG-UI-01] ป้ายชื่อกลุ่มเป้าหมายของแพ็กเกจ
+const AUDIENCE_LABEL = {
+    ALL: 'ทุกกลุ่ม (หมู่บ้าน & ผู้ใช้)',
+    VILLAGE: 'สำหรับหมู่บ้าน',
+    USER: 'สำหรับผู้ใช้งานทั่วไป',
+    SHOP: 'สำหรับร้านค้า',
+    BUSINESS: 'สำหรับธุรกิจ'
+};
+
 export default function ParkgatePackages() {
     const navigate = useNavigate();
     const userData = JSON.parse(localStorage.getItem('userData') || '{}');
@@ -70,6 +81,10 @@ export default function ParkgatePackages() {
     const [villageGrant, setVillageGrant] = useState(null);
     const [settings, setSettings] = useState(null);
     const [wallets, setWallets] = useState([]);
+
+    // [PKG-UI-02] State สำหรับระบบการตลาดเชิญชวน User Free และตัวกรองกลุ่มเป้าหมาย
+    const [freeUpsell, setFreeUpsell] = useState(null);
+    const [audienceFilter, setAudienceFilter] = useState('ALL');
 
     // Modal ชำระเงิน
     const [selectedPkg, setSelectedPkg] = useState(null);
@@ -97,6 +112,8 @@ export default function ParkgatePackages() {
                 setSubscription(pkgJson.subscription || null);
                 setVillageGrant(pkgJson.village_grant || null);
                 setSettings(pkgJson.settings || null);
+                // [PKG-UI-03] เก็บข้อมูลแบนเนอร์เชิญชวน User Free
+                setFreeUpsell(pkgJson.free_upsell || null);
             }
 
             if (walRes) {
@@ -163,7 +180,6 @@ export default function ParkgatePackages() {
             if (!data.success) {
                 setFeedbackMsg({ type: 'error', text: data.message || 'ไม่สามารถดำเนินการได้' });
             } else {
-                // อัปเดต badge_tier ลง userData ใน localStorage เพื่อให้ TopNavbar แสดงผลทันที
                 const updatedUser = {
                     ...userData,
                     package_tier: data.subscription?.badge_tier || pkgObj.badge_tier || 'FREE',
@@ -190,6 +206,15 @@ export default function ParkgatePackages() {
     const activeTier = subscription?.badge_tier || 'FREE';
     const activeTierCfg = TIER_CONFIG[activeTier] || TIER_CONFIG.FREE;
 
+    // [PKG-UI-04] กรองรายการแพ็กเกจตามกลุ่มเป้าหมายที่เลือก
+    const visiblePackages = packages.filter((pkg) => {
+        if (audienceFilter === 'ALL') return true;
+        const aud = String(pkg.target_audience || 'ALL').toUpperCase();
+        return aud === 'ALL' || aud === audienceFilter;
+    });
+
+    const paidUpgradePkg = packages.find((p) => Number(p.price_amount || 0) > 0) || null;
+
     return (
         <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
             <div className="sticky top-0 z-40 w-full">
@@ -210,11 +235,39 @@ export default function ParkgatePackages() {
                         <div>
                             <h1 className="text-xl font-extrabold m-0">แพ็กเกจการใช้งานระบบ (Parkgate)</h1>
                             <p className="text-xs sm:text-sm opacity-90 m-0 mt-0.5">
-                                เลือกแพ็กเกจที่เหมาะกับการใช้งาน ชำระผ่านกระเป๋าเงินกลางหรือสแกน QR Code
+                                เลือกแพ็กเกจที่เหมาะกับหมู่บ้านหรือธุรกิจ ชำระผ่านกระเป๋าเงินกลางหรือสแกน QR Code
                             </p>
                         </div>
                     </div>
                 </div>
+
+                {/* [PKG-UI-05] แบนเนอร์การตลาดเชิญชวน User Free ทุกกี่วัน / กี่สัปดาห์ + ปุ่ม Update */}
+                {freeUpsell?.should_show_upsell && (
+                    <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100 border-2 border-amber-300 rounded-2xl p-4 mb-5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2.5 rounded-xl bg-amber-500 text-white flex-shrink-0">
+                                <Megaphone size={20} />
+                            </div>
+                            <div>
+                                <div className="text-xs font-extrabold text-amber-800">
+                                    แคมเปญแนะนำสำหรับสาย Free (เชิญชวนทุก {freeUpsell.interval_days} วัน / ~{freeUpsell.interval_weeks} สัปดาห์)
+                                </div>
+                                <div className="text-sm font-black text-slate-900 mt-0.5">{freeUpsell.headline}</div>
+                                <div className="text-xs text-slate-700 mt-0.5">{freeUpsell.message}</div>
+                            </div>
+                        </div>
+
+                        {paidUpgradePkg && (
+                            <button
+                                type="button"
+                                onClick={() => openPaymentModal(paidUpgradePkg)}
+                                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-extrabold shadow-sm hover:opacity-95 transition flex items-center gap-1.5"
+                            >
+                                <Zap size={15} /> Update แพ็กเกจเลย
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {/* การ์ดสถานะแพ็กเกจปัจจุบันของผู้ใช้ */}
                 {subscription && (
@@ -261,6 +314,30 @@ export default function ParkgatePackages() {
                     </div>
                 )}
 
+                {/* [PKG-UI-06] ปุ่มกรองกลุ่มเป้าหมาย: ทั้งหมด / หมู่บ้าน / ผู้ใช้ / ร้านค้า / ธุรกิจ */}
+                <div className="flex flex-wrap gap-2 mb-5">
+                    {[
+                        { key: 'ALL', label: 'ทั้งหมด' },
+                        { key: 'VILLAGE', label: 'หมู่บ้าน' },
+                        { key: 'USER', label: 'ผู้ใช้งาน' },
+                        { key: 'SHOP', label: 'ร้านค้า' },
+                        { key: 'BUSINESS', label: 'ธุรกิจ' }
+                    ].map((tab) => (
+                        <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => setAudienceFilter(tab.key)}
+                            className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border transition ${
+                                audienceFilter === tab.key
+                                    ? 'bg-emerald-600 text-white border-emerald-600'
+                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
                 {/* รายการแพ็กเกจ */}
                 {loading ? (
                     <div className="py-16 flex flex-col items-center justify-center text-slate-500 gap-2">
@@ -269,11 +346,13 @@ export default function ParkgatePackages() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {packages.map((pkg) => {
+                        {visiblePackages.map((pkg) => {
                             const tier = TIER_CONFIG[pkg.badge_tier] || TIER_CONFIG.FREE;
                             const TierIcon = tier.Icon;
                             const priceNum = Number(pkg.price_amount || 0);
                             const isCurrent = subscription?.package_id === pkg.package_id;
+                            const audKey = String(pkg.target_audience || 'ALL').toUpperCase();
+                            const boostLv = Number(pkg.visibility_boost_level || 1);
 
                             return (
                                 <div
@@ -283,9 +362,14 @@ export default function ParkgatePackages() {
                                     <div>
                                         <div className={`bg-gradient-to-r ${tier.headerGrad} p-5 text-white flex items-center justify-between`}>
                                             <div>
-                                                <span className="inline-flex items-center gap-1 text-xs font-bold bg-white/20 px-2.5 py-0.5 rounded-full mb-2">
-                                                    <TierIcon size={13} /> {tier.label}
-                                                </span>
+                                                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                                                    <span className="inline-flex items-center gap-1 text-xs font-bold bg-white/20 px-2.5 py-0.5 rounded-full">
+                                                        <TierIcon size={13} /> {tier.label}
+                                                    </span>
+                                                    <span className="text-[11px] font-bold bg-black/20 px-2.5 py-0.5 rounded-full">
+                                                        {AUDIENCE_LABEL[audKey] || audKey}
+                                                    </span>
+                                                </div>
                                                 <h2 className="text-lg font-extrabold m-0">{pkg.name_th}</h2>
                                             </div>
                                             <div className="text-right">
@@ -303,6 +387,18 @@ export default function ParkgatePackages() {
                                         </div>
 
                                         <div className="p-5">
+                                            {/* [PKG-UI-07] แสดงระดับการดันการมองเห็นและโควตาสินค้า */}
+                                            <div className="flex flex-wrap gap-2 mb-3 text-[11px] font-bold">
+                                                <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+                                                    ดันการมองเห็นระดับ {boostLv}
+                                                </span>
+                                                <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+                                                    {pkg.max_shop_products
+                                                        ? `ร้านค้าสูงสุด ${pkg.max_shop_products} รายการ`
+                                                        : 'ร้านค้าไม่จำกัดรายการ'}
+                                                </span>
+                                            </div>
+
                                             <div className="text-xs font-bold text-slate-500 mb-3">
                                                 บริการและสิทธิ์ที่ได้รับ:
                                             </div>
@@ -370,7 +466,6 @@ export default function ParkgatePackages() {
                             </span>
                         </div>
 
-                        {/* เลือกวิธีชำระเงิน */}
                         <div className="grid grid-cols-2 gap-2.5 mb-4">
                             <button
                                 type="button"
