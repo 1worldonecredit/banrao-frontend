@@ -1,4 +1,4 @@
-// [PKG-UI-FULL-04] หน้าแพ็กเกจ Parkgate ฉบับสมบูรณ์: สแกน QR + แนบสลิป R2 + เวลาโอน HH:mm:ss + กันเด้ง VIP ก่อนอนุมัติ
+// [PKG-UI-FULL-05] หน้าแพ็กเกจ Parkgate ฉบับสมบูรณ์: สแกน QR + แนบสลิปพร้อม Preview + เวลาโอน HH:mm:ss + กันเด้ง VIP ก่อนอนุมัติ
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -133,6 +133,7 @@ export default function ParkgatePackages() {
 
     // ข้อมูลสลิป & เวลาโอน (HH:mm:ss)
     const [slipImageUrl, setSlipImageUrl] = useState('');
+    const [slipPreviewUrl, setSlipPreviewUrl] = useState('');
     const [uploadingSlip, setUploadingSlip] = useState(false);
     const [transferDate, setTransferDate] = useState('');
     const [transferHour, setTransferHour] = useState('00');
@@ -298,6 +299,7 @@ export default function ParkgatePackages() {
         setQrReference(`PK-${Date.now().toString().slice(-6)}`);
         setQrImgFailed(false);
         setSlipImageUrl('');
+        setSlipPreviewUrl('');
         setTransferDate(nowBkk.date);
         setTransferHour(nowBkk.hh);
         setTransferMinute(nowBkk.mi);
@@ -310,19 +312,51 @@ export default function ParkgatePackages() {
         if (!file) return;
         setUploadingSlip(true);
         setFeedbackMsg(null);
+        setSlipImageUrl('');
         try {
-            const reader = new FileReader();
-            const dataUrl = await new Promise((resolve, reject) => {
+            const rawDataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
                 reader.onerror = reject;
                 reader.readAsDataURL(file);
             });
 
+            // ย่อขนาดรูปไม่เกิน 1000px (JPEG 82%) เพื่อให้ไฟล์เบา อัปโหลดไว และไม่ติดลิมิตเซิร์ฟเวอร์
+            const compressedDataUrl = await new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const maxW = 1000;
+                    const scale = img.width > maxW ? maxW / img.width : 1;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.round(img.width * scale);
+                    canvas.height = Math.round(img.height * scale);
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.82));
+                };
+                img.onerror = () => resolve(rawDataUrl);
+                img.src = rawDataUrl;
+            });
+
+            // แสดง Preview ทันทีที่เลือกไฟล์
+            setSlipPreviewUrl(compressedDataUrl);
+
             const res = await fetch(`${API_URL}/api/upload-slip`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data_url: dataUrl, file_name: file.name })
+                body: JSON.stringify({ data_url: compressedDataUrl, file_name: file.name })
             });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                setFeedbackMsg({
+                    type: 'error',
+                    text: `อัปโหลดสลิปไม่สำเร็จ (HTTP ${res.status}) — ตรวจสอบว่า Push /api/upload-slip ขึ้น Railway แล้ว`
+                });
+                console.error('Upload slip failed:', res.status, errText);
+                return;
+            }
+
             const data = await res.json();
             if (!data.success || !data.url) {
                 setFeedbackMsg({ type: 'error', text: data.message || 'อัปโหลดสลิปไม่สำเร็จ' });
@@ -330,7 +364,8 @@ export default function ParkgatePackages() {
                 setSlipImageUrl(data.url);
             }
         } catch (err) {
-            setFeedbackMsg({ type: 'error', text: 'เกิดข้อผิดพลาดในการอัปโหลดสลิป' });
+            console.error('Upload slip error:', err);
+            setFeedbackMsg({ type: 'error', text: `เกิดข้อผิดพลาดในการอัปโหลดสลิป: ${err.message}` });
         } finally {
             setUploadingSlip(false);
             e.target.value = '';
@@ -705,7 +740,7 @@ export default function ParkgatePackages() {
                 </div>
             </div>
 
-            {/* Modal ชำระเงิน (จบในหน้าเดียว: สแกน QR -> แนบสลิป -> ระบุเวลาโอน HH:mm:ss -> กดยืนยัน) */}
+            {/* Modal ชำระเงิน (จบในหน้าเดียว: สแกน QR -> แนบสลิปพร้อม Preview -> ระบุเวลาโอน HH:mm:ss -> กดยืนยัน) */}
             {selectedPkg && modalReceiver && (
                 <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
                     <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200 my-auto space-y-3.5 max-h-[92vh] overflow-y-auto">
@@ -884,16 +919,16 @@ export default function ParkgatePackages() {
                                     </div>
                                 </div>
 
-                                {/* 2. แนบสลิปโอนเงิน + ระบุเวลาโอน HH:mm:ss */}
+                                {/* 2. แนบสลิปโอนเงิน + Preview + ระบุเวลาโอน HH:mm:ss */}
                                 <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2.5">
                                     <div className="text-xs font-extrabold text-amber-900">
                                         2. แนบสลิปและระบุเวลาที่โอนตามสลิป (เพื่อให้แอดมินกระทบยอดได้แม่นยำ)
                                     </div>
 
-                                    <div className="flex items-center gap-2.5">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer hover:bg-slate-800">
                                             <Upload size={14} />
-                                            {uploadingSlip ? 'กำลังอัปโหลดสลิป...' : slipImageUrl ? 'เปลี่ยนรูปสลิป' : 'แนบรูปสลิปโอนเงิน *'}
+                                            {uploadingSlip ? 'กำลังอัปโหลดสลิป...' : (slipPreviewUrl || slipImageUrl) ? 'เปลี่ยนรูปสลิป' : 'แนบรูปสลิปโอนเงิน *'}
                                             <input
                                                 type="file"
                                                 accept="image/png,image/jpeg,image/jpg,image/webp"
@@ -902,13 +937,39 @@ export default function ParkgatePackages() {
                                             />
                                         </label>
 
-                                        {slipImageUrl && (
-                                            <a href={slipImageUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs font-bold text-emerald-700">
-                                                <img src={slipImageUrl} alt="สลิป" className="w-10 h-10 object-cover rounded-lg border border-emerald-300" />
-                                                แนบแล้ว
-                                            </a>
+                                        {(slipPreviewUrl || slipImageUrl) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSlipPreviewUrl('');
+                                                    setSlipImageUrl('');
+                                                }}
+                                                className="px-2.5 py-1.5 rounded-lg border border-red-200 bg-white text-red-600 text-xs font-bold hover:bg-red-50"
+                                            >
+                                                ลบรูป
+                                            </button>
                                         )}
                                     </div>
+
+                                    {/* กล่อง Preview รูปสลิปแบบเห็นชัดเจน */}
+                                    {(slipPreviewUrl || slipImageUrl) && (
+                                        <div className="p-2 rounded-xl bg-white border border-amber-200 text-center space-y-1.5">
+                                            <img
+                                                src={slipPreviewUrl || slipImageUrl}
+                                                alt="ตัวอย่างสลิปโอนเงิน"
+                                                className="max-h-56 mx-auto object-contain rounded-lg border border-slate-200"
+                                            />
+                                            <div className="text-[11px] font-bold">
+                                                {uploadingSlip ? (
+                                                    <span className="text-amber-600">กำลังส่งรูปสลิปขึ้นระบบ...</span>
+                                                ) : slipImageUrl ? (
+                                                    <span className="text-emerald-700">✓ อัปโหลดสลิปเรียบร้อยแล้ว (ดูเวลาบนสลิปแล้วกรอกด้านล่างได้เลย)</span>
+                                                ) : (
+                                                    <span className="text-red-600">อัปโหลดไม่สำเร็จ กรุณาลองเลือกไฟล์ใหม่อีกครั้ง</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <div>
@@ -917,7 +978,7 @@ export default function ParkgatePackages() {
                                                 type="date"
                                                 value={transferDate}
                                                 onChange={(e) => setTransferDate(e.target.value)}
-                                                className="w-full p-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold"
+                                                className="w-full px-2 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold"
                                             />
                                         </div>
                                         <div>
@@ -926,7 +987,7 @@ export default function ParkgatePackages() {
                                                 <select
                                                     value={transferHour}
                                                     onChange={(e) => setTransferHour(e.target.value)}
-                                                    className="p-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                                    className="px-1 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
                                                 >
                                                     {hourOptions.map((h) => (
                                                         <option key={h} value={h}>{h}</option>
@@ -935,7 +996,7 @@ export default function ParkgatePackages() {
                                                 <select
                                                     value={transferMinute}
                                                     onChange={(e) => setTransferMinute(e.target.value)}
-                                                    className="p-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                                    className="px-1 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
                                                 >
                                                     {minSecOptions.map((m) => (
                                                         <option key={m} value={m}>{m}</option>
@@ -944,7 +1005,7 @@ export default function ParkgatePackages() {
                                                 <select
                                                     value={transferSecond}
                                                     onChange={(e) => setTransferSecond(e.target.value)}
-                                                    className="p-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                                    className="px-1 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
                                                 >
                                                     {minSecOptions.map((s) => (
                                                         <option key={s} value={s}>{s}</option>
