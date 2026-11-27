@@ -1,4 +1,4 @@
-// [FE-BANK-FULL-01] หน้าฝั่งหน้าบ้าน: ผูกบัญชีธนาคาร (User/หมู่บ้าน/ธุรกิจ) + เติมเงิน & แนบสลิป R2 + PIN (123456) + ใบเสร็จ QR
+// [FE-BANK-FULL-01] หน้าฝั่งหน้าบ้าน: ผูกบัญชีธนาคาร (User/หมู่บ้าน/ร้านค้า/ธุรกิจ) + เติมเงิน & แนบสลิป R2 + PIN (123456) + ใบเสร็จ QR
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -8,7 +8,6 @@ import {
     Plus,
     CheckCircle2,
     ShieldAlert,
-    Receipt,
     ArrowLeft,
     Wallet,
     Upload,
@@ -18,12 +17,21 @@ import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
 import BankLogoBadge from '../components/BankLogoBadge';
 import { uploadToR2 } from '../utils/uploadToR2';
+import BankScanQrCard, { buildBankScanQrString } from '../components/BankScanQrCard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
+function parseUserDataSafe() {
+    try {
+        return JSON.parse(localStorage.getItem('userData') || '{}') || {};
+    } catch {
+        return {};
+    }
+}
+
 export default function BankAccountsPage() {
     const navigate = useNavigate();
-    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+    const userData = parseUserDataSafe();
     const accountId = userData.account_id || userData.id || '';
 
     // [FE-BANK-FULL-02] Tab ย่อย: 'ACCOUNTS' (ผูกบัญชีรับเงิน) | 'TOPUP' (เติมเงิน & ส่งสลิป) | 'PIN' (รหัสยืนยัน 123456)
@@ -87,7 +95,7 @@ export default function BankAccountsPage() {
                     if (pmJson.account_info?.full_name) {
                         setAccountHolderName((prev) => prev || pmJson.account_info.full_name);
                     }
-                    // ใช้บัญชีระบบ/กิจการที่ผูกไว้เป็นบัญชีรับโอนเติมเงิน
+                    // ใช้บัญชีระบบ/หมู่บ้าน/ร้านค้า/กิจการที่ผูกไว้เป็นบัญชีรับโอนเติมเงิน
                     const bizBanks = (pmJson.bank_accounts || []).filter((x) =>
                         ['BUSINESS', 'VILLAGE', 'SHOP'].includes(String(x.owner_type || '').toUpperCase())
                     );
@@ -161,7 +169,8 @@ export default function BankAccountsPage() {
         const amt = Number(topupAmount || 0);
         if (amt <= 0) return alert('กรุณากรอกจำนวนเงินที่ต้องการเติม');
 
-        const targetBank = systemBanks.find((b) => String(b.bank_account_id) === String(selectedSystemBankId)) || bankAccounts[0];
+        const targetBank =
+            systemBanks.find((b) => String(b.bank_account_id) === String(selectedSystemBankId)) || bankAccounts[0];
         if (!targetBank) {
             return alert('กรุณาผูกบัญชีธนาคารรับเงินก่อนทำรายการเติมเงิน');
         }
@@ -172,6 +181,9 @@ export default function BankAccountsPage() {
             if (slipFile) {
                 uploadedSlipUrl = await uploadToR2(slipFile, 'payment-slips');
             }
+
+            const purposeTitle = 'เติมเงินเข้ากระเป๋าเงิน Ban Rao';
+            const lineItems = [{ name: 'เติมเงินเข้ากระเป๋าหลัก (Wallet Top-up)', qty: 1, price: amt }];
 
             // 1) สร้างใบเสร็จและ QR Payload (เก็บข้อมูลผู้รับเงิน + รายการที่จ่าย + รองรับ Scan จ่ายสินค้าในอนาคต)
             const rcpRes = await fetch(`${API_URL}/api/receipts/generate-qr`, {
@@ -186,18 +198,48 @@ export default function BankAccountsPage() {
                     receiver_name: targetBank.account_holder_name,
                     receiver_bank_name: targetBank.bank_name_th,
                     receiver_account_number: targetBank.account_number,
-                    purpose_title: 'เติมเงินเข้ากระเป๋าเงิน Ban Rao',
-                    line_items: [{ name: 'เติมเงินเข้ากระเป๋าหลัก (Wallet Top-up)', qty: 1, price: amt }],
+                    purpose_title: purposeTitle,
+                    line_items: lineItems,
                     total_amount: amt,
                     payment_method: 'QR_CODE',
                     payment_status: 'PENDING'
                 })
             });
             const rcpJson = await rcpRes.json();
-            const receiptNo = rcpJson.receipt?.receipt_no || `RCP-${Date.now()}`;
-            if (rcpJson.success) {
-                setActiveReceipt(rcpJson.receipt);
-            }
+            const stamp = Date.now();
+            const receiptNo = rcpJson.receipt?.receipt_no || `RCP-${stamp}`;
+            const qrReference = rcpJson.receipt?.qr_reference || `QR-${String(stamp).slice(-8)}`;
+
+            const qrText = buildBankScanQrString({
+                receiptNo,
+                qrReference,
+                txCategory: 'TOPUP',
+                receiverName: targetBank.account_holder_name,
+                receiverOwnerType: targetBank.owner_type || 'SYSTEM',
+                receiverBankCode: targetBank.bank_code,
+                receiverBankName: targetBank.bank_name_th,
+                receiverAccountNumber: targetBank.account_number,
+                purposeTitle,
+                lineItems,
+                totalAmount: amt
+            });
+
+            setActiveReceipt({
+                ...(rcpJson.receipt || {
+                    receipt_no: receiptNo,
+                    qr_reference: qrReference,
+                    tx_category: 'TOPUP',
+                    receiver_name: targetBank.account_holder_name,
+                    receiver_owner_type: targetBank.owner_type || 'SYSTEM',
+                    receiver_bank_name: targetBank.bank_name_th,
+                    receiver_account_number: targetBank.account_number,
+                    purpose_title: purposeTitle,
+                    line_items: lineItems,
+                    total_amount: amt
+                }),
+                receiver_bank_code: targetBank.bank_code,
+                qr_text: qrText
+            });
 
             // 2) ส่งรายการแจ้งโอน + สลิป ไปรอแอดมินตรวจและกระทบยอดในหน้า bank-reconciliation
             const verRes = await fetch(`${API_URL}/api/payment-methods/verifications`, {
@@ -211,7 +253,11 @@ export default function BankAccountsPage() {
                     claimed_amount: amt,
                     transfer_date_th:
                         transferDateTh.trim() ||
-                        new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', dateStyle: 'medium', timeStyle: 'short' }),
+                        new Date().toLocaleString('th-TH', {
+                            timeZone: 'Asia/Bangkok',
+                            dateStyle: 'medium',
+                            timeStyle: 'short'
+                        }),
                     slip_url: uploadedSlipUrl,
                     slip_note: topupNote
                 })
@@ -227,6 +273,7 @@ export default function BankAccountsPage() {
                 alert('สร้างใบเสร็จ QR และส่งสลิปตรวจสอบยอดเงินเข้าเรียบร้อยแล้วครับ รอแอดมินอนุมัติเข้ากระเป๋า');
             }
         } catch (err) {
+            console.error('[FE-BANK-FULL-06] Topup error:', err);
             alert('เกิดข้อผิดพลาดในการส่งข้อมูลเติมเงิน');
         } finally {
             setSubmitting(false);
@@ -632,25 +679,8 @@ export default function BankAccountsPage() {
                     </form>
                 )}
 
-                {/* ใบเสร็จ & QR Code */}
-                {activeReceipt && (
-                    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-2">
-                        <div className="flex items-center justify-between text-sm font-extrabold text-slate-800">
-                            <span className="flex items-center gap-2">
-                                <Receipt size={17} /> ใบเสร็จ & QR Code ({activeReceipt.receipt_no})
-                            </span>
-                            <span className="text-[11px] font-mono text-slate-500">{activeReceipt.qr_reference}</span>
-                        </div>
-                        <div className="text-xs text-slate-600 flex items-center gap-3 pt-1">
-                            <QrCode size={48} className="text-slate-800 flex-shrink-0" />
-                            <div className="space-y-0.5">
-                                <div><strong>ผู้รับเงิน:</strong> {activeReceipt.receiver_name} ({activeReceipt.receiver_owner_type})</div>
-                                <div><strong>บัญชีรับเงิน:</strong> {activeReceipt.receiver_bank_name} ({activeReceipt.receiver_account_number || '-'})</div>
-                                <div><strong>รายการที่จ่าย:</strong> {activeReceipt.purpose_title} — <strong>฿{Number(activeReceipt.total_amount || 0).toLocaleString()}</strong></div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                {/* ใบเสร็จ & QR Code จริงสำหรับให้แอปธนาคารสแกน + แสดงผู้รับเงิน/รายการจ่าย */}
+                <BankScanQrCard receipt={activeReceipt} />
             </div>
 
             <div className="fixed bottom-0 z-40 w-full">
