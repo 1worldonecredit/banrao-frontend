@@ -52,7 +52,7 @@ import WaterBilling from './pages/WaterBilling';
 import MyWaterBills from './pages/MyWaterBills';
 import VillageAccessGuard from './components/VillageAccessGuard';
 import ParkgatePackages from './pages/ParkgatePackages';
-
+import BankAccountsPage from './pages/BankAccountsPage';
 function App() {
   return (
     <BrowserRouter>
@@ -113,6 +113,7 @@ function App() {
         <Route path="/api-tracker" element={<ApiTracker />} />
         <Route path="/manage-area" element={<ManageAreaStructure />} />
         <Route path="/packages" element={<ParkgatePackages />} />
+        <Route path="/bank-accounts" element={<BankAccountsPage/>} />
 
         <Route
           path="/water-users"
