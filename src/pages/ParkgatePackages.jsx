@@ -1,4 +1,4 @@
-// [PKG-UI-FULL-01] หน้าแพ็กเกจ Parkgate + เลือกบัญชีธนาคารที่ผูกไว้ + ดึงบัญชีผู้รับเงิน + สร้าง QR จ่ายค่าอะไร/ให้ใคร + ใบเสร็จ QR
+// [PKG-UI-FULL-01] หน้าแพ็กเกจ Parkgate + ดึงช่องทางรับเงิน & รูป QR จากตาราง system_payment_channels + ใบเสร็จ QR
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -95,10 +95,12 @@ export default function ParkgatePackages() {
     const [settings, setSettings] = useState(null);
     const [wallets, setWallets] = useState([]);
 
-    // [PKG-UI-02] บัญชีธนาคารที่ User ผูกไว้ + รายชื่อธนาคารกลาง (มีโลโก้/สี)
+    // [PKG-UI-02] บัญชีธนาคารที่ User ผูกไว้ + รายชื่อธนาคารกลาง + ช่องทางรับเงิน & QR จาก system_payment_channels
     const [userBankAccounts, setUserBankAccounts] = useState([]);
     const [bankMasterList, setBankMasterList] = useState([]);
     const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
+    const [paymentChannels, setPaymentChannels] = useState([]);
+    const [selectedChannelId, setSelectedChannelId] = useState('');
 
     // [PKG-UI-03] การตลาดเชิญชวน User Free และตัวกรองกลุ่มเป้าหมาย
     const [freeUpsell, setFreeUpsell] = useState(null);
@@ -123,7 +125,8 @@ export default function ParkgatePackages() {
             if (accountId) query.set('account_id', accountId);
             if (villageId) query.set('village_id', villageId);
 
-            const [pkgRes, walRes, pmRes, banksRes] = await Promise.all([
+            // ดึงพร้อมกันใน Promise.all รอบเดียวเพื่อโหลดไว
+            const [pkgRes, walRes, pmRes, banksRes, chRes] = await Promise.all([
                 fetch(`${API_URL}/api/packages/overview?${query.toString()}`),
                 accountId
                     ? fetch(`${API_URL}/api/wallets/my?account_id=${encodeURIComponent(accountId)}`)
@@ -131,7 +134,8 @@ export default function ParkgatePackages() {
                 accountId
                     ? fetch(`${API_URL}/api/payment-methods/my?account_id=${encodeURIComponent(accountId)}`)
                     : Promise.resolve(null),
-                fetch(`${API_URL}/api/banks`)
+                fetch(`${API_URL}/api/banks`),
+                fetch(`${API_URL}/api/payment-channels`)
             ]);
 
             const pkgJson = await pkgRes.json();
@@ -169,6 +173,16 @@ export default function ParkgatePackages() {
             if (banksJson.success && Array.isArray(banksJson.banks)) {
                 setBankMasterList(banksJson.banks);
             }
+
+            if (chRes && chRes.ok) {
+                const chJson = await chRes.json();
+                if (chJson.success && Array.isArray(chJson.channels)) {
+                    setPaymentChannels(chJson.channels);
+                    if (chJson.channels.length > 0) {
+                        setSelectedChannelId((prev) => prev || chJson.channels[0].channel_id);
+                    }
+                }
+            }
         } catch (err) {
             console.error('Load Parkgate data error:', err);
         } finally {
@@ -180,9 +194,14 @@ export default function ParkgatePackages() {
         loadData();
     }, [loadData]);
 
-    // [PKG-UI-04] กำหนดข้อมูลผู้รับเงินให้ถูกต้อง (ดึงจากบัญชีผู้รับเงินที่ผูกไว้ของระบบ/ธุรกิจ/หมู่บ้าน/ร้านค้า หรือบัญชีที่เลือก)
+    // [PKG-UI-04] กำหนดข้อมูลผู้รับเงิน & รูป QR จากตาราง system_payment_channels (หรือ fallback เป็นบัญชีที่ผูกไว้/settings)
     const getReceiverInfoForPkg = useCallback(
         (pkg) => {
+            const activeCh =
+                paymentChannels.find((c) => String(c.channel_id) === String(selectedChannelId)) ||
+                paymentChannels[0] ||
+                null;
+
             const receiverAcc =
                 userBankAccounts.find((b) => String(b.bank_account_id) === String(selectedBankAccountId)) ||
                 userBankAccounts.find((b) =>
@@ -191,25 +210,35 @@ export default function ParkgatePackages() {
                 userBankAccounts[0] ||
                 null;
 
-            const bankMeta = receiverAcc
-                ? bankMasterList.find((m) => String(m.bank_code).toUpperCase() === String(receiverAcc.bank_code).toUpperCase())
+            const bankCodeFinal = activeCh?.bank_code || receiverAcc?.bank_code || '';
+            const bankMeta = bankCodeFinal
+                ? bankMasterList.find((m) => String(m.bank_code).toUpperCase() === String(bankCodeFinal).toUpperCase())
                 : null;
 
             return {
+                channel_id: activeCh?.channel_id || null,
+                channel_name_th: activeCh?.channel_name_th || '',
+                qr_image_url: activeCh?.qr_image_url || settings?.qr_image_url || '',
                 receiver_account_id: receiverAcc?.account_id || null,
-                receiver_owner_type: receiverAcc?.owner_type || 'SYSTEM',
+                receiver_owner_type: activeCh?.owner_type || receiverAcc?.owner_type || 'SYSTEM',
                 receiver_name:
+                    activeCh?.receiver_name ||
                     receiverAcc?.account_holder_name ||
                     settings?.receiver_name ||
                     'ระบบชุมชนบ้านเรา (BAN RAO)',
-                receiver_bank_code: receiverAcc?.bank_code || bankMeta?.bank_code || '',
+                receiver_bank_code: bankCodeFinal,
                 receiver_bank_name:
+                    activeCh?.bank_name_th ||
                     receiverAcc?.bank_name_th ||
                     bankMeta?.bank_name_th ||
                     settings?.receiver_bank_name ||
                     'พร้อมเพย์ / บัญชีระบบ',
                 receiver_account_number:
-                    receiverAcc?.account_number || settings?.receiver_account_number || '-',
+                    activeCh?.account_number ||
+                    activeCh?.promptpay_id ||
+                    receiverAcc?.account_number ||
+                    settings?.receiver_account_number ||
+                    '-',
                 bank_logo_url: bankMeta?.logo_url || '',
                 bank_brand_color: bankMeta?.brand_color || '#059669',
                 purpose_title: `ชำระค่าแพ็กเกจ: ${pkg?.name_th || 'แพ็กเกจระบบ'} (${pkg?.badge_tier || 'VIP'})`,
@@ -224,10 +253,10 @@ export default function ParkgatePackages() {
                 ]
             };
         },
-        [userBankAccounts, selectedBankAccountId, bankMasterList, settings]
+        [paymentChannels, selectedChannelId, userBankAccounts, selectedBankAccountId, bankMasterList, settings]
     );
 
-    // [PKG-UI-05] สร้างรูป QR Code จริงใน Modal เมื่อเลือกโหมด Scan QR Code
+    // [PKG-UI-05] สร้าง/ดึงรูป QR Code ใน Modal เมื่อเลือกโหมด Scan QR Code
     useEffect(() => {
         let active = true;
         if (!selectedPkg || paymentMethod !== 'QR_CODE') {
@@ -236,6 +265,11 @@ export default function ParkgatePackages() {
         }
 
         const recv = getReceiverInfoForPkg(selectedPkg);
+        if (recv.qr_image_url) {
+            setModalQrImageUrl(recv.qr_image_url);
+            return;
+        }
+
         const qrText = buildBankScanQrString({
             receiptNo: `RCP-${qrReference || Date.now()}`,
             qrReference: qrReference || `PK-${Date.now().toString().slice(-6)}`,
@@ -319,7 +353,6 @@ export default function ParkgatePackages() {
                 localStorage.setItem('userData', JSON.stringify(updatedUser));
                 window.dispatchEvent(new Event('userDataUpdated'));
 
-                // สร้างใบเสร็จ + QR Code ให้แสดงบนหน้าจอหลังทำรายการ
                 const receiptNo = data.receipt?.receipt_no || `RCP-${Date.now()}`;
                 const refCode = data.qr_reference || qrReference || `PK-${Date.now().toString().slice(-6)}`;
                 const qrText = buildBankScanQrString({
@@ -340,6 +373,7 @@ export default function ParkgatePackages() {
                     receipt_no: receiptNo,
                     qr_reference: refCode,
                     tx_category: 'PACKAGE',
+                    qr_image_url: recv.qr_image_url || '',
                     receiver_name: recv.receiver_name,
                     receiver_owner_type: recv.receiver_owner_type,
                     receiver_bank_code: recv.receiver_bank_code,
@@ -377,6 +411,7 @@ export default function ParkgatePackages() {
 
     const paidUpgradePkg = packages.find((p) => Number(p.price_amount || 0) > 0) || null;
     const modalReceiver = selectedPkg ? getReceiverInfoForPkg(selectedPkg) : null;
+
 
     return (
         <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
@@ -606,7 +641,7 @@ export default function ParkgatePackages() {
                 {createdReceipt && <BankScanQrCard receipt={createdReceipt} />}
             </div>
 
-            {/* Modal ชำระเงิน: แสดงบัญชีผู้รับเงิน + เลือกบัญชีที่ User ผูกไว้ / กระเป๋าเงิน + QR Code จริง */}
+            {/* Modal ชำระเงิน: แสดงบัญชีผู้รับเงินจากตาราง system_payment_channels + QR Code */}
             {selectedPkg && modalReceiver && (
                 <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
                     <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200 my-auto space-y-3.5">
@@ -645,6 +680,26 @@ export default function ParkgatePackages() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* เลือกช่องทางรับเงินของระบบ (ถ้าตั้งค่าไว้หลายบัญชีในตาราง system_payment_channels) */}
+                        {paymentChannels.length > 1 && (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1">
+                                    ช่องทางรับเงินของระบบ ({paymentChannels.length})
+                                </label>
+                                <select
+                                    value={selectedChannelId}
+                                    onChange={(e) => setSelectedChannelId(e.target.value)}
+                                    className="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-800"
+                                >
+                                    {paymentChannels.map((ch) => (
+                                        <option key={ch.channel_id} value={ch.channel_id}>
+                                            {ch.channel_name_th} • {ch.receiver_name} ({ch.bank_name_th || ch.owner_type})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         {/* เลือกบัญชีธนาคารที่ User ผูกไว้ (ถ้ามี) */}
                         {userBankAccounts.length > 0 && (
@@ -748,11 +803,13 @@ export default function ParkgatePackages() {
                                     <img
                                         src={modalQrImageUrl}
                                         alt="QR Code ชำระเงิน"
-                                        className="w-40 h-40 mx-auto rounded-xl bg-white p-1.5 border border-slate-200"
+                                        loading="lazy"
+                                        decoding="async"
+                                        className="w-44 max-h-52 object-contain mx-auto rounded-xl bg-white p-1.5 border border-slate-200"
                                     />
                                 ) : (
                                     <div className="w-40 h-40 mx-auto flex items-center justify-center text-xs text-slate-400">
-                                        กำลังสร้าง QR Code...
+                                        กำลังเตรียม QR Code...
                                     </div>
                                 )}
                                 <div className="text-xs font-bold text-slate-800">
