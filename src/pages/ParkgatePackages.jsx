@@ -1,4 +1,4 @@
-// [PKG-UI-FULL-02] หน้าแพ็กเกจ Parkgate + ดึงรูป QR พร้อมเพย์จริงจาก R2 + แยกโหมดรอชำระ / ใบเสร็จรับเงินฉบับสมบูรณ์
+// [PKG-UI-FULL-04] หน้าแพ็กเกจ Parkgate ฉบับสมบูรณ์: สแกน QR + แนบสลิป R2 + เวลาโอน HH:mm:ss + กันเด้ง VIP ก่อนอนุมัติ
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -17,7 +17,8 @@ import {
     Loader2,
     Megaphone,
     Zap,
-    Landmark
+    Landmark,
+    Upload
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
@@ -81,6 +82,18 @@ function parseUserDataSafe() {
     }
 }
 
+function getBangkokNowParts() {
+    const now = new Date();
+    const bkk = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const yyyy = bkk.getFullYear();
+    const mm = String(bkk.getMonth() + 1).padStart(2, '0');
+    const dd = String(bkk.getDate()).padStart(2, '0');
+    const hh = String(bkk.getHours()).padStart(2, '0');
+    const mi = String(bkk.getMinutes()).padStart(2, '0');
+    const ss = String(bkk.getSeconds()).padStart(2, '0');
+    return { date: `${yyyy}-${mm}-${dd}`, hh, mi, ss };
+}
+
 export default function ParkgatePackages() {
     const navigate = useNavigate();
     const receiptSectionRef = useRef(null);
@@ -88,6 +101,12 @@ export default function ParkgatePackages() {
     const userData = parseUserDataSafe();
     const accountId = userData.account_id || userData.id || '';
     const villageId = userData.village_id || '';
+    const payerName =
+        userData.full_name ||
+        userData.display_name ||
+        `${userData.first_name || ''} ${userData.last_name || ''}`.trim() ||
+        userData.username ||
+        'ผู้ใช้งานระบบ';
 
     const [loading, setLoading] = useState(true);
     const [packages, setPackages] = useState([]);
@@ -111,6 +130,15 @@ export default function ParkgatePackages() {
     const [selectedWalletId, setSelectedWalletId] = useState('');
     const [qrReference, setQrReference] = useState('');
     const [qrImgFailed, setQrImgFailed] = useState(false);
+
+    // ข้อมูลสลิป & เวลาโอน (HH:mm:ss)
+    const [slipImageUrl, setSlipImageUrl] = useState('');
+    const [uploadingSlip, setUploadingSlip] = useState(false);
+    const [transferDate, setTransferDate] = useState('');
+    const [transferHour, setTransferHour] = useState('00');
+    const [transferMinute, setTransferMinute] = useState('00');
+    const [transferSecond, setTransferSecond] = useState('00');
+
     const [isPaying, setIsPaying] = useState(false);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
 
@@ -192,7 +220,6 @@ export default function ParkgatePackages() {
         loadData();
     }, [loadData]);
 
-    // รีเซ็ตสถานะรูปเสียทุกครั้งที่เปลี่ยนช่องทางรับเงินหรือเปิด Modal ใหม่
     useEffect(() => {
         setQrImgFailed(false);
     }, [selectedChannelId, selectedPkg, paymentMethod]);
@@ -265,11 +292,49 @@ export default function ParkgatePackages() {
             handleConfirmSubscribe(pkg, 'FREE', null);
             return;
         }
+        const nowBkk = getBangkokNowParts();
         setSelectedPkg(pkg);
         setPaymentMethod(wallets.length > 0 ? 'WALLET' : 'QR_CODE');
         setQrReference(`PK-${Date.now().toString().slice(-6)}`);
         setQrImgFailed(false);
+        setSlipImageUrl('');
+        setTransferDate(nowBkk.date);
+        setTransferHour(nowBkk.hh);
+        setTransferMinute(nowBkk.mi);
+        setTransferSecond(nowBkk.ss);
         setFeedbackMsg(null);
+    };
+
+    const handleSlipFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploadingSlip(true);
+        setFeedbackMsg(null);
+        try {
+            const reader = new FileReader();
+            const dataUrl = await new Promise((resolve, reject) => {
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+
+            const res = await fetch(`${API_URL}/api/upload-slip`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data_url: dataUrl, file_name: file.name })
+            });
+            const data = await res.json();
+            if (!data.success || !data.url) {
+                setFeedbackMsg({ type: 'error', text: data.message || 'อัปโหลดสลิปไม่สำเร็จ' });
+            } else {
+                setSlipImageUrl(data.url);
+            }
+        } catch (err) {
+            setFeedbackMsg({ type: 'error', text: 'เกิดข้อผิดพลาดในการอัปโหลดสลิป' });
+        } finally {
+            setUploadingSlip(false);
+            e.target.value = '';
+        }
     };
 
     const handleConfirmSubscribe = async (pkgObj = selectedPkg, methodOverride = null, walletOverride = null) => {
@@ -383,7 +448,6 @@ export default function ParkgatePackages() {
                 setSelectedPkg(null);
                 await loadData();
 
-                // เลื่อนจอลงไปที่กล่องรายการสั่งซื้อรอชำระ / ใบเสร็จรับเงินอัตโนมัติ
                 setTimeout(() => {
                     receiptSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 150);
@@ -395,7 +459,8 @@ export default function ParkgatePackages() {
         }
     };
 
-    const activeTier = subscription?.badge_tier || 'FREE';
+    const isSubPaid = ['PAID', 'FREE', 'ACTIVE'].includes(String(subscription?.payment_status || '').toUpperCase());
+    const activeTier = isSubPaid ? (subscription?.badge_tier || 'FREE') : 'FREE';
     const activeTierCfg = TIER_CONFIG[activeTier] || TIER_CONFIG.FREE;
 
     const visiblePackages = packages.filter((pkg) => {
@@ -406,6 +471,9 @@ export default function ParkgatePackages() {
 
     const paidUpgradePkg = packages.find((p) => Number(p.price_amount || 0) > 0) || null;
     const modalReceiver = selectedPkg ? getReceiverInfoForPkg(selectedPkg) : null;
+
+    const hourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+    const minSecOptions = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
     return (
         <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
@@ -631,16 +699,16 @@ export default function ParkgatePackages() {
                     </div>
                 )}
 
-                {/* รายการสั่งซื้อรอชำระ (PENDING + QR พร้อมเพย์จาก R2) หรือ ใบเสร็จรับเงิน/ใบกำกับภาษี (PAID) */}
+                {/* รายการสั่งซื้อรอชำระ / ใบเสร็จรับเงินฉบับสมบูรณ์ */}
                 <div ref={receiptSectionRef}>
                     {createdReceipt && <BankScanQrCard receipt={createdReceipt} />}
                 </div>
             </div>
 
-            {/* Modal ชำระเงิน */}
+            {/* Modal ชำระเงิน (จบในหน้าเดียว: สแกน QR -> แนบสลิป -> ระบุเวลาโอน HH:mm:ss -> กดยืนยัน) */}
             {selectedPkg && modalReceiver && (
                 <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200 my-auto space-y-3.5">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200 my-auto space-y-3.5 max-h-[92vh] overflow-y-auto">
                         <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
                             <h3 className="text-base font-extrabold text-slate-800 m-0">
                                 ชำระเงิน: {selectedPkg.name_th}
@@ -791,35 +859,100 @@ export default function ParkgatePackages() {
                                 )}
                             </div>
                         ) : (
-                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-1.5">
-                                {modalReceiver.qr_image_url && !qrImgFailed ? (
-                                    <img
-                                        src={modalReceiver.qr_image_url}
-                                        alt="Thai QR PromptPay"
-                                        loading="lazy"
-                                        decoding="async"
-                                        onError={() => setQrImgFailed(true)}
-                                        className="w-48 max-h-56 object-contain mx-auto rounded-xl bg-white p-1.5 border border-slate-200"
-                                    />
-                                ) : (
-                                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 space-y-1">
-                                        <div className="font-bold">ไม่พบรูป QR Code หรือลิงก์รูปเก่าเสีย</div>
-                                        <div className="text-[10px] font-mono break-all text-slate-600">
-                                            {modalReceiver.qr_image_url || 'ยังไม่ได้ตั้งค่า URL รูป QR'}
+                            <div className="space-y-3">
+                                {/* 1. สแกน QR โอนเงิน */}
+                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-1">
+                                    {modalReceiver.qr_image_url && !qrImgFailed ? (
+                                        <img
+                                            src={modalReceiver.qr_image_url}
+                                            alt="Thai QR PromptPay"
+                                            loading="lazy"
+                                            decoding="async"
+                                            onError={() => setQrImgFailed(true)}
+                                            className="w-44 max-h-52 object-contain mx-auto rounded-xl bg-white p-1.5 border border-slate-200"
+                                        />
+                                    ) : (
+                                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                                            ไม่พบรูป QR Code กรุณาอัปโหลดใหม่ในหน้าหลังบ้าน
                                         </div>
-                                        <div className="text-[11px]">
-                                            กรุณาไปที่หน้าหลังบ้าน → คลิกช่องทางนี้ → กดอัปโหลดรูปใหม่ แล้วกด "บันทึกการแก้ไข"
+                                    )}
+                                    <div className="text-xs font-bold text-slate-800">
+                                        1. สแกนโอนยอด ฿{Number(selectedPkg.price_amount || 0).toLocaleString()}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500">
+                                        อ้างอิง: <span className="font-mono font-bold">{qrReference}</span>
+                                    </div>
+                                </div>
+
+                                {/* 2. แนบสลิปโอนเงิน + ระบุเวลาโอน HH:mm:ss */}
+                                <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2.5">
+                                    <div className="text-xs font-extrabold text-amber-900">
+                                        2. แนบสลิปและระบุเวลาที่โอนตามสลิป (เพื่อให้แอดมินกระทบยอดได้แม่นยำ)
+                                    </div>
+
+                                    <div className="flex items-center gap-2.5">
+                                        <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer hover:bg-slate-800">
+                                            <Upload size={14} />
+                                            {uploadingSlip ? 'กำลังอัปโหลดสลิป...' : slipImageUrl ? 'เปลี่ยนรูปสลิป' : 'แนบรูปสลิปโอนเงิน *'}
+                                            <input
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/jpg,image/webp"
+                                                onChange={handleSlipFileChange}
+                                                className="hidden"
+                                            />
+                                        </label>
+
+                                        {slipImageUrl && (
+                                            <a href={slipImageUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                                                <img src={slipImageUrl} alt="สลิป" className="w-10 h-10 object-cover rounded-lg border border-emerald-300" />
+                                                แนบแล้ว
+                                            </a>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-700 mb-1">วันที่โอน *</label>
+                                            <input
+                                                type="date"
+                                                value={transferDate}
+                                                onChange={(e) => setTransferDate(e.target.value)}
+                                                className="w-full p-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold text-slate-700 mb-1">เวลาที่โอน (ชม : นาที : วินาที) *</label>
+                                            <div className="grid grid-cols-3 gap-1">
+                                                <select
+                                                    value={transferHour}
+                                                    onChange={(e) => setTransferHour(e.target.value)}
+                                                    className="p-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                                >
+                                                    {hourOptions.map((h) => (
+                                                        <option key={h} value={h}>{h}</option>
+                                                    ))}
+                                                </select>
+                                                <select
+                                                    value={transferMinute}
+                                                    onChange={(e) => setTransferMinute(e.target.value)}
+                                                    className="p-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                                >
+                                                    {minSecOptions.map((m) => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
+                                                <select
+                                                    value={transferSecond}
+                                                    onChange={(e) => setTransferSecond(e.target.value)}
+                                                    className="p-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                                >
+                                                    {minSecOptions.map((s) => (
+                                                        <option key={s} value={s}>{s}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
-                                )}
-                                <div className="text-xs font-bold text-slate-800">
-                                    สแกนผ่านแอปธนาคารเพื่อชำระยอด ฿{Number(selectedPkg.price_amount || 0).toLocaleString()}
-                                </div>
-                                <div className="text-[11px] text-slate-600">
-                                    ผู้รับเงิน: <strong>{modalReceiver.receiver_name}</strong> ({modalReceiver.receiver_bank_name})
-                                </div>
-                                <div className="text-[11px] text-slate-500">
-                                    รหัสอ้างอิง: <span className="font-mono font-bold">{qrReference}</span>
                                 </div>
                             </div>
                         )}
@@ -846,12 +979,17 @@ export default function ParkgatePackages() {
                             </button>
                             <button
                                 type="button"
-                                disabled={isPaying || (paymentMethod === 'WALLET' && !selectedWalletId)}
+                                disabled={
+                                    isPaying ||
+                                    uploadingSlip ||
+                                    (paymentMethod === 'WALLET' && !selectedWalletId) ||
+                                    (paymentMethod === 'QR_CODE' && !slipImageUrl)
+                                }
                                 onClick={() => handleConfirmSubscribe(selectedPkg)}
                                 className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1.5"
                             >
                                 {isPaying && <Loader2 size={15} className="animate-spin" />}
-                                {paymentMethod === 'WALLET' ? 'ยืนยันหักกระเป๋าเงิน' : 'ยืนยันสร้างรายการ QR'}
+                                {paymentMethod === 'WALLET' ? 'ยืนยันหักกระเป๋าเงิน' : 'ยืนยันแจ้งโอน & ส่งสลิป'}
                             </button>
                         </div>
                     </div>
