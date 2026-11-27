@@ -1,4 +1,4 @@
-// [PKG-UI-FULL-05] หน้าแพ็กเกจ Parkgate ฉบับสมบูรณ์: สแกน QR + แนบสลิปพร้อม Preview + เวลาโอน HH:mm:ss + กันเด้ง VIP ก่อนอนุมัติ
+// [PKG-UI-FULL-06] หน้าแพ็กเกจ Parkgate ฉบับสมบูรณ์: วันที่ไทย (พ.ศ.) + สแกน QR + แนบสลิปพร้อม Preview + เวลาโอน HH:mm:ss + กันเด้ง VIP ก่อนอนุมัติ
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -26,6 +26,21 @@ import BankLogoBadge from '../components/BankLogoBadge';
 import BankScanQrCard from '../components/BankScanQrCard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
+
+const THAI_MONTHS = [
+    'มกราคม',
+    'กุมภาพันธ์',
+    'มีนาคม',
+    'เมษายน',
+    'พฤษภาคม',
+    'มิถุนายน',
+    'กรกฎาคม',
+    'สิงหาคม',
+    'กันยายน',
+    'ตุลาคม',
+    'พฤศจิกายน',
+    'ธันวาคม'
+];
 
 const TIER_CONFIG = {
     FREE: {
@@ -85,13 +100,14 @@ function parseUserDataSafe() {
 function getBangkokNowParts() {
     const now = new Date();
     const bkk = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
-    const yyyy = bkk.getFullYear();
-    const mm = String(bkk.getMonth() + 1).padStart(2, '0');
-    const dd = String(bkk.getDate()).padStart(2, '0');
+    const yearCE = bkk.getFullYear();
+    const yearBE = yearCE + 543;
+    const month = String(bkk.getMonth() + 1).padStart(2, '0');
+    const day = String(bkk.getDate()).padStart(2, '0');
     const hh = String(bkk.getHours()).padStart(2, '0');
     const mi = String(bkk.getMinutes()).padStart(2, '0');
     const ss = String(bkk.getSeconds()).padStart(2, '0');
-    return { date: `${yyyy}-${mm}-${dd}`, hh, mi, ss };
+    return { yearCE, yearBE: String(yearBE), month, day, hh, mi, ss };
 }
 
 export default function ParkgatePackages() {
@@ -131,11 +147,13 @@ export default function ParkgatePackages() {
     const [qrReference, setQrReference] = useState('');
     const [qrImgFailed, setQrImgFailed] = useState(false);
 
-    // ข้อมูลสลิป & เวลาโอน (HH:mm:ss)
+    // ข้อมูลสลิป & วันเวลาโอนแบบไทย (วัน / เดือนไทย / พ.ศ. + ชม:นาที:วินาที)
     const [slipImageUrl, setSlipImageUrl] = useState('');
     const [slipPreviewUrl, setSlipPreviewUrl] = useState('');
     const [uploadingSlip, setUploadingSlip] = useState(false);
-    const [transferDate, setTransferDate] = useState('');
+    const [transferDay, setTransferDay] = useState('01');
+    const [transferMonth, setTransferMonth] = useState('01');
+    const [transferYearBE, setTransferYearBE] = useState(String(new Date().getFullYear() + 543));
     const [transferHour, setTransferHour] = useState('00');
     const [transferMinute, setTransferMinute] = useState('00');
     const [transferSecond, setTransferSecond] = useState('00');
@@ -300,7 +318,9 @@ export default function ParkgatePackages() {
         setQrImgFailed(false);
         setSlipImageUrl('');
         setSlipPreviewUrl('');
-        setTransferDate(nowBkk.date);
+        setTransferDay(nowBkk.day);
+        setTransferMonth(nowBkk.month);
+        setTransferYearBE(nowBkk.yearBE);
         setTransferHour(nowBkk.hh);
         setTransferMinute(nowBkk.mi);
         setTransferSecond(nowBkk.ss);
@@ -385,14 +405,13 @@ export default function ParkgatePackages() {
         const recv = getReceiverInfoForPkg(pkgObj);
         const amt = Number(pkgObj.price_amount || 0);
 
+        const yearCE = Number(transferYearBE) - 543;
+        const transferDateISO = `${yearCE}-${String(transferMonth).padStart(2, '0')}-${String(transferDay).padStart(2, '0')}`;
         const timeHms = `${String(transferHour || '00').padStart(2, '0')}:${String(transferMinute || '00').padStart(2, '0')}:${String(transferSecond || '00').padStart(2, '0')}`;
+
         if (method === 'QR_CODE') {
             if (!slipImageUrl) {
                 setFeedbackMsg({ type: 'error', text: 'กรุณาอัปโหลดรูปสลิปโอนเงินก่อนกดยืนยัน' });
-                return;
-            }
-            if (!transferDate) {
-                setFeedbackMsg({ type: 'error', text: 'กรุณาระบุวันที่โอนเงินตามสลิป' });
                 return;
             }
         }
@@ -441,7 +460,7 @@ export default function ParkgatePackages() {
                             receiver_bank_name: recv.receiver_bank_name,
                             receiver_account_number: recv.receiver_account_number,
                             amount: amt,
-                            transfer_date: transferDate,
+                            transfer_date: transferDateISO,
                             transfer_time_hms: timeHms,
                             slip_image_url: slipImageUrl,
                             purpose_title: recv.purpose_title
@@ -468,7 +487,7 @@ export default function ParkgatePackages() {
                     created_at: new Date().toISOString(),
                     qr_image_url: recv.qr_image_url || '',
                     slip_image_url: method === 'QR_CODE' ? slipImageUrl : '',
-                    transfer_date: method === 'QR_CODE' ? transferDate : '',
+                    transfer_date: method === 'QR_CODE' ? transferDateISO : '',
                     transfer_time_hms: method === 'QR_CODE' ? timeHms : '',
                     receiver_name: recv.receiver_name,
                     receiver_owner_type: recv.receiver_owner_type,
@@ -507,6 +526,11 @@ export default function ParkgatePackages() {
     const paidUpgradePkg = packages.find((p) => Number(p.price_amount || 0) > 0) || null;
     const modalReceiver = selectedPkg ? getReceiverInfoForPkg(selectedPkg) : null;
 
+    // ตัวเลือกวัน/เดือน/พ.ศ. ภาษาไทย และ ชม:นาที:วินาที
+    const currentYearBE = new Date().getFullYear() + 543;
+    const yearBEOptions = [String(currentYearBE - 1), String(currentYearBE), String(currentYearBE + 1)];
+    const daysInSelectedMonth = new Date(Number(transferYearBE) - 543, Number(transferMonth), 0).getDate();
+    const dayOptions = Array.from({ length: daysInSelectedMonth }, (_, i) => String(i + 1).padStart(2, '0'));
     const hourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
     const minSecOptions = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
@@ -740,7 +764,7 @@ export default function ParkgatePackages() {
                 </div>
             </div>
 
-            {/* Modal ชำระเงิน (จบในหน้าเดียว: สแกน QR -> แนบสลิปพร้อม Preview -> ระบุเวลาโอน HH:mm:ss -> กดยืนยัน) */}
+            {/* Modal ชำระเงิน */}
             {selectedPkg && modalReceiver && (
                 <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
                     <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200 my-auto space-y-3.5 max-h-[92vh] overflow-y-auto">
@@ -919,10 +943,10 @@ export default function ParkgatePackages() {
                                     </div>
                                 </div>
 
-                                {/* 2. แนบสลิปโอนเงิน + Preview + ระบุเวลาโอน HH:mm:ss */}
-                                <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2.5">
+                                {/* 2. แนบสลิปโอนเงิน + Preview + ระบุวันเวลาโอนแบบไทย (พ.ศ.) */}
+                                <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-3">
                                     <div className="text-xs font-extrabold text-amber-900">
-                                        2. แนบสลิปและระบุเวลาที่โอนตามสลิป (เพื่อให้แอดมินกระทบยอดได้แม่นยำ)
+                                        2. แนบสลิปและระบุวันเวลาที่โอนตามสลิป (เพื่อให้แอดมินกระทบยอดได้แม่นยำ)
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-2">
@@ -963,7 +987,7 @@ export default function ParkgatePackages() {
                                                 {uploadingSlip ? (
                                                     <span className="text-amber-600">กำลังส่งรูปสลิปขึ้นระบบ...</span>
                                                 ) : slipImageUrl ? (
-                                                    <span className="text-emerald-700">✓ อัปโหลดสลิปเรียบร้อยแล้ว (ดูเวลาบนสลิปแล้วกรอกด้านล่างได้เลย)</span>
+                                                    <span className="text-emerald-700">✓ อัปโหลดสลิปเรียบร้อยแล้ว (ดูวันเวลาบนสลิปแล้วเลือกด้านล่างได้เลย)</span>
                                                 ) : (
                                                     <span className="text-red-600">อัปโหลดไม่สำเร็จ กรุณาลองเลือกไฟล์ใหม่อีกครั้ง</span>
                                                 )}
@@ -971,47 +995,78 @@ export default function ParkgatePackages() {
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="block text-[11px] font-bold text-slate-700 mb-1">วันที่โอน *</label>
-                                            <input
-                                                type="date"
-                                                value={transferDate}
-                                                onChange={(e) => setTransferDate(e.target.value)}
-                                                className="w-full px-2 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold"
-                                            />
+                                    {/* วันที่โอนแบบไทย (วัน / เดือนภาษาไทย / พ.ศ.) */}
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                            วันที่โอนตามสลิป (วัน / เดือน / พ.ศ.) *
+                                        </label>
+                                        <div className="grid grid-cols-12 gap-1.5">
+                                            <select
+                                                value={transferDay}
+                                                onChange={(e) => setTransferDay(e.target.value)}
+                                                className="col-span-3 px-2 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                            >
+                                                {dayOptions.map((d) => (
+                                                    <option key={d} value={d}>{Number(d)}</option>
+                                                ))}
+                                            </select>
+                                            <select
+                                                value={transferMonth}
+                                                onChange={(e) => setTransferMonth(e.target.value)}
+                                                className="col-span-5 px-2 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold"
+                                            >
+                                                {THAI_MONTHS.map((mName, idx) => {
+                                                    const mVal = String(idx + 1).padStart(2, '0');
+                                                    return (
+                                                        <option key={mVal} value={mVal}>{mName}</option>
+                                                    );
+                                                })}
+                                            </select>
+                                            <select
+                                                value={transferYearBE}
+                                                onChange={(e) => setTransferYearBE(e.target.value)}
+                                                className="col-span-4 px-2 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                            >
+                                                {yearBEOptions.map((yBE) => (
+                                                    <option key={yBE} value={yBE}>พ.ศ. {yBE}</option>
+                                                ))}
+                                            </select>
                                         </div>
-                                        <div>
-                                            <label className="block text-[11px] font-bold text-slate-700 mb-1">เวลาที่โอน (ชม : นาที : วินาที) *</label>
-                                            <div className="grid grid-cols-3 gap-1">
-                                                <select
-                                                    value={transferHour}
-                                                    onChange={(e) => setTransferHour(e.target.value)}
-                                                    className="px-1 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
-                                                >
-                                                    {hourOptions.map((h) => (
-                                                        <option key={h} value={h}>{h}</option>
-                                                    ))}
-                                                </select>
-                                                <select
-                                                    value={transferMinute}
-                                                    onChange={(e) => setTransferMinute(e.target.value)}
-                                                    className="px-1 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
-                                                >
-                                                    {minSecOptions.map((m) => (
-                                                        <option key={m} value={m}>{m}</option>
-                                                    ))}
-                                                </select>
-                                                <select
-                                                    value={transferSecond}
-                                                    onChange={(e) => setTransferSecond(e.target.value)}
-                                                    className="px-1 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
-                                                >
-                                                    {minSecOptions.map((s) => (
-                                                        <option key={s} value={s}>{s}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                    </div>
+
+                                    {/* เวลาที่โอน (ชั่วโมง : นาที : วินาที) */}
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                                            เวลาที่โอนตามสลิป (ชั่วโมง : นาที : วินาที) *
+                                        </label>
+                                        <div className="grid grid-cols-3 gap-1.5">
+                                            <select
+                                                value={transferHour}
+                                                onChange={(e) => setTransferHour(e.target.value)}
+                                                className="px-2 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                            >
+                                                {hourOptions.map((h) => (
+                                                    <option key={h} value={h}>{h} น.</option>
+                                                ))}
+                                            </select>
+                                            <select
+                                                value={transferMinute}
+                                                onChange={(e) => setTransferMinute(e.target.value)}
+                                                className="px-2 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                            >
+                                                {minSecOptions.map((m) => (
+                                                    <option key={m} value={m}>{m} นาที</option>
+                                                ))}
+                                            </select>
+                                            <select
+                                                value={transferSecond}
+                                                onChange={(e) => setTransferSecond(e.target.value)}
+                                                className="px-2 py-2 rounded-lg border border-slate-300 bg-white text-xs font-bold text-center"
+                                            >
+                                                {minSecOptions.map((s) => (
+                                                    <option key={s} value={s}>{s} วินาที</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
