@@ -51,6 +51,7 @@ import WaterUsers from './pages/WaterUsers';
 import WaterBilling from './pages/WaterBilling';
 import MyWaterBills from './pages/MyWaterBills';
 import VillageAccessGuard from './components/VillageAccessGuard';
+import ParkgatePackages from './pages/ParkgatePackages';
 
 function App() {
   return (
@@ -111,6 +112,7 @@ function App() {
         <Route path="/manage-population" element={<ManagePopulation />} />
         <Route path="/api-tracker" element={<ApiTracker />} />
         <Route path="/manage-area" element={<ManageAreaStructure />} />
+        <Route path="/packages" element={<ParkgatePackages />} />
 
         <Route
           path="/water-users"
