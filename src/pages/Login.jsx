@@ -2,11 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
-import { API_URL } from '../config'; 
-
-//const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
-
-
+import { API_URL } from '../config';
 
 async function handlePostLoginPackageCheck(loggedInUser, navigate) {
     const accountId = loggedInUser?.account_id || loggedInUser?.id;
@@ -65,7 +61,6 @@ async function handlePostLoginPackageCheck(loggedInUser, navigate) {
     navigate(targetRoute);
 }
 
-
 const Login = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -81,7 +76,8 @@ const Login = () => {
     setFormData({ ...formData, username: value });
     setLoginError('');
   };
-const handleLogin = async (e) => {
+
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (formData.username.length !== 10) {
         setLoginError('กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก');
@@ -106,23 +102,9 @@ const handleLogin = async (e) => {
         localStorage.setItem('userData', JSON.stringify(data.user));
         localStorage.setItem('token', data.token); // เก็บ Token ไว้ใช้กับ API อื่นๆ
         
-        // 🌟🌟 ปรับปรุงใหม่: เปลี่ยนหน้าตามสิทธิ์ (Role-based Redirect) 🌟🌟
+        // ตรวจสอบแพ็กเกจ (ครั้งแรก หรือ ใกล้หมดอายุ) ก่อน Redirect ตามสิทธิ์
         const loggedInUser = data.user;
-
-        if (loggedInUser.isSuperAdmin) {
-            // Super Admin พาไปหน้าจัดการเมนูหรือจัดการระบบ
-            navigate('/menu-management'); 
-        } else if (loggedInUser.position_name === 'ผู้ใหญ่บ้าน') {
-            // ผู้ใหญ่บ้าน พาไปหน้าจัดการโครงสร้าง/ผู้นำชุมชนของหมู่บ้านตัวเอง
-            navigate('/community-leaders'); 
-        } else if (loggedInUser.position_level === 'AMPHURE') {
-            // ระดับอำเภอ (เช่น นายอำเภอ) พาไปหน้าภาพรวมอำเภอ (ถ้ามี)
-            navigate('/district-overview');
-        } else {
-            // ประชาชนทั่วไป หรือตำแหน่งอื่นๆ ที่ไม่ได้ระบุเฉพาะ พาไปหน้า Dashboard
-            navigate('/dashboard'); 
-        }
-        
+        await handlePostLoginPackageCheck(loggedInUser, navigate);
       } else {
         setLoginError(data.message || 'เบอร์โทรศัพท์หรือรหัสผ่านไม่ถูกต้อง');
       }
