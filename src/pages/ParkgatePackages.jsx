@@ -285,6 +285,18 @@ export default function ParkgatePackages() {
         const recv = getReceiverInfoForPkg(pkgObj);
         const amt = Number(pkgObj.price_amount || 0);
 
+        const timeHms = `${String(transferHour || '00').padStart(2, '0')}:${String(transferMinute || '00').padStart(2, '0')}:${String(transferSecond || '00').padStart(2, '0')}`;
+        if (method === 'QR_CODE') {
+            if (!slipImageUrl) {
+                setFeedbackMsg({ type: 'error', text: 'กรุณาอัปโหลดรูปสลิปโอนเงินก่อนกดยืนยัน' });
+                return;
+            }
+            if (!transferDate) {
+                setFeedbackMsg({ type: 'error', text: 'กรุณาระบุวันที่โอนเงินตามสลิป' });
+                return;
+            }
+        }
+
         setIsPaying(true);
         setFeedbackMsg(null);
         try {
@@ -309,19 +321,44 @@ export default function ParkgatePackages() {
             if (!data.success) {
                 setFeedbackMsg({ type: 'error', text: data.message || 'ไม่สามารถดำเนินการได้' });
             } else {
-                const updatedUser = {
-                    ...userData,
-                    package_tier: data.subscription?.badge_tier || pkgObj.badge_tier || 'FREE',
-                    package_name: data.subscription?.package_name_th || pkgObj.name_th
-                };
-                localStorage.setItem('userData', JSON.stringify(updatedUser));
-                window.dispatchEvent(new Event('userDataUpdated'));
-
                 const receiptNo = data.receipt?.receipt_no || `BR-RCP-${Date.now()}`;
                 const refCode = data.qr_reference || qrReference || `PK-${Date.now().toString().slice(-6)}`;
                 const finalStatus =
                     data.subscription?.payment_status ||
                     (method === 'QR_CODE' ? 'PENDING' : 'PAID');
+
+                if (method === 'QR_CODE') {
+                    await fetch(`${API_URL}/api/payment-slips`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            qr_reference: refCode,
+                            tx_category: 'PACKAGE',
+                            payer_account_id: accountId,
+                            payer_name: payerName,
+                            channel_id: recv.channel_id,
+                            receiver_name: recv.receiver_name,
+                            receiver_bank_name: recv.receiver_bank_name,
+                            receiver_account_number: recv.receiver_account_number,
+                            amount: amt,
+                            transfer_date: transferDate,
+                            transfer_time_hms: timeHms,
+                            slip_image_url: slipImageUrl,
+                            purpose_title: recv.purpose_title
+                        })
+                    });
+                }
+
+                // ปรับยศ/Badge บน Navbar เฉพาะตอนที่จ่ายสำเร็จแล้ว (PAID หรือ FREE) เท่านั้น
+                if (finalStatus === 'PAID' || method === 'FREE') {
+                    const updatedUser = {
+                        ...userData,
+                        package_tier: data.subscription?.badge_tier || pkgObj.badge_tier || 'FREE',
+                        package_name: data.subscription?.package_name_th || pkgObj.name_th
+                    };
+                    localStorage.setItem('userData', JSON.stringify(updatedUser));
+                    window.dispatchEvent(new Event('userDataUpdated'));
+                }
 
                 setCreatedReceipt({
                     receipt_no: receiptNo,
@@ -330,6 +367,9 @@ export default function ParkgatePackages() {
                     payment_status: finalStatus,
                     created_at: new Date().toISOString(),
                     qr_image_url: recv.qr_image_url || '',
+                    slip_image_url: method === 'QR_CODE' ? slipImageUrl : '',
+                    transfer_date: method === 'QR_CODE' ? transferDate : '',
+                    transfer_time_hms: method === 'QR_CODE' ? timeHms : '',
                     receiver_name: recv.receiver_name,
                     receiver_owner_type: recv.receiver_owner_type,
                     receiver_bank_code: recv.receiver_bank_code,
