@@ -1,3 +1,4 @@
+// [PKG-UI-FULL-01] หน้าแพ็กเกจ Parkgate + เลือกบัญชีธนาคารที่ผูกไว้ + ดึงบัญชีผู้รับเงิน + สร้าง QR จ่ายค่าอะไร/ให้ใคร + ใบเสร็จ QR
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -15,10 +16,14 @@ import {
     ArrowLeft,
     Loader2,
     Megaphone,
-    Zap
+    Zap,
+    Landmark
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
+import BankLogoBadge from '../components/BankLogoBadge';
+import BankScanQrCard, { buildBankScanQrString } from '../components/BankScanQrCard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
@@ -57,10 +62,10 @@ const OWNER_TYPE_LABEL = {
     USER: 'กระเป๋าส่วนตัว',
     VILLAGE: 'กระเป๋าหมู่บ้าน',
     SHOP: 'กระเป๋าร้านค้า',
-    BUSINESS: 'กระเป๋าธุรกิจ'
+    BUSINESS: 'กระเป๋าธุรกิจ',
+    SYSTEM: 'บัญชีระบบกลาง'
 };
 
-// [PKG-UI-01] ป้ายชื่อกลุ่มเป้าหมายของแพ็กเกจ
 const AUDIENCE_LABEL = {
     ALL: 'ทุกกลุ่ม (หมู่บ้าน & ผู้ใช้)',
     VILLAGE: 'สำหรับหมู่บ้าน',
@@ -69,9 +74,17 @@ const AUDIENCE_LABEL = {
     BUSINESS: 'สำหรับธุรกิจ'
 };
 
+function parseUserDataSafe() {
+    try {
+        return JSON.parse(localStorage.getItem('userData') || '{}') || {};
+    } catch {
+        return {};
+    }
+}
+
 export default function ParkgatePackages() {
     const navigate = useNavigate();
-    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+    const userData = parseUserDataSafe();
     const accountId = userData.account_id || userData.id || '';
     const villageId = userData.village_id || '';
 
@@ -82,7 +95,12 @@ export default function ParkgatePackages() {
     const [settings, setSettings] = useState(null);
     const [wallets, setWallets] = useState([]);
 
-    // [PKG-UI-02] State สำหรับระบบการตลาดเชิญชวน User Free และตัวกรองกลุ่มเป้าหมาย
+    // [PKG-UI-02] บัญชีธนาคารที่ User ผูกไว้ + รายชื่อธนาคารกลาง (มีโลโก้/สี)
+    const [userBankAccounts, setUserBankAccounts] = useState([]);
+    const [bankMasterList, setBankMasterList] = useState([]);
+    const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
+
+    // [PKG-UI-03] การตลาดเชิญชวน User Free และตัวกรองกลุ่มเป้าหมาย
     const [freeUpsell, setFreeUpsell] = useState(null);
     const [audienceFilter, setAudienceFilter] = useState('ALL');
 
@@ -91,8 +109,12 @@ export default function ParkgatePackages() {
     const [paymentMethod, setPaymentMethod] = useState('WALLET'); // 'WALLET' | 'QR_CODE'
     const [selectedWalletId, setSelectedWalletId] = useState('');
     const [qrReference, setQrReference] = useState('');
+    const [modalQrImageUrl, setModalQrImageUrl] = useState('');
     const [isPaying, setIsPaying] = useState(false);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
+
+    // ใบเสร็จ QR ที่สร้างเสร็จแล้ว
+    const [createdReceipt, setCreatedReceipt] = useState(null);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -101,9 +123,15 @@ export default function ParkgatePackages() {
             if (accountId) query.set('account_id', accountId);
             if (villageId) query.set('village_id', villageId);
 
-            const [pkgRes, walRes] = await Promise.all([
+            const [pkgRes, walRes, pmRes, banksRes] = await Promise.all([
                 fetch(`${API_URL}/api/packages/overview?${query.toString()}`),
-                accountId ? fetch(`${API_URL}/api/wallets/my?account_id=${encodeURIComponent(accountId)}`) : Promise.resolve(null)
+                accountId
+                    ? fetch(`${API_URL}/api/wallets/my?account_id=${encodeURIComponent(accountId)}`)
+                    : Promise.resolve(null),
+                accountId
+                    ? fetch(`${API_URL}/api/payment-methods/my?account_id=${encodeURIComponent(accountId)}`)
+                    : Promise.resolve(null),
+                fetch(`${API_URL}/api/banks`)
             ]);
 
             const pkgJson = await pkgRes.json();
@@ -112,7 +140,6 @@ export default function ParkgatePackages() {
                 setSubscription(pkgJson.subscription || null);
                 setVillageGrant(pkgJson.village_grant || null);
                 setSettings(pkgJson.settings || null);
-                // [PKG-UI-03] เก็บข้อมูลแบนเนอร์เชิญชวน User Free
                 setFreeUpsell(pkgJson.free_upsell || null);
             }
 
@@ -126,6 +153,22 @@ export default function ParkgatePackages() {
                     }
                 }
             }
+
+            if (pmRes) {
+                const pmJson = await pmRes.json();
+                if (pmJson.success) {
+                    const bList = pmJson.bank_accounts || [];
+                    setUserBankAccounts(bList);
+                    if (bList.length > 0) {
+                        setSelectedBankAccountId((prev) => prev || bList[0].bank_account_id);
+                    }
+                }
+            }
+
+            const banksJson = await banksRes.json();
+            if (banksJson.success && Array.isArray(banksJson.banks)) {
+                setBankMasterList(banksJson.banks);
+            }
         } catch (err) {
             console.error('Load Parkgate data error:', err);
         } finally {
@@ -136,6 +179,87 @@ export default function ParkgatePackages() {
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    // [PKG-UI-04] กำหนดข้อมูลผู้รับเงินให้ถูกต้อง (ดึงจากบัญชีผู้รับเงินที่ผูกไว้ของระบบ/ธุรกิจ/หมู่บ้าน/ร้านค้า หรือบัญชีที่เลือก)
+    const getReceiverInfoForPkg = useCallback(
+        (pkg) => {
+            const receiverAcc =
+                userBankAccounts.find((b) => String(b.bank_account_id) === String(selectedBankAccountId)) ||
+                userBankAccounts.find((b) =>
+                    ['BUSINESS', 'VILLAGE', 'SHOP'].includes(String(b.owner_type || '').toUpperCase())
+                ) ||
+                userBankAccounts[0] ||
+                null;
+
+            const bankMeta = receiverAcc
+                ? bankMasterList.find((m) => String(m.bank_code).toUpperCase() === String(receiverAcc.bank_code).toUpperCase())
+                : null;
+
+            return {
+                receiver_account_id: receiverAcc?.account_id || null,
+                receiver_owner_type: receiverAcc?.owner_type || 'SYSTEM',
+                receiver_name:
+                    receiverAcc?.account_holder_name ||
+                    settings?.receiver_name ||
+                    'ระบบชุมชนบ้านเรา (BAN RAO)',
+                receiver_bank_code: receiverAcc?.bank_code || bankMeta?.bank_code || '',
+                receiver_bank_name:
+                    receiverAcc?.bank_name_th ||
+                    bankMeta?.bank_name_th ||
+                    settings?.receiver_bank_name ||
+                    'พร้อมเพย์ / บัญชีระบบ',
+                receiver_account_number:
+                    receiverAcc?.account_number || settings?.receiver_account_number || '-',
+                bank_logo_url: bankMeta?.logo_url || '',
+                bank_brand_color: bankMeta?.brand_color || '#059669',
+                purpose_title: `ชำระค่าแพ็กเกจ: ${pkg?.name_th || 'แพ็กเกจระบบ'} (${pkg?.badge_tier || 'VIP'})`,
+                line_items: [
+                    {
+                        name: `${pkg?.name_th || 'แพ็กเกจ'} (${
+                            pkg?.billing_cycle === 'YEARLY' ? 'รายปี' : 'ตามรอบบิล'
+                        })`,
+                        qty: 1,
+                        price: Number(pkg?.price_amount || 0)
+                    }
+                ]
+            };
+        },
+        [userBankAccounts, selectedBankAccountId, bankMasterList, settings]
+    );
+
+    // [PKG-UI-05] สร้างรูป QR Code จริงใน Modal เมื่อเลือกโหมด Scan QR Code
+    useEffect(() => {
+        let active = true;
+        if (!selectedPkg || paymentMethod !== 'QR_CODE') {
+            setModalQrImageUrl('');
+            return;
+        }
+
+        const recv = getReceiverInfoForPkg(selectedPkg);
+        const qrText = buildBankScanQrString({
+            receiptNo: `RCP-${qrReference || Date.now()}`,
+            qrReference: qrReference || `PK-${Date.now().toString().slice(-6)}`,
+            txCategory: 'PACKAGE',
+            receiverName: recv.receiver_name,
+            receiverOwnerType: recv.receiver_owner_type,
+            receiverBankCode: recv.receiver_bank_code,
+            receiverBankName: recv.receiver_bank_name,
+            receiverAccountNumber: recv.receiver_account_number,
+            purposeTitle: recv.purpose_title,
+            lineItems: recv.line_items,
+            totalAmount: Number(selectedPkg.price_amount || 0)
+        });
+
+        QRCode.toDataURL(qrText, { width: 210, margin: 2, errorCorrectionLevel: 'M' })
+            .then((url) => {
+                if (active) setModalQrImageUrl(url);
+            })
+            .catch((err) => console.error('Modal QR build error:', err));
+
+        return () => {
+            active = false;
+        };
+    }, [selectedPkg, paymentMethod, qrReference, getReceiverInfoForPkg]);
 
     const openPaymentModal = (pkg) => {
         const price = Number(pkg.price_amount || 0);
@@ -160,6 +284,8 @@ export default function ParkgatePackages() {
 
         const method = methodOverride || paymentMethod;
         const walletId = walletOverride !== null ? walletOverride : selectedWalletId;
+        const recv = getReceiverInfoForPkg(pkgObj);
+        const amt = Number(pkgObj.price_amount || 0);
 
         setIsPaying(true);
         setFeedbackMsg(null);
@@ -173,7 +299,12 @@ export default function ParkgatePackages() {
                     package_id: pkgObj.package_id,
                     payment_method: method,
                     wallet_id: method === 'WALLET' ? walletId : null,
-                    qr_reference: method === 'QR_CODE' ? qrReference : null
+                    bank_account_id: selectedBankAccountId || null,
+                    qr_reference: method === 'QR_CODE' ? qrReference : null,
+                    receiver_name: recv.receiver_name,
+                    receiver_owner_type: recv.receiver_owner_type,
+                    receiver_bank_name: recv.receiver_bank_name,
+                    receiver_account_number: recv.receiver_account_number
                 })
             });
             const data = await res.json();
@@ -188,12 +319,44 @@ export default function ParkgatePackages() {
                 localStorage.setItem('userData', JSON.stringify(updatedUser));
                 window.dispatchEvent(new Event('userDataUpdated'));
 
+                // สร้างใบเสร็จ + QR Code ให้แสดงบนหน้าจอหลังทำรายการ
+                const receiptNo = data.receipt?.receipt_no || `RCP-${Date.now()}`;
+                const refCode = data.qr_reference || qrReference || `PK-${Date.now().toString().slice(-6)}`;
+                const qrText = buildBankScanQrString({
+                    receiptNo,
+                    qrReference: refCode,
+                    txCategory: 'PACKAGE',
+                    receiverName: recv.receiver_name,
+                    receiverOwnerType: recv.receiver_owner_type,
+                    receiverBankCode: recv.receiver_bank_code,
+                    receiverBankName: recv.receiver_bank_name,
+                    receiverAccountNumber: recv.receiver_account_number,
+                    purposeTitle: recv.purpose_title,
+                    lineItems: recv.line_items,
+                    totalAmount: amt
+                });
+
+                setCreatedReceipt({
+                    receipt_no: receiptNo,
+                    qr_reference: refCode,
+                    tx_category: 'PACKAGE',
+                    receiver_name: recv.receiver_name,
+                    receiver_owner_type: recv.receiver_owner_type,
+                    receiver_bank_code: recv.receiver_bank_code,
+                    receiver_bank_name: recv.receiver_bank_name,
+                    receiver_account_number: recv.receiver_account_number,
+                    purpose_title: recv.purpose_title,
+                    line_items: recv.line_items,
+                    total_amount: amt,
+                    qr_text: qrText
+                });
+
                 setSelectedPkg(null);
                 await loadData();
                 alert(
                     method === 'QR_CODE'
-                        ? `สร้างรายการชำระเงิน QR Code เรียบร้อย (รหัสอ้างอิง: ${data.qr_reference})`
-                        : `เปิดใช้งานแพ็กเกจ "${pkgObj.name_th}" เรียบร้อยแล้วครับ`
+                        ? `สร้าง QR Code และใบเสร็จเรียบร้อย (อ้างอิง: ${refCode}) สามารถสแกนจ่ายหรือดูใบเสร็จด้านล่างได้เลยครับ`
+                        : `ชำระเงินและเปิดใช้งานแพ็กเกจ "${pkgObj.name_th}" เรียบร้อยแล้วครับ`
                 );
             }
         } catch (err) {
@@ -206,7 +369,6 @@ export default function ParkgatePackages() {
     const activeTier = subscription?.badge_tier || 'FREE';
     const activeTierCfg = TIER_CONFIG[activeTier] || TIER_CONFIG.FREE;
 
-    // [PKG-UI-04] กรองรายการแพ็กเกจตามกลุ่มเป้าหมายที่เลือก
     const visiblePackages = packages.filter((pkg) => {
         if (audienceFilter === 'ALL') return true;
         const aud = String(pkg.target_audience || 'ALL').toUpperCase();
@@ -214,6 +376,7 @@ export default function ParkgatePackages() {
     });
 
     const paidUpgradePkg = packages.find((p) => Number(p.price_amount || 0) > 0) || null;
+    const modalReceiver = selectedPkg ? getReceiverInfoForPkg(selectedPkg) : null;
 
     return (
         <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
@@ -221,9 +384,9 @@ export default function ParkgatePackages() {
                 <TopNavbar userData={userData} />
             </div>
 
-            <div className="flex-1 px-4 pt-[88px] pb-[100px] max-w-5xl w-full mx-auto">
+            <div className="flex-1 px-4 pt-[88px] pb-[100px] max-w-5xl w-full mx-auto space-y-5">
                 {/* หัวข้อหลัก */}
-                <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-5 text-white mb-5 shadow-sm flex items-center justify-between gap-3">
+                <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-5 text-white shadow-sm flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                         <button
                             type="button"
@@ -235,15 +398,15 @@ export default function ParkgatePackages() {
                         <div>
                             <h1 className="text-xl font-extrabold m-0">แพ็กเกจการใช้งานระบบ (Parkgate)</h1>
                             <p className="text-xs sm:text-sm opacity-90 m-0 mt-0.5">
-                                เลือกแพ็กเกจที่เหมาะกับหมู่บ้านหรือธุรกิจ ชำระผ่านกระเป๋าเงินกลางหรือสแกน QR Code
+                                เลือกแพ็กเกจที่เหมาะกับหมู่บ้านหรือธุรกิจ ชำระผ่านกระเป๋าเงินหรือสแกน QR Code
                             </p>
                         </div>
                     </div>
                 </div>
 
-                {/* [PKG-UI-05] แบนเนอร์การตลาดเชิญชวน User Free ทุกกี่วัน / กี่สัปดาห์ + ปุ่ม Update */}
+                {/* แบนเนอร์เชิญชวน User Free */}
                 {freeUpsell?.should_show_upsell && (
-                    <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100 border-2 border-amber-300 rounded-2xl p-4 mb-5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                    <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100 border-2 border-amber-300 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
                         <div className="flex items-start gap-3">
                             <div className="p-2.5 rounded-xl bg-amber-500 text-white flex-shrink-0">
                                 <Megaphone size={20} />
@@ -269,9 +432,9 @@ export default function ParkgatePackages() {
                     </div>
                 )}
 
-                {/* การ์ดสถานะแพ็กเกจปัจจุบันของผู้ใช้ */}
+                {/* สถานะแพ็กเกจปัจจุบัน */}
                 {subscription && (
-                    <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
+                    <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold border ${activeTierCfg.badgeBg}`}>
                                 <activeTierCfg.Icon size={14} />
@@ -304,9 +467,8 @@ export default function ParkgatePackages() {
                     </div>
                 )}
 
-                {/* แจ้งเตือนสิทธิ์ฟรีหมู่บ้าน 1-5 ปี (ถ้ามี) */}
                 {villageGrant?.has_free_grant && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-5 flex items-center gap-3 text-emerald-900">
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 text-emerald-900">
                         <ShieldCheck size={22} className="text-emerald-600 flex-shrink-0" />
                         <div className="text-xs sm:text-sm font-semibold">
                             หมู่บ้านของคุณได้รับสิทธิ์ใช้งานฟรี {villageGrant.free_years > 0 ? `${villageGrant.free_years} ปี` : 'ตามเงื่อนไขที่กำหนด'}
@@ -314,8 +476,8 @@ export default function ParkgatePackages() {
                     </div>
                 )}
 
-                {/* [PKG-UI-06] ปุ่มกรองกลุ่มเป้าหมาย: ทั้งหมด / หมู่บ้าน / ผู้ใช้ / ร้านค้า / ธุรกิจ */}
-                <div className="flex flex-wrap gap-2 mb-5">
+                {/* ปุ่มกรองกลุ่มเป้าหมาย */}
+                <div className="flex flex-wrap gap-2">
                     {[
                         { key: 'ALL', label: 'ทั้งหมด' },
                         { key: 'VILLAGE', label: 'หมู่บ้าน' },
@@ -387,7 +549,6 @@ export default function ParkgatePackages() {
                                         </div>
 
                                         <div className="p-5">
-                                            {/* [PKG-UI-07] แสดงระดับการดันการมองเห็นและโควตาสินค้า */}
                                             <div className="flex flex-wrap gap-2 mb-3 text-[11px] font-bold">
                                                 <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
                                                     ดันการมองเห็นระดับ {boostLv}
@@ -440,15 +601,18 @@ export default function ParkgatePackages() {
                         })}
                     </div>
                 )}
+
+                {/* แสดงใบเสร็จ QR Code ที่สร้างเสร็จแล้ว */}
+                {createdReceipt && <BankScanQrCard receipt={createdReceipt} />}
             </div>
 
-            {/* Modal ชำระเงิน: หักจากกระเป๋าเงินกลาง หรือ Scan QR Code */}
-            {selectedPkg && (
-                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            {/* Modal ชำระเงิน: แสดงบัญชีผู้รับเงิน + เลือกบัญชีที่ User ผูกไว้ / กระเป๋าเงิน + QR Code จริง */}
+            {selectedPkg && modalReceiver && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-200 my-auto space-y-3.5">
+                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
                             <h3 className="text-base font-extrabold text-slate-800 m-0">
-                                ชำระเงินแพ็กเกจ: {selectedPkg.name_th}
+                                ชำระเงิน: {selectedPkg.name_th}
                             </h3>
                             <button
                                 type="button"
@@ -459,59 +623,102 @@ export default function ParkgatePackages() {
                             </button>
                         </div>
 
-                        <div className="my-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                        {/* รายละเอียดว่าจ่ายค่าอะไร และจ่ายให้กับใคร */}
+                        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-slate-800 space-y-1">
+                            <div className="font-extrabold text-emerald-900">
+                                จ่ายค่าอะไร: {modalReceiver.purpose_title}
+                            </div>
+                            <div className="flex items-center gap-2 pt-1">
+                                <BankLogoBadge
+                                    bankCode={modalReceiver.receiver_bank_code || 'QR'}
+                                    logoUrl={modalReceiver.bank_logo_url}
+                                    brandColor={modalReceiver.bank_brand_color}
+                                    size={32}
+                                />
+                                <div>
+                                    <div>
+                                        <strong>ผู้รับเงิน:</strong> {modalReceiver.receiver_name} ({modalReceiver.receiver_owner_type})
+                                    </div>
+                                    <div className="text-[11px] text-slate-600">
+                                        {modalReceiver.receiver_bank_name} • <span className="font-mono">{modalReceiver.receiver_account_number}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* เลือกบัญชีธนาคารที่ User ผูกไว้ (ถ้ามี) */}
+                        {userBankAccounts.length > 0 && (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1 flex items-center gap-1">
+                                    <Landmark size={13} className="text-emerald-600" /> บัญชีธนาคารที่ผูกไว้ ({userBankAccounts.length})
+                                </label>
+                                <select
+                                    value={selectedBankAccountId}
+                                    onChange={(e) => setSelectedBankAccountId(e.target.value)}
+                                    className="w-full p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-800"
+                                >
+                                    {userBankAccounts.map((b) => (
+                                        <option key={b.bank_account_id} value={b.bank_account_id}>
+                                            {b.bank_name_th} • {b.account_number} ({b.account_holder_name} - {b.owner_type})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-600">ยอดที่ต้องชำระ</span>
                             <span className="text-lg font-black text-emerald-700">
                                 ฿{Number(selectedPkg.price_amount || 0).toLocaleString()}
                             </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2.5 mb-4">
+                        <div className="grid grid-cols-2 gap-2.5">
                             <button
                                 type="button"
                                 onClick={() => setPaymentMethod('WALLET')}
-                                className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition ${
+                                className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition ${
                                     paymentMethod === 'WALLET'
                                         ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
                                         : 'border-slate-200 bg-white text-slate-600'
                                 }`}
                             >
-                                <Wallet size={16} /> หักจากกระเป๋าเงิน
+                                <Wallet size={15} /> หักจากกระเป๋าเงิน
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setPaymentMethod('QR_CODE')}
-                                className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition ${
+                                className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition ${
                                     paymentMethod === 'QR_CODE'
                                         ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
                                         : 'border-slate-200 bg-white text-slate-600'
                                 }`}
                             >
-                                <QrCode size={16} /> Scan QR Code
+                                <QrCode size={15} /> Scan QR Code
                             </button>
                         </div>
 
                         {paymentMethod === 'WALLET' ? (
-                            <div className="mb-4">
-                                <label className="block text-xs font-bold text-slate-600 mb-2">
-                                    เลือกกระเป๋าเงินที่จะหักยอด (ชื่อตามเจ้าของกระเป๋า)
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                                    เลือกกระเป๋าเงินที่จะหักยอด
                                 </label>
                                 {wallets.length === 0 ? (
                                     <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                                        ไม่พบกระเป๋าเงินในบัญชี แนะนำให้เลือกชำระผ่าน Scan QR Code
+                                        ไม่พบกระเป๋าเงิน แนะนำให้เลือกชำระผ่าน Scan QR Code
                                     </div>
                                 ) : (
-                                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    <div className="space-y-2 max-h-36 overflow-y-auto">
                                         {wallets.map((w) => (
                                             <label
                                                 key={w.wallet_id}
-                                                className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+                                                className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition ${
                                                     selectedWalletId === w.wallet_id
                                                         ? 'border-emerald-500 bg-emerald-50/60'
                                                         : 'border-slate-200 hover:bg-slate-50'
                                                 }`}
                                             >
-                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="flex items-center gap-2 min-w-0">
                                                     <input
                                                         type="radio"
                                                         name="walletChoice"
@@ -536,14 +743,25 @@ export default function ParkgatePackages() {
                                 )}
                             </div>
                         ) : (
-                            <div className="mb-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                                <div className="inline-flex items-center justify-center w-28 h-28 rounded-2xl bg-white border-2 border-dashed border-slate-300 mb-2">
-                                    <QrCode size={68} className="text-slate-700" />
+                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-1.5">
+                                {modalQrImageUrl ? (
+                                    <img
+                                        src={modalQrImageUrl}
+                                        alt="QR Code ชำระเงิน"
+                                        className="w-40 h-40 mx-auto rounded-xl bg-white p-1.5 border border-slate-200"
+                                    />
+                                ) : (
+                                    <div className="w-40 h-40 mx-auto flex items-center justify-center text-xs text-slate-400">
+                                        กำลังสร้าง QR Code...
+                                    </div>
+                                )}
+                                <div className="text-xs font-bold text-slate-800">
+                                    {settings?.qr_prompt_info || 'สแกน QR Code เพื่อชำระเงิน & ตรวจสอบผู้รับเงิน'}
                                 </div>
-                                <div className="text-xs font-bold text-slate-700">
-                                    {settings?.qr_prompt_info || 'สแกน QR Code เพื่อชำระเงินค่าแพ็กเกจ'}
+                                <div className="text-[11px] text-slate-600">
+                                    ผู้รับเงิน: <strong>{modalReceiver.receiver_name}</strong> ({modalReceiver.receiver_bank_name})
                                 </div>
-                                <div className="text-[11px] text-slate-500 mt-1">
+                                <div className="text-[11px] text-slate-500">
                                     รหัสอ้างอิง: <span className="font-mono font-bold">{qrReference}</span>
                                 </div>
                             </div>
@@ -551,7 +769,7 @@ export default function ParkgatePackages() {
 
                         {feedbackMsg && (
                             <div
-                                className={`mb-3 p-3 rounded-xl text-xs font-bold ${
+                                className={`p-3 rounded-xl text-xs font-bold ${
                                     feedbackMsg.type === 'error'
                                         ? 'bg-red-50 text-red-700 border border-red-200'
                                         : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -561,11 +779,11 @@ export default function ParkgatePackages() {
                             </div>
                         )}
 
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 pt-1">
                             <button
                                 type="button"
                                 onClick={() => setSelectedPkg(null)}
-                                className="flex-1 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
                             >
                                 ยกเลิก
                             </button>
@@ -573,7 +791,7 @@ export default function ParkgatePackages() {
                                 type="button"
                                 disabled={isPaying || (paymentMethod === 'WALLET' && !selectedWalletId)}
                                 onClick={() => handleConfirmSubscribe(selectedPkg)}
-                                className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-1.5"
                             >
                                 {isPaying && <Loader2 size={15} className="animate-spin" />}
                                 {paymentMethod === 'WALLET' ? 'ยืนยันหักกระเป๋าเงิน' : 'ยืนยันสร้างรายการ QR'}
