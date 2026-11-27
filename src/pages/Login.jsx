@@ -6,6 +6,66 @@ import { API_URL } from '../config';
 
 //const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
 
+
+
+async function handlePostLoginPackageCheck(loggedInUser, navigate) {
+    const accountId = loggedInUser?.account_id || loggedInUser?.id;
+    const villageId = loggedInUser?.village_id || '';
+
+    // กำหนดหน้าปลายทางปกติตามสิทธิ์เดิมของระบบ
+    let targetRoute = '/dashboard';
+    if (loggedInUser?.isSuperAdmin) {
+        targetRoute = '/menu-management';
+    } else if (loggedInUser?.position_name === 'ผู้ใหญ่บ้าน') {
+        targetRoute = '/community-leaders';
+    } else if (loggedInUser?.position_level === 'AMPHURE') {
+        targetRoute = '/district-overview';
+    }
+
+    if (!accountId) {
+        navigate(targetRoute);
+        return;
+    }
+
+    try {
+        const params = new URLSearchParams({ account_id: String(accountId) });
+        if (villageId) params.set('village_id', String(villageId));
+
+        const res = await fetch(`${API_URL}/api/packages/overview?${params.toString()}`);
+        const data = await res.json();
+
+        if (data?.success && data?.subscription) {
+            const mergedUser = {
+                ...loggedInUser,
+                package_tier: data.subscription.badge_tier || 'FREE',
+                package_name: data.subscription.package_name || 'แพ็กเกจฟรี (Free)'
+            };
+            localStorage.setItem('userData', JSON.stringify(mergedUser));
+            window.dispatchEvent(new Event('userDataUpdated'));
+
+            if (data.subscription.should_prompt_package) {
+                if (data.subscription.prompt_reason === 'EXPIRING_SOON') {
+                    alert(
+                        `แพ็กเกจ "${data.subscription.package_name}" ของคุณใกล้หมดอายุในอีก ${Math.max(
+                            0,
+                            data.subscription.days_remaining ?? 0
+                        )} วัน (แจ้งเตือนล่วงหน้า ${data.subscription.notify_days_before} วัน)`
+                    );
+                } else if (data.subscription.prompt_reason === 'EXPIRED') {
+                    alert(`แพ็กเกจ "${data.subscription.package_name}" ของคุณหมดอายุแล้ว กรุณาต่ออายุหรือเลือกแพ็กเกจใหม่`);
+                }
+                navigate('/packages');
+                return;
+            }
+        }
+    } catch (err) {
+        console.error('Post-login package check error:', err);
+    }
+
+    navigate(targetRoute);
+}
+
+
 const Login = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
