@@ -188,14 +188,14 @@ export default function ParkgatePackages() {
         } finally {
             setLoading(false);
         }
-    }, [accountId, villageId]);
+        }, [accountId, villageId]);
 
-    useEffect(() => {
+        useEffect(() => {
         loadData();
-    }, [loadData]);
+     }, [loadData]);
 
-    // [PKG-UI-04] กำหนดข้อมูลผู้รับเงิน & รูป QR จากตาราง system_payment_channels (หรือ fallback เป็นบัญชีที่ผูกไว้/settings)
-    const getReceiverInfoForPkg = useCallback(
+     // [PKG-UI-04] กำหนดข้อมูลผู้รับเงิน & รูป QR จากตาราง system_payment_channels (หรือ fallback เป็นบัญชีที่ผูกไว้/settings)
+     const getReceiverInfoForPkg = useCallback(
         (pkg) => {
             const activeCh =
                 paymentChannels.find((c) => String(c.channel_id) === String(selectedChannelId)) ||
@@ -369,10 +369,13 @@ export default function ParkgatePackages() {
                     totalAmount: amt
                 });
 
-                setCreatedReceipt({
+                    setCreatedReceipt({
                     receipt_no: receiptNo,
                     qr_reference: refCode,
                     tx_category: 'PACKAGE',
+                    payment_status:
+                        data.subscription?.payment_status ||
+                        (method === 'QR_CODE' ? 'PENDING' : 'PAID'),
                     qr_image_url: recv.qr_image_url || '',
                     receiver_name: recv.receiver_name,
                     receiver_owner_type: recv.receiver_owner_type,
