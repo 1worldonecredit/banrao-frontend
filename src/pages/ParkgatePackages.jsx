@@ -445,9 +445,9 @@ export default function ParkgatePackages() {
                 const finalStatus =
                     data.subscription?.payment_status ||
                     (method === 'QR_CODE' ? 'PENDING' : 'PAID');
-
-                if (method === 'QR_CODE') {
-                    await fetch(`${API_URL}/api/payment-slips`, {
+                    
+                        if (method === 'QR_CODE') {
+                    const slipRes = await fetch(`${API_URL}/api/payment-slips`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -466,6 +466,14 @@ export default function ParkgatePackages() {
                             purpose_title: recv.purpose_title
                         })
                     });
+                    const slipData = await slipRes.json().catch(() => ({}));
+                    if (!slipRes.ok || !slipData.success) {
+                        setFeedbackMsg({
+                            type: 'error',
+                            text: `บันทึกสลิปไม่สำเร็จ (HTTP ${slipRes.status}): ${slipData.message || 'กรุณาตรวจสอบเซิร์ฟเวอร์'}`
+                        });
+                        return;
+                    }
                 }
 
                 // ปรับยศ/Badge บน Navbar เฉพาะตอนที่จ่ายสำเร็จแล้ว (PAID หรือ FREE) เท่านั้น
