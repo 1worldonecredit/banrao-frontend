@@ -1,8 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { LogIn, Menu, Wallet } from 'lucide-react';
+import { LogIn, Menu, Wallet, Sparkles, Award, Diamond, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
+
+const PACKAGE_BADGE_MAP = {
+  FREE: {
+    label: 'Free',
+    Icon: Sparkles,
+    bg: '#f1f5f9',
+    color: '#334155',
+    border: '1px solid #cbd5e1'
+  },
+  SILVER: {
+    label: 'Silver',
+    Icon: Award,
+    bg: 'linear-gradient(135deg, #f4f4f5, #e4e4e7)',
+    color: '#27272a',
+    border: '1px solid #a1a1aa'
+  },
+  DIAMOND: {
+    label: 'Diamond',
+    Icon: Diamond,
+    bg: 'linear-gradient(135deg, #e0f2fe, #cffafe)',
+    color: '#0369a1',
+    border: '1px solid #67e8f9'
+  },
+  VIP: {
+    label: 'VIP',
+    Icon: Crown,
+    bg: 'linear-gradient(135deg, #fef3c7, #fde68a)',
+    color: '#92400e',
+    border: '1px solid #f59e0b'
+  }
+};
 
 const TopNavbar = () => {
   const navigate = useNavigate();
@@ -17,7 +48,7 @@ const TopNavbar = () => {
     }
   });
 
-  // ซิงค์ข้อมูลอัตโนมัติเมื่อมีการอัปเดตโปรไฟล์หรือรูปภาพ
+  // ซิงค์ข้อมูลอัตโนมัติเมื่อมีการอัปเดตโปรไฟล์ รูปภาพ หรือระดับแพ็กเกจ
   useEffect(() => {
     const syncUser = () => {
       try {
@@ -27,11 +58,18 @@ const TopNavbar = () => {
       }
     };
     window.addEventListener('storage', syncUser);
-    return () => window.removeEventListener('storage', syncUser);
+    window.addEventListener('userDataUpdated', syncUser);
+    return () => {
+      window.removeEventListener('storage', syncUser);
+      window.removeEventListener('userDataUpdated', syncUser);
+    };
   }, []);
 
   const isLoggedIn = Boolean(userData && (userData.account_id || userData.id));
   const walletBalance = Number(userData?.wallet_balance || 0);
+  const rawTier = String(userData?.package_tier || 'FREE').toUpperCase();
+  const pkgBadge = PACKAGE_BADGE_MAP[rawTier] || PACKAGE_BADGE_MAP.FREE;
+  const PackageIcon = pkgBadge.Icon;
 
   return (
     <>
@@ -89,11 +127,35 @@ const TopNavbar = () => {
           </h2>
         </div>
 
-        {/* ฝั่งขวา: ยอดเงิน + กระดิ่งแจ้งเตือน + รูปโปรไฟล์ (หรือปุ่มล็อกอิน) */}
-        <div className="nav-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* ฝั่งขวา: Badge แพ็กเกจ + ยอดเงิน + กระดิ่งแจ้งเตือน + รูปโปรไฟล์ (หรือปุ่มล็อกอิน) */}
+        <div className="nav-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {isLoggedIn ? (
             <>
-              {/* 💰 ป้ายแสดงยอดเงิน (รอพัฒนาเชื่อมระบบ Wallet จริงต่อ) */}
+              {/* 🏅 ป้าย Icon ระดับแพ็กเกจ (Free / Silver / Diamond / VIP) */}
+              <button
+                type="button"
+                onClick={() => navigate('/packages')}
+                title={`แพ็กเกจปัจจุบัน: ${userData?.package_name || pkgBadge.label} (กดเพื่อดูหรือเปลี่ยนแพ็กเกจ)`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 10px',
+                  borderRadius: '999px',
+                  border: pkgBadge.border,
+                  background: pkgBadge.bg,
+                  color: pkgBadge.color,
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <PackageIcon size={14} />
+                <span>{pkgBadge.label}</span>
+              </button>
+
+              {/* 💰 ป้ายแสดงยอดเงิน */}
               <button
                 type="button"
                 onClick={() => navigate('/wallet')}
