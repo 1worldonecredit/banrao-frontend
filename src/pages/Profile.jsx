@@ -6,6 +6,7 @@ import {
   MessageCircle, Reply, Ban, Send
 } from 'lucide-react';
 import Layout from '../components/Layout';
+import PinVaultSection from '../components/PinVaultSection';
 
 // =========================================================================
 // ⚙️ ตั้งค่า URL และข้อมูลคงที่ (เดือนภาษาไทย / ระดับการมองเห็น Story)
@@ -710,6 +711,10 @@ return (
                 </form>
               )}
             </div>
+
+               <div style={{ marginBottom: '20px' }}>
+                 <PinVaultSection accountId={userData?.account_id || userData?.id} />
+              </div>
 
             {/* การ์ดที่ 2: ข้อมูลหมู่บ้านและสังกัด 4 มิติ */}
             <div style={cardStyle}>
