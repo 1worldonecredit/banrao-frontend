@@ -157,6 +157,15 @@ export default function Wallet() {
     const [newPinInput, setNewPinInput] = useState('');
     const [savingPin, setSavingPin] = useState(false);
 
+
+    // สถานะคำขอเปิดบัญชีทางกฎหมาย (เด้งครั้งแรกครั้งเดียวเมื่อกดเติมเงิน)
+    const [hasOpeningConsent, setHasOpeningConsent] = useState(true);
+    const [openingDoc, setOpeningDoc] = useState(null);
+    const [showOpeningModal, setShowOpeningModal] = useState(false);
+    const [openingChecked, setOpeningChecked] = useState(false);
+    const [openingPin, setOpeningPin] = useState('');
+    const [submittingOpening, setSubmittingOpening] = useState(false);
+
     // Modal สร้างกระเป๋าร้านค้า/กลุ่ม
     const [showGroupModal, setShowGroupModal] = useState(false);
     const [groupName, setGroupName] = useState('');
@@ -253,7 +262,7 @@ export default function Wallet() {
                 const fbRes = await fetch(`${API_URL}/api/wallets/my?account_id=${encodeURIComponent(accountId)}`);
                 wJson = await fbRes.json().catch(() => ({}));
             }
-            
+
             if (wJson.success && Array.isArray(wJson.wallets)) {
                 setWallets(wJson.wallets);
                 if (wJson.wallets.length > 0) {
@@ -278,6 +287,15 @@ export default function Wallet() {
 
             const pinJson = await pinRes.json().catch(() => ({}));
             if (pinJson.success) setHasPin(Boolean(pinJson.has_pin));
+
+            const legalRes = await fetch(`${API_URL}/api/legal/wallet-opening-status?account_id=${encodeURIComponent(accountId)}`);
+            const legalJson = await legalRes.json().catch(() => ({}));
+            if (legalJson.success) {
+                setHasOpeningConsent(Boolean(legalJson.has_consented));
+                setOpeningDoc(legalJson.document || null);
+            }
+
+
         } catch (err) {
             console.error('Load wallet error:', err);
         } finally {
@@ -382,6 +400,46 @@ export default function Wallet() {
         }
     };
 
+    const handleSubmitOpeningConsent = async (e) => {
+        e.preventDefault();
+        if (!openingChecked) {
+            setFeedback({ type: 'error', text: 'กรุณาติ๊กยอมรับข้อตกลงและเงื่อนไขการขอเปิดบัญชี' });
+            return;
+        }
+        if (!/^\d{6}$/.test(openingPin)) {
+            setFeedback({ type: 'error', text: 'กรุณากรอกรหัส PIN ตัวเลข 6 หลักเพื่อยืนยัน' });
+            return;
+        }
+        setSubmittingOpening(true);
+        setFeedback(null);
+        try {
+            const res = await fetch(`${API_URL}/api/legal/wallet-opening-consent`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    account_id: accountId,
+                    applicant_name: payerName,
+                    accepted_terms: true,
+                    pin: openingPin
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                setFeedback({ type: 'error', text: data.message || 'ยื่นคำขอเปิดบัญชีไม่สำเร็จ' });
+                return;
+            }
+            setHasOpeningConsent(true);
+            setHasPin(true);
+            setShowOpeningModal(false);
+            setOpeningPin('');
+            setFeedback({ type: 'success', text: data.message });
+        } catch (err) {
+            setFeedback({ type: 'error', text: err.message });
+        } finally {
+            setSubmittingOpening(false);
+        }
+    };
+
     // สร้างกระเป๋าร้านค้า / ธุรกิจ / คณะกรรมการ (โลโก้ขึ้น R2)
     const handleGroupLogoUpload = async (e) => {
         const file = e.target.files?.[0];
@@ -458,6 +516,11 @@ export default function Wallet() {
 
     const handleSubmitTopup = async (e) => {
         e.preventDefault();
+        if (!hasOpeningConsent) {
+            setShowOpeningModal(true);
+            return;
+        }
+
         const amt = Number(topupAmount);
         if (!Number.isFinite(amt) || amt <= 0) {
             setFeedback({ type: 'error', text: 'กรุณาระบุยอดเงินที่ต้องการเติมให้ถูกต้อง' });
@@ -921,7 +984,11 @@ export default function Wallet() {
                         <button
                             key={key}
                             type="button"
-                            onClick={() => {
+                           onClick={() => {
+                                if (key === 'TOPUP' && !hasOpeningConsent) {
+                                    setShowOpeningModal(true);
+                                    return;
+                                }
                                 setActiveTab(key);
                                 setFeedback(null);
                             }}
