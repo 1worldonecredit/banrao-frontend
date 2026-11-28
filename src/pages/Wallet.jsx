@@ -243,7 +243,17 @@ export default function Wallet() {
                 fetch(`${API_URL}/api/security/pin-status?account_id=${encodeURIComponent(accountId)}`)
             ]);
 
-            const wJson = await wRes.json().catch(() => ({}));
+                let wJson = await wRes.json().catch(() => ({}));
+            // ถ้า /api/wallets/my-all ติดปัญหา ให้แจ้ง Error บนจอและดึงจาก /api/wallets/my มาแสดงทันที
+            if (!wRes.ok || !wJson.success) {
+                setFeedback({
+                    type: 'error',
+                    text: `โหลดกระเป๋ากลุ่มไม่สำเร็จ (HTTP ${wRes.status}): ${wJson.message || 'ตรวจสอบ API'}`
+                });
+                const fbRes = await fetch(`${API_URL}/api/wallets/my?account_id=${encodeURIComponent(accountId)}`);
+                wJson = await fbRes.json().catch(() => ({}));
+            }
+            
             if (wJson.success && Array.isArray(wJson.wallets)) {
                 setWallets(wJson.wallets);
                 if (wJson.wallets.length > 0) {
