@@ -189,7 +189,22 @@ export default function ParkgatePackages() {
                 setSubscription(pkgJson.subscription || null);
                 setVillageGrant(pkgJson.village_grant || null);
                 setSettings(pkgJson.settings || null);
-                setFreeUpsell(pkgJson.free_upsell || null);
+               setFreeUpsell(pkgJson.free_upsell || null);
+
+                // ซิงค์สถานะแพ็กเกจล่าสุดจากเซิร์ฟเวอร์ขึ้น TopNavbar อัตโนมัติ (กรณีแอดมินอนุมัติจากหลังบ้าน)
+                const sub = pkgJson.subscription;
+                const isPaidNow = ['PAID', 'ACTIVE'].includes(String(sub?.payment_status || '').toUpperCase());
+                const latestTier = isPaidNow ? (sub?.badge_tier || 'FREE') : 'FREE';
+                const currentStored = parseUserDataSafe();
+                if (currentStored.package_tier !== latestTier) {
+                    const syncedUser = {
+                        ...currentStored,
+                        package_tier: latestTier,
+                        package_name: isPaidNow ? (sub?.package_name || sub?.package_name_th || '') : 'แพ็กเกจฟรี (Free)'
+                    };
+                    localStorage.setItem('userData', JSON.stringify(syncedUser));
+                    window.dispatchEvent(new Event('userDataUpdated'));
+                }
             }
 
             if (walRes) {
@@ -569,7 +584,7 @@ export default function ParkgatePackages() {
                 </div>
 
                 {/* แบนเนอร์เชิญชวน User Free */}
-                {freeUpsell?.should_show_upsell && (
+                {activeTier === 'FREE' && freeUpsell?.should_show_upsell && (
                     <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100 border-2 border-amber-300 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
                         <div className="flex items-start gap-3">
                             <div className="p-2.5 rounded-xl bg-amber-500 text-white flex-shrink-0">
