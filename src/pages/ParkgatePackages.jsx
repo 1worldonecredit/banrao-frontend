@@ -656,12 +656,24 @@ export default function ParkgatePackages() {
     const minSecOptions = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
-            <div className="sticky top-0 z-40 w-full">
+                    <div className="flex flex-col min-h-screen bg-slate-50 font-sans print:bg-white print:min-h-0">
+            <style>{`
+                @media print {
+                    @page { size: A4 portrait; margin: 10mm; }
+                    body { background: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .printable-receipt-area { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                    .printable-receipt-area > div { break-inside: avoid; page-break-inside: avoid; box-shadow: none !important; }
+                    .printable-receipt-area tr { break-inside: avoid; page-break-inside: avoid; }
+                    .printable-receipt-area button { display: none !important; }
+                }
+            `}</style>
+
+            <div className="sticky top-0 z-40 w-full print:hidden">
                 <TopNavbar userData={userData} />
             </div>
 
-            <div className="flex-1 px-4 pt-[88px] pb-[100px] max-w-5xl w-full mx-auto space-y-5">
+            <div className="flex-1 px-4 pt-[88px] pb-[100px] max-w-5xl w-full mx-auto space-y-5 print:p-0 print:max-w-none print:space-y-0">
+                <div className="space-y-5 print:hidden"></div>
                 {/* หัวข้อหลัก */}
                 <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-5 text-white shadow-sm flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -988,7 +1000,24 @@ export default function ParkgatePackages() {
                 ) : null}
 
                 {/* รายการสั่งซื้อรอชำระ / ใบเสร็จรับเงินฉบับสมบูรณ์ */}
-                    <div ref={receiptSectionRef}>
+                        <div ref={receiptSectionRef} className="printable-receipt-area">
+                    <style>{`
+                        @media print {
+                            @page { size: A4 portrait; margin: 10mm; }
+                            body * { visibility: hidden !important; }
+                            .printable-receipt-area, .printable-receipt-area * { visibility: visible !important; }
+                            .printable-receipt-area {
+                                position: absolute !important;
+                                left: 0 !important;
+                                top: 0 !important;
+                                width: 100% !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                background: #ffffff !important;
+                            }
+                            .printable-receipt-area button { display: none !important; }
+                        }
+                    `}</style>
                     {receiptToShow && <BankScanQrCard receipt={receiptToShow} />}
                 </div>
             </div>
