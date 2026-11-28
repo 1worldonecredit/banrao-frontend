@@ -19,7 +19,8 @@ import {
     Zap,
     Landmark,
     Upload,
-    Lock
+    Lock,
+    Printer
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
@@ -379,6 +380,46 @@ export default function ParkgatePackages() {
 
     const currentActivePkgObj = packages.find((p) => p.package_id === subscription?.package_id) || null;
 
+    const activeOfficialReceipt =
+        !createdReceipt && isPaidActive && subscription
+            ? (() => {
+                  const pkgForReceipt = currentActivePkgObj || {
+                      name_th: subscription.package_name || 'แพ็กเกจรายปี',
+                      badge_tier: subscription.badge_tier || 'VIP',
+                      billing_cycle: 'YEARLY',
+                      price_amount: Number(subscription.price_amount || 0),
+                      target_audience: 'ALL',
+                      visibility_boost_level: 5,
+                      features: []
+                  };
+                  const recv = getReceiverInfoForPkg(pkgForReceipt);
+                  return {
+                      receipt_no:
+                          subscription.receipt_no ||
+                          `RCP-${String(subscription.subscription_id || accountId || 'VIP').slice(0, 8).toUpperCase()}`,
+                      qr_reference: subscription.qr_reference || '-',
+                      tx_category: 'PACKAGE',
+                      payment_status: 'PAID',
+                      created_at:
+                          subscription.updated_at ||
+                          subscription.created_at ||
+                          new Date().toISOString(),
+                      receiver_name: recv.receiver_name,
+                      receiver_owner_type: recv.receiver_owner_type,
+                      receiver_bank_code: recv.receiver_bank_code,
+                      receiver_bank_name: recv.receiver_bank_name,
+                      receiver_account_number: recv.receiver_account_number,
+                      purpose_title: recv.purpose_title,
+                      line_items: recv.line_items,
+                      total_amount: Number(
+                          subscription.price_amount ?? pkgForReceipt.price_amount ?? 0
+                      )
+                  };
+              })()
+            : null;
+
+    const receiptToShow = createdReceipt || activeOfficialReceipt;
+
     const openPaymentModal = (pkg) => {
         const price = Number(pkg.price_amount || 0);
         const hasVillageFree = Boolean(villageGrant?.has_free_grant) && pkg.code === 'FREE';
@@ -693,8 +734,22 @@ export default function ParkgatePackages() {
                                 </div>
                             </div>
 
-                            <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-black/20 text-xs font-bold">
-                                <Lock size={14} /> ล็อกสถานะอัตโนมัติ (ป้องกันกดซื้อซ้ำ)
+                                <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        receiptSectionRef.current?.scrollIntoView({
+                                            behavior: 'smooth',
+                                            block: 'start'
+                                        })
+                                    }
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white text-amber-800 hover:bg-amber-50 text-xs font-extrabold shadow-sm transition cursor-pointer"
+                                >
+                                    <Printer size={14} /> ดู / พิมพ์ใบเสร็จ (PDF)
+                                </button>
+                                <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-black/20 text-xs font-bold">
+                                    <Lock size={14} /> ล็อกสถานะอัตโนมัติ (ป้องกันกดซื้อซ้ำ)
+                                </div>
                             </div>
                         </div>
 
