@@ -1,4 +1,4 @@
-// [PKG-UI-FULL-06] หน้าแพ็กเกจ Parkgate ฉบับสมบูรณ์: วันที่ไทย (พ.ศ.) + สแกน QR + แนบสลิปพร้อม Preview + เวลาโอน HH:mm:ss + กันเด้ง VIP ก่อนอนุมัติ
+// [PKG-UI-FULL-07] หน้าแพ็กเกจ Parkgate: ซ่อนหน้าซื้อเมื่อเป็น VIP/Paid + นับถอยหลังวันหมดอายุสด + ล็อกกันกดซ้ำ/กันสลับกลับ Free
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -18,7 +18,8 @@ import {
     Megaphone,
     Zap,
     Landmark,
-    Upload
+    Upload,
+    Lock
 } from 'lucide-react';
 import TopNavbar from '../components/TopNavbar';
 import BottomNavbar from '../components/BottomNavbar';
@@ -110,6 +111,22 @@ function getBangkokNowParts() {
     return { yearCE, yearBE: String(yearBE), month, day, hh, mi, ss };
 }
 
+function calcRemainingParts(expiresAtIso) {
+    if (!expiresAtIso) return null;
+    const targetMs = new Date(expiresAtIso).getTime();
+    if (!Number.isFinite(targetMs)) return null;
+    const diffMs = targetMs - Date.now();
+    if (diffMs <= 0) {
+        return { expired: true, days: 0, hours: 0, minutes: 0, seconds: 0 };
+    }
+    const totalSec = Math.floor(diffMs / 1000);
+    const days = Math.floor(totalSec / 86400);
+    const hours = Math.floor((totalSec % 86400) / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+    const seconds = totalSec % 60;
+    return { expired: false, days, hours, minutes, seconds };
+}
+
 export default function ParkgatePackages() {
     const navigate = useNavigate();
     const receiptSectionRef = useRef(null);
@@ -139,6 +156,7 @@ export default function ParkgatePackages() {
 
     const [freeUpsell, setFreeUpsell] = useState(null);
     const [audienceFilter, setAudienceFilter] = useState('ALL');
+    const [countdown, setCountdown] = useState(null);
 
     // Modal ชำระเงิน
     const [selectedPkg, setSelectedPkg] = useState(null);
@@ -160,8 +178,6 @@ export default function ParkgatePackages() {
 
     const [isPaying, setIsPaying] = useState(false);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
-
-    // รายการสั่งซื้อรอชำระ (PENDING) หรือ ใบเสร็จรับเงิน/ใบกำกับภาษี (PAID)
     const [createdReceipt, setCreatedReceipt] = useState(null);
 
     const loadData = useCallback(async () => {
@@ -189,9 +205,9 @@ export default function ParkgatePackages() {
                 setSubscription(pkgJson.subscription || null);
                 setVillageGrant(pkgJson.village_grant || null);
                 setSettings(pkgJson.settings || null);
-               setFreeUpsell(pkgJson.free_upsell || null);
+                setFreeUpsell(pkgJson.free_upsell || null);
 
-                // ซิงค์สถานะแพ็กเกจล่าสุดจากเซิร์ฟเวอร์ขึ้น TopNavbar อัตโนมัติ (กรณีแอดมินอนุมัติจากหลังบ้าน)
+                // ซิงค์สถานะแพ็กเกจล่าสุดจากเซิร์ฟเวอร์ขึ้น TopNavbar อัตโนมัติ
                 const sub = pkgJson.subscription;
                 const isPaidNow = ['PAID', 'ACTIVE'].includes(String(sub?.payment_status || '').toUpperCase());
                 const latestTier = isPaidNow ? (sub?.badge_tier || 'FREE') : 'FREE';
@@ -258,6 +274,18 @@ export default function ParkgatePackages() {
         setQrImgFailed(false);
     }, [selectedChannelId, selectedPkg, paymentMethod]);
 
+    // นาฬิกานับถอยหลังวันหมดอายุแบบเรียลไทม์ (อัปเดตทุก 1 วินาที)
+    useEffect(() => {
+        if (!subscription?.expires_at) {
+            setCountdown(null);
+            return;
+        }
+        const update = () => setCountdown(calcRemainingParts(subscription.expires_at));
+        update();
+        const timer = setInterval(update, 1000);
+        return () => clearInterval(timer);
+    }, [subscription?.expires_at]);
+
     const getReceiverInfoForPkg = useCallback(
         (pkg) => {
             const activeCh =
@@ -319,9 +347,36 @@ export default function ParkgatePackages() {
         [paymentChannels, selectedChannelId, userBankAccounts, selectedBankAccountId, bankMasterList, settings]
     );
 
+    const isSubPaid = ['PAID', 'ACTIVE'].includes(String(subscription?.payment_status || '').toUpperCase());
+    const activeTier = isSubPaid ? (subscription?.badge_tier || 'FREE') : 'FREE';
+    const activeTierCfg = TIER_CONFIG[activeTier] || TIER_CONFIG.FREE;
+
+    const isExpired = countdown
+        ? countdown.expired
+        : typeof subscription?.days_remaining === 'number'
+        ? subscription.days_remaining <= 0
+        : false;
+
+    // กำลังใช้งานแพ็กเกจแบบเสียเงินอยู่และยังไม่หมดอายุ
+    const isPaidActive = isSubPaid && activeTier !== 'FREE' && !isExpired;
+    // แสดงหน้าซื้อแพ็กเกจเฉพาะตอนที่ยังเป็น Free หรือหมดอายุแล้ว หรือใกล้หมดอายุ
+    const showPurchaseGrid = !isPaidActive || Boolean(subscription?.is_expiring_soon);
+
+    const currentActivePkgObj = packages.find((p) => p.package_id === subscription?.package_id) || null;
+
     const openPaymentModal = (pkg) => {
         const price = Number(pkg.price_amount || 0);
         const hasVillageFree = Boolean(villageGrant?.has_free_grant) && pkg.code === 'FREE';
+
+        // ป้องกันกดสลับกลับเป็นแพ็กเกจฟรีขณะที่มีแพ็กเกจเสียเงินใช้งานอยู่
+        if (isPaidActive && (price === 0 || pkg.badge_tier === 'FREE')) {
+            return;
+        }
+        // ป้องกันกดซื้อซ้ำขณะที่แพ็กเกจยังไม่หมดอายุและยังไม่ใกล้หมดอายุ
+        if (isPaidActive && !subscription?.is_expiring_soon) {
+            return;
+        }
+
         if (price === 0 || hasVillageFree) {
             handleConfirmSubscribe(pkg, 'FREE', null);
             return;
@@ -356,7 +411,6 @@ export default function ParkgatePackages() {
                 reader.readAsDataURL(file);
             });
 
-            // ย่อขนาดรูปไม่เกิน 1000px (JPEG 82%) เพื่อให้ไฟล์เบา อัปโหลดไว และไม่ติดลิมิตเซิร์ฟเวอร์
             const compressedDataUrl = await new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
@@ -373,7 +427,6 @@ export default function ParkgatePackages() {
                 img.src = rawDataUrl;
             });
 
-            // แสดง Preview ทันทีที่เลือกไฟล์
             setSlipPreviewUrl(compressedDataUrl);
 
             const res = await fetch(`${API_URL}/api/upload-slip`, {
@@ -383,12 +436,10 @@ export default function ParkgatePackages() {
             });
 
             if (!res.ok) {
-                const errText = await res.text();
                 setFeedbackMsg({
                     type: 'error',
-                    text: `อัปโหลดสลิปไม่สำเร็จ (HTTP ${res.status}) — ตรวจสอบว่า Push /api/upload-slip ขึ้น Railway แล้ว`
+                    text: `อัปโหลดสลิปไม่สำเร็จ (HTTP ${res.status})`
                 });
-                console.error('Upload slip failed:', res.status, errText);
                 return;
             }
 
@@ -399,7 +450,6 @@ export default function ParkgatePackages() {
                 setSlipImageUrl(data.url);
             }
         } catch (err) {
-            console.error('Upload slip error:', err);
             setFeedbackMsg({ type: 'error', text: `เกิดข้อผิดพลาดในการอัปโหลดสลิป: ${err.message}` });
         } finally {
             setUploadingSlip(false);
@@ -424,11 +474,9 @@ export default function ParkgatePackages() {
         const transferDateISO = `${yearCE}-${String(transferMonth).padStart(2, '0')}-${String(transferDay).padStart(2, '0')}`;
         const timeHms = `${String(transferHour || '00').padStart(2, '0')}:${String(transferMinute || '00').padStart(2, '0')}:${String(transferSecond || '00').padStart(2, '0')}`;
 
-        if (method === 'QR_CODE') {
-            if (!slipImageUrl) {
-                setFeedbackMsg({ type: 'error', text: 'กรุณาอัปโหลดรูปสลิปโอนเงินก่อนกดยืนยัน' });
-                return;
-            }
+        if (method === 'QR_CODE' && !slipImageUrl) {
+            setFeedbackMsg({ type: 'error', text: 'กรุณาอัปโหลดรูปสลิปโอนเงินก่อนกดยืนยัน' });
+            return;
         }
 
         setIsPaying(true);
@@ -460,8 +508,8 @@ export default function ParkgatePackages() {
                 const finalStatus =
                     data.subscription?.payment_status ||
                     (method === 'QR_CODE' ? 'PENDING' : 'PAID');
-                    
-                        if (method === 'QR_CODE') {
+
+                if (method === 'QR_CODE') {
                     const slipRes = await fetch(`${API_URL}/api/payment-slips`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -491,7 +539,6 @@ export default function ParkgatePackages() {
                     }
                 }
 
-                // ปรับยศ/Badge บน Navbar เฉพาะตอนที่จ่ายสำเร็จแล้ว (PAID หรือ FREE) เท่านั้น
                 if (finalStatus === 'PAID' || method === 'FREE') {
                     const updatedUser = {
                         ...userData,
@@ -536,10 +583,6 @@ export default function ParkgatePackages() {
         }
     };
 
-    const isSubPaid = ['PAID', 'FREE', 'ACTIVE'].includes(String(subscription?.payment_status || '').toUpperCase());
-    const activeTier = isSubPaid ? (subscription?.badge_tier || 'FREE') : 'FREE';
-    const activeTierCfg = TIER_CONFIG[activeTier] || TIER_CONFIG.FREE;
-
     const visiblePackages = packages.filter((pkg) => {
         if (audienceFilter === 'ALL') return true;
         const aud = String(pkg.target_audience || 'ALL').toUpperCase();
@@ -549,7 +592,6 @@ export default function ParkgatePackages() {
     const paidUpgradePkg = packages.find((p) => Number(p.price_amount || 0) > 0) || null;
     const modalReceiver = selectedPkg ? getReceiverInfoForPkg(selectedPkg) : null;
 
-    // ตัวเลือกวัน/เดือน/พ.ศ. ภาษาไทย และ ชม:นาที:วินาที
     const currentYearBE = new Date().getFullYear() + 543;
     const yearBEOptions = [String(currentYearBE - 1), String(currentYearBE), String(currentYearBE + 1)];
     const daysInSelectedMonth = new Date(Number(transferYearBE) - 543, Number(transferMonth), 0).getDate();
@@ -577,7 +619,9 @@ export default function ParkgatePackages() {
                         <div>
                             <h1 className="text-xl font-extrabold m-0">แพ็กเกจการใช้งานระบบ (Parkgate)</h1>
                             <p className="text-xs sm:text-sm opacity-90 m-0 mt-0.5">
-                                เลือกแพ็กเกจที่เหมาะกับหมู่บ้านหรือธุรกิจ ชำระผ่านกระเป๋าเงินหรือสแกน QR Code
+                                {isPaidActive
+                                    ? 'แพ็กเกจของคุณเปิดใช้งานเรียบร้อยแล้ว สามารถตรวจสอบเวลานับถอยหลังวันหมดอายุได้ที่นี่'
+                                    : 'เลือกแพ็กเกจที่เหมาะกับหมู่บ้านหรือธุรกิจ ชำระผ่านกระเป๋าเงินหรือสแกน QR Code'}
                             </p>
                         </div>
                     </div>
@@ -611,8 +655,102 @@ export default function ParkgatePackages() {
                     </div>
                 )}
 
-                {/* สถานะแพ็กเกจปัจจุบัน */}
-                {subscription && (
+                {/* ================= กรณีมีแพ็กเกจ VIP/Paid ใช้งานอยู่: แสดงการ์ดนับถอยหลัง & ซ่อนหน้าซื้อ ================= */}
+                {!loading && isPaidActive && (
+                    <div className={`bg-white rounded-2xl border-2 ${activeTierCfg.cardBorder} overflow-hidden shadow-sm`}>
+                        <div className={`bg-gradient-to-r ${activeTierCfg.headerGrad} p-5 text-white flex flex-wrap items-center justify-between gap-4`}>
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 rounded-2xl bg-white/20">
+                                    <activeTierCfg.Icon size={28} />
+                                </div>
+                                <div>
+                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-xs font-extrabold mb-1">
+                                        ✓ เปิดใช้งานแล้ว ({activeTierCfg.label})
+                                    </div>
+                                    <h2 className="text-xl font-black m-0">
+                                        {subscription?.package_name || 'แพ็กเกจรายปี'}
+                                    </h2>
+                                    {subscription?.expires_at_th && (
+                                        <div className="text-xs opacity-95 mt-1 flex items-center gap-1">
+                                            <Clock size={13} /> ครบกำหนดหมดอายุ: <strong>{subscription.expires_at_th}</strong>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-black/20 text-xs font-bold">
+                                <Lock size={14} /> ล็อกสถานะอัตโนมัติ (ป้องกันกดซื้อซ้ำ)
+                            </div>
+                        </div>
+
+                        <div className="p-5 space-y-5">
+                            {/* กล่องนาฬิกานับถอยหลังวันหมดอายุ */}
+                            <div>
+                                <div className="text-xs font-extrabold text-slate-500 text-center mb-2.5">
+                                    เวลาคงเหลือของแพ็กเกจปัจจุบัน (นับถอยหลังอัตโนมัติ)
+                                </div>
+                                <div className="grid grid-cols-4 gap-2.5 max-w-lg mx-auto">
+                                    {[
+                                        { label: 'วัน', value: countdown ? countdown.days : Math.max(0, subscription?.days_remaining || 0) },
+                                        { label: 'ชั่วโมง', value: countdown ? String(countdown.hours).padStart(2, '0') : '00' },
+                                        { label: 'นาที', value: countdown ? String(countdown.minutes).padStart(2, '0') : '00' },
+                                        { label: 'วินาที', value: countdown ? String(countdown.seconds).padStart(2, '0') : '00' }
+                                    ].map((box) => (
+                                        <div
+                                            key={box.label}
+                                            className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-center"
+                                        >
+                                            <div className="text-2xl sm:text-3xl font-black text-amber-700 font-mono">
+                                                {box.value}
+                                            </div>
+                                            <div className="text-[11px] font-bold text-slate-600 mt-0.5">
+                                                {box.label}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* แจ้งเตือนสถานะการเปิดหน้าซื้อใหม่ */}
+                            {subscription?.is_expiring_soon ? (
+                                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center gap-2">
+                                    <AlertTriangle size={18} className="text-amber-600 flex-shrink-0" />
+                                    แพ็กเกจใกล้หมดอายุภายใน {subscription.notify_days_before} วัน ระบบเปิดหน้าต่ออายุแพ็กเกจไว้ด้านล่างแล้ว
+                                </div>
+                            ) : (
+                                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-2">
+                                    <ShieldCheck size={18} className="text-emerald-600 flex-shrink-0" />
+                                    แพ็กเกจของคุณยังใช้งานได้ตามปกติ ระบบจะเปิดหน้าซื้อ/ต่ออายุแพ็กเกจขึ้นมาใหม่เมื่อใกล้ครบกำหนดหรือหมดอายุแล้ว
+                                </div>
+                            )}
+
+                            {/* แสดงสิทธิ์ที่กำลังใช้งานอยู่ */}
+                            {currentActivePkgObj?.features?.length > 0 && (
+                                <div className="pt-2 border-t border-slate-100">
+                                    <div className="text-xs font-extrabold text-slate-500 mb-3">
+                                        สิทธิ์และบริการที่คุณกำลังใช้งานอยู่:
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        {currentActivePkgObj.features.map((feat) => (
+                                            <div key={feat.feature_id} className="flex items-start gap-2 text-xs text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                                <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">{feat.title_th}</div>
+                                                    {feat.description_th && (
+                                                        <div className="text-[11px] text-slate-500">{feat.description_th}</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* สถานะแพ็กเกจปัจจุบัน (แสดงเฉพาะตอนยังเป็น Free หรือรอตรวจสลิป) */}
+                {!isPaidActive && subscription && (
                     <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold border ${activeTierCfg.badgeBg}`}>
@@ -628,21 +766,11 @@ export default function ParkgatePackages() {
                                     {subscription.expires_at_th && (
                                         <span className="inline-flex items-center gap-1">
                                             <Clock size={12} /> หมดอายุ: {subscription.expires_at_th}
-                                            {typeof subscription.days_remaining === 'number' && (
-                                                <span>(เหลือ {Math.max(0, subscription.days_remaining)} วัน)</span>
-                                            )}
                                         </span>
                                     )}
                                 </div>
                             </div>
                         </div>
-
-                        {subscription.is_expiring_soon && (
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
-                                <AlertTriangle size={15} />
-                                ใกล้หมดอายุภายใน {subscription.notify_days_before} วัน กรุณาต่ออายุล่วงหน้า
-                            </div>
-                        )}
                     </div>
                 )}
 
@@ -655,131 +783,139 @@ export default function ParkgatePackages() {
                     </div>
                 )}
 
-                {/* ปุ่มกรองกลุ่มเป้าหมาย */}
-                <div className="flex flex-wrap gap-2">
-                    {[
-                        { key: 'ALL', label: 'ทั้งหมด' },
-                        { key: 'VILLAGE', label: 'หมู่บ้าน' },
-                        { key: 'USER', label: 'ผู้ใช้งาน' },
-                        { key: 'SHOP', label: 'ร้านค้า' },
-                        { key: 'BUSINESS', label: 'ธุรกิจ' }
-                    ].map((tab) => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            onClick={() => setAudienceFilter(tab.key)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border transition ${
-                                audienceFilter === tab.key
-                                    ? 'bg-emerald-600 text-white border-emerald-600'
-                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                            }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-
-                {/* รายการแพ็กเกจ */}
+                {/* ================= หน้าเลือกซื้อแพ็กเกจ (ซ่อนอัตโนมัติเมื่อมีแพ็กเกจ Paid ใช้งานอยู่) ================= */}
                 {loading ? (
                     <div className="py-16 flex flex-col items-center justify-center text-slate-500 gap-2">
                         <Loader2 className="animate-spin" size={28} />
                         <span className="text-sm font-medium">กำลังโหลดรายการแพ็กเกจ...</span>
                     </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {visiblePackages.map((pkg) => {
-                            const tier = TIER_CONFIG[pkg.badge_tier] || TIER_CONFIG.FREE;
-                            const TierIcon = tier.Icon;
-                            const priceNum = Number(pkg.price_amount || 0);
-                            const isCurrent = subscription?.package_id === pkg.package_id;
-                            const audKey = String(pkg.target_audience || 'ALL').toUpperCase();
-                            const boostLv = Number(pkg.visibility_boost_level || 1);
-
-                            return (
-                                <div
-                                    key={pkg.package_id}
-                                    className={`bg-white rounded-2xl border-2 ${tier.cardBorder} overflow-hidden shadow-xs flex flex-col justify-between`}
+                ) : showPurchaseGrid ? (
+                    <>
+                        <div className="flex flex-wrap gap-2">
+                            {[
+                                { key: 'ALL', label: 'ทั้งหมด' },
+                                { key: 'VILLAGE', label: 'หมู่บ้าน' },
+                                { key: 'USER', label: 'ผู้ใช้งาน' },
+                                { key: 'SHOP', label: 'ร้านค้า' },
+                                { key: 'BUSINESS', label: 'ธุรกิจ' }
+                            ].map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    onClick={() => setAudienceFilter(tab.key)}
+                                    className={`px-3.5 py-2 rounded-xl text-xs font-extrabold border transition ${
+                                        audienceFilter === tab.key
+                                            ? 'bg-emerald-600 text-white border-emerald-600'
+                                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                    }`}
                                 >
-                                    <div>
-                                        <div className={`bg-gradient-to-r ${tier.headerGrad} p-5 text-white flex items-center justify-between`}>
-                                            <div>
-                                                <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                                                    <span className="inline-flex items-center gap-1 text-xs font-bold bg-white/20 px-2.5 py-0.5 rounded-full">
-                                                        <TierIcon size={13} /> {tier.label}
-                                                    </span>
-                                                    <span className="text-[11px] font-bold bg-black/20 px-2.5 py-0.5 rounded-full">
-                                                        {AUDIENCE_LABEL[audKey] || audKey}
-                                                    </span>
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {visiblePackages.map((pkg) => {
+                                const tier = TIER_CONFIG[pkg.badge_tier] || TIER_CONFIG.FREE;
+                                const TierIcon = tier.Icon;
+                                const priceNum = Number(pkg.price_amount || 0);
+                                const isCurrent = subscription?.package_id === pkg.package_id;
+                                const audKey = String(pkg.target_audience || 'ALL').toUpperCase();
+                                const boostLv = Number(pkg.visibility_boost_level || 1);
+                                const isFreeLocked = isPaidActive && (priceNum === 0 || pkg.badge_tier === 'FREE');
+
+                                return (
+                                    <div
+                                        key={pkg.package_id}
+                                        className={`bg-white rounded-2xl border-2 ${tier.cardBorder} overflow-hidden shadow-xs flex flex-col justify-between`}
+                                    >
+                                        <div>
+                                            <div className={`bg-gradient-to-r ${tier.headerGrad} p-5 text-white flex items-center justify-between`}>
+                                                <div>
+                                                    <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                                                        <span className="inline-flex items-center gap-1 text-xs font-bold bg-white/20 px-2.5 py-0.5 rounded-full">
+                                                            <TierIcon size={13} /> {tier.label}
+                                                        </span>
+                                                        <span className="text-[11px] font-bold bg-black/20 px-2.5 py-0.5 rounded-full">
+                                                            {AUDIENCE_LABEL[audKey] || audKey}
+                                                        </span>
+                                                    </div>
+                                                    <h2 className="text-lg font-extrabold m-0">{pkg.name_th}</h2>
                                                 </div>
-                                                <h2 className="text-lg font-extrabold m-0">{pkg.name_th}</h2>
+                                                <div className="text-right">
+                                                    <div className="text-2xl font-black">
+                                                        {priceNum === 0 ? 'ฟรี' : `฿${priceNum.toLocaleString()}`}
+                                                    </div>
+                                                    <div className="text-xs opacity-90">
+                                                        {priceNum === 0
+                                                            ? 'เริ่มต้นใช้งาน'
+                                                            : pkg.billing_cycle === 'YEARLY'
+                                                            ? '/ ปี'
+                                                            : '/ รอบบิล'}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-2xl font-black">
-                                                    {priceNum === 0 ? 'ฟรี' : `฿${priceNum.toLocaleString()}`}
+
+                                            <div className="p-5">
+                                                <div className="flex flex-wrap gap-2 mb-3 text-[11px] font-bold">
+                                                    <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+                                                        ดันการมองเห็นระดับ {boostLv}
+                                                    </span>
+                                                    <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+                                                        {pkg.max_shop_products
+                                                            ? `ร้านค้าสูงสุด ${pkg.max_shop_products} รายการ`
+                                                            : 'ร้านค้าไม่จำกัดรายการ'}
+                                                    </span>
                                                 </div>
-                                                <div className="text-xs opacity-90">
-                                                    {priceNum === 0
-                                                        ? 'เริ่มต้นใช้งาน'
-                                                        : pkg.billing_cycle === 'YEARLY'
-                                                        ? '/ ปี'
-                                                        : '/ รอบบิล'}
+
+                                                <div className="text-xs font-bold text-slate-500 mb-3">
+                                                    บริการและสิทธิ์ที่ได้รับ:
                                                 </div>
+                                                <ul className="space-y-2.5 m-0 p-0 list-none">
+                                                    {(pkg.features || []).map((feat) => (
+                                                        <li key={feat.feature_id} className="flex items-start gap-2.5 text-sm text-slate-700">
+                                                            <CheckCircle2 size={17} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                                                            <div>
+                                                                <div className="font-bold text-slate-800">{feat.title_th}</div>
+                                                                {feat.description_th && (
+                                                                    <div className="text-xs text-slate-500">{feat.description_th}</div>
+                                                                )}
+                                                            </div>
+                                                        </li>
+                                                    ))}
+                                                </ul>
                                             </div>
                                         </div>
 
-                                        <div className="p-5">
-                                            <div className="flex flex-wrap gap-2 mb-3 text-[11px] font-bold">
-                                                <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
-                                                    ดันการมองเห็นระดับ {boostLv}
-                                                </span>
-                                                <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
-                                                    {pkg.max_shop_products
-                                                        ? `ร้านค้าสูงสุด ${pkg.max_shop_products} รายการ`
-                                                        : 'ร้านค้าไม่จำกัดรายการ'}
-                                                </span>
-                                            </div>
-
-                                            <div className="text-xs font-bold text-slate-500 mb-3">
-                                                บริการและสิทธิ์ที่ได้รับ:
-                                            </div>
-                                            <ul className="space-y-2.5 m-0 p-0 list-none">
-                                                {(pkg.features || []).map((feat) => (
-                                                    <li key={feat.feature_id} className="flex items-start gap-2.5 text-sm text-slate-700">
-                                                        <CheckCircle2 size={17} className="text-emerald-500 flex-shrink-0 mt-0.5" />
-                                                        <div>
-                                                            <div className="font-bold text-slate-800">{feat.title_th}</div>
-                                                            {feat.description_th && (
-                                                                <div className="text-xs text-slate-500">{feat.description_th}</div>
-                                                            )}
-                                                        </div>
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                        <div className="p-5 pt-0">
+                                            <button
+                                                type="button"
+                                                disabled={isPaying || isFreeLocked}
+                                                onClick={() => openPaymentModal(pkg)}
+                                                className={`w-full py-3.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 ${
+                                                    isFreeLocked
+                                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                                                        : isCurrent
+                                                        ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300'
+                                                        : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
+                                                }`}
+                                            >
+                                                {isPaying && selectedPkg?.package_id === pkg.package_id ? (
+                                                    <Loader2 className="animate-spin" size={18} />
+                                                ) : null}
+                                                {isFreeLocked
+                                                    ? 'ไม่สามารถสลับเป็น Free ระหว่างใช้งานแพ็กเกจนี้'
+                                                    : isCurrent
+                                                    ? 'ต่ออายุแพ็กเกจนี้'
+                                                    : 'เลือกแพ็กเกจนี้'}
+                                            </button>
                                         </div>
                                     </div>
-
-                                    <div className="p-5 pt-0">
-                                        <button
-                                            type="button"
-                                            disabled={isPaying}
-                                            onClick={() => openPaymentModal(pkg)}
-                                            className={`w-full py-3.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 ${
-                                                isCurrent
-                                                    ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300'
-                                                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
-                                            }`}
-                                        >
-                                            {isPaying && selectedPkg?.package_id === pkg.package_id ? (
-                                                <Loader2 className="animate-spin" size={18} />
-                                            ) : null}
-                                            {isCurrent ? 'ต่ออายุ / เลือกแพ็กเกจนี้อีกครั้ง' : 'เลือกแพ็กเกจนี้'}
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                                );
+                            })}
+                        </div>
+                    </>
+                ) : null}
 
                 {/* รายการสั่งซื้อรอชำระ / ใบเสร็จรับเงินฉบับสมบูรณ์ */}
                 <div ref={receiptSectionRef}>
@@ -942,7 +1078,6 @@ export default function ParkgatePackages() {
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {/* 1. สแกน QR โอนเงิน */}
                                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center space-y-1">
                                     {modalReceiver.qr_image_url && !qrImgFailed ? (
                                         <img
@@ -966,7 +1101,6 @@ export default function ParkgatePackages() {
                                     </div>
                                 </div>
 
-                                {/* 2. แนบสลิปโอนเงิน + Preview + ระบุวันเวลาโอนแบบไทย (พ.ศ.) */}
                                 <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-3">
                                     <div className="text-xs font-extrabold text-amber-900">
                                         2. แนบสลิปและระบุวันเวลาที่โอนตามสลิป (เพื่อให้แอดมินกระทบยอดได้แม่นยำ)
@@ -998,7 +1132,6 @@ export default function ParkgatePackages() {
                                         )}
                                     </div>
 
-                                    {/* กล่อง Preview รูปสลิปแบบเห็นชัดเจน */}
                                     {(slipPreviewUrl || slipImageUrl) && (
                                         <div className="p-2 rounded-xl bg-white border border-amber-200 text-center space-y-1.5">
                                             <img
@@ -1018,7 +1151,6 @@ export default function ParkgatePackages() {
                                         </div>
                                     )}
 
-                                    {/* วันที่โอนแบบไทย (วัน / เดือนภาษาไทย / พ.ศ.) */}
                                     <div>
                                         <label className="block text-[11px] font-bold text-slate-700 mb-1">
                                             วันที่โอนตามสลิป (วัน / เดือน / พ.ศ.) *
@@ -1057,7 +1189,6 @@ export default function ParkgatePackages() {
                                         </div>
                                     </div>
 
-                                    {/* เวลาที่โอน (ชั่วโมง : นาที : วินาที) */}
                                     <div>
                                         <label className="block text-[11px] font-bold text-slate-700 mb-1">
                                             เวลาที่โอนตามสลิป (ชั่วโมง : นาที : วินาที) *
