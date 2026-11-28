@@ -992,7 +992,7 @@ export default function Wallet() {
                         </button>
                     </div>
                 )}
-                
+
                 {/* แถบเมนูทำรายการ 6 โหมด */}
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                     {[
@@ -1774,6 +1774,69 @@ export default function Wallet() {
                             className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-extrabold"
                         >
                             {creatingGroup ? 'กำลังสร้างกระเป๋า...' : 'สร้างกระเป๋าและออกรหัส 10 หลัก'}
+                        </button>
+                    </form>
+                </div>
+            )}
+
+            {/* ================= MODAL คำขอเปิดบัญชีทางกฎหมาย (เด้งครั้งแรกครั้งเดียว) ================= */}
+            {showOpeningModal && (
+                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 overflow-y-auto">
+                    <form onSubmit={handleSubmitOpeningConsent} className="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl my-auto">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <div className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                                <ShieldCheck size={20} className="text-emerald-600" />
+                                {openingDoc?.title_th || 'คำขอเปิดบัญชีกระเป๋าเงินอิเล็กทรอนิกส์'}
+                            </div>
+                            <button type="button" onClick={() => setShowOpeningModal(false)} className="p-1 text-slate-400 hover:text-slate-700">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {feedback?.type === 'error' && (
+                            <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold">
+                                {feedback.text}
+                            </div>
+                        )}
+
+                        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 max-h-56 overflow-y-auto text-xs text-slate-700 whitespace-pre-line leading-relaxed">
+                            {openingDoc?.content_th || 'กำลังโหลดข้อตกลงทางกฎหมาย...'}
+                        </div>
+
+                        <label className="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-50/70 border border-emerald-200 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={openingChecked}
+                                onChange={(e) => setOpeningChecked(e.target.checked)}
+                                className="mt-0.5 w-4 h-4 accent-emerald-600"
+                            />
+                            <span className="text-xs font-bold text-emerald-950">
+                                ข้าพเจ้า ({payerName}) ได้อ่านและยอมรับข้อตกลงทั้งหมด และขอเปิดบัญชีด้วยความสมัครใจของตนเอง (อนุมัติอัตโนมัติโดยพนักงานดูแลลูกค้า แผนกการตลาด)
+                            </span>
+                        </label>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 mb-1">
+                                {hasPin ? 'กรอกรหัส PIN 6 หลักของคุณเพื่อยืนยันตัวตน *' : 'ตั้งรหัส PIN 6 หลักส่วนตัวเพื่อยืนยันการเปิดบัญชี *'}
+                            </label>
+                            <input
+                                type="password"
+                                maxLength={6}
+                                inputMode="numeric"
+                                required
+                                value={openingPin}
+                                onChange={(e) => setOpeningPin(e.target.value.replace(/\D/g, ''))}
+                                placeholder="••••••"
+                                className="w-full p-3 rounded-xl border border-slate-300 text-center font-mono text-lg tracking-[0.5em]"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={submittingOpening || !openingChecked}
+                            className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-extrabold disabled:opacity-50"
+                        >
+                            {submittingOpening ? 'กำลังบันทึกและอนุมัติอัตโนมัติ...' : 'ยืนยันขอเปิดบัญชี (อนุมัติอัตโนมัติ)'}
                         </button>
                     </form>
                 </div>
