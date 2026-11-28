@@ -333,13 +333,28 @@ export default function ParkgatePackages() {
                 bank_logo_url: bankMeta?.logo_url || '',
                 bank_brand_color: bankMeta?.brand_color || '#059669',
                 purpose_title: `ชำระค่าแพ็กเกจ: ${pkg?.name_th || 'แพ็กเกจระบบ'} (${pkg?.badge_tier || 'VIP'})`,
-                line_items: [
+                    line_items: [
                     {
                         name: `${pkg?.name_th || 'แพ็กเกจ'} (${
                             pkg?.billing_cycle === 'YEARLY' ? 'รายปี' : 'ตามรอบบิล'
                         })`,
                         qty: 1,
-                        price: Number(pkg?.price_amount || 0)
+                        price: Number(pkg?.price_amount || 0),
+                        details: [
+                            `ระดับสิทธิ์: ${pkg?.badge_tier || 'FREE'} • กลุ่ม: ${
+                                AUDIENCE_LABEL[String(pkg?.target_audience || 'ALL').toUpperCase()] || 'ทุกกลุ่ม'
+                            }`,
+                            `ดันการมองเห็นระดับ ${Number(pkg?.visibility_boost_level || 1)} • ${
+                                pkg?.max_shop_products
+                                    ? `เปิดร้านค้าสูงสุด ${pkg.max_shop_products} รายการ`
+                                    : 'เปิดร้านค้าไม่จำกัดรายการ'
+                            }`,
+                            ...(Array.isArray(pkg?.features)
+                                ? pkg.features.map((f) =>
+                                      f.description_th ? `${f.title_th} (${f.description_th})` : f.title_th
+                                  )
+                                : [])
+                        ]
                     }
                 ]
             };

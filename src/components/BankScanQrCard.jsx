@@ -299,7 +299,18 @@ export default function BankScanQrCard({ receipt = null }) {
                             return (
                                 <tr key={idx}>
                                     <td className="py-2.5 px-3 text-slate-500">{idx + 1}</td>
-                                    <td className="py-2.5 px-3 font-bold text-slate-800">{it.name}</td>
+                                            <td className="py-2.5 px-3 align-top">
+                                     <div className="font-bold text-slate-800">{it.name}</div>
+                                    {Array.isArray(it.details) && it.details.length > 0 && (
+                                    <ul className="mt-1.5 mb-0 pl-4 space-y-0.5 text-[11px] text-slate-600 list-disc">
+                                    {it.details.map((detailText, dIdx) => (
+                                    <li key={dIdx} className="leading-relaxed">
+                                    {detailText}
+                                    </li>
+                                    ))}
+                                    </ul>
+                                    )}
+                                    </td>
                                     <td className="py-2.5 px-3 text-center">{qty}</td>
                                     <td className="py-2.5 px-3 text-right">{price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                     <td className="py-2.5 px-3 text-right font-bold">{(qty * price).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
