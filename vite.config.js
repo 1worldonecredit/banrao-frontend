@@ -9,9 +9,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate', // 🌟 ทำให้แอปอัปเดตเวอร์ชันใหม่เบื้องหลังอัตโนมัติ
       manifest: {
-        name: 'KIN NON',
-        short_name: 'kin non',
-        description: 'ระบบจองห้องพีกและ สั่งอาหาร',
+        name: 'บ้านเรา', 
+        short_name: 'ban rao',
+        description: 'ระบบบริริหารชุมชน บริหารประปา, บริหารเงินกอนทุน และอื่นๆ ',
         theme_color: '#dc2626', // 🌟 สีขอบด้านบนของแอปบนมือถือ (ใช้สีแดง)
         background_color: '#ffffff',
         display: 'standalone', // 🌟 บังคับให้แสดงเต็มจอ ไม่มีแท็บ URL ของเบราว์เซอร์
