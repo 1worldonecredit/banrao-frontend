@@ -988,8 +988,8 @@ export default function ParkgatePackages() {
                 ) : null}
 
                 {/* รายการสั่งซื้อรอชำระ / ใบเสร็จรับเงินฉบับสมบูรณ์ */}
-                <div ref={receiptSectionRef}>
-                    {createdReceipt && <BankScanQrCard receipt={createdReceipt} />}
+                    <div ref={receiptSectionRef}>
+                    {receiptToShow && <BankScanQrCard receipt={receiptToShow} />}
                 </div>
             </div>
 
