@@ -393,6 +393,7 @@ export default function Wallet() {
             setOldPinInput('');
             setNewPinInput('');
             setFeedback({ type: 'success', text: 'ตั้งรหัส PIN 6 หลักเรียบร้อยแล้ว' });
+            window.alert('บันทึกรหัส PIN 6 หลักเรียบร้อยแล้ว!');
         } catch (err) {
             setFeedback({ type: 'error', text: err.message });
         } finally {
@@ -1632,7 +1633,11 @@ export default function Wallet() {
                                 <X size={18} />
                             </button>
                         </div>
-
+                              {feedback?.type === 'error' && (
+                            <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold">
+                                {feedback.text}
+                            </div>
+                        )}
                         {hasPin && (
                             <div>
                                 <label className="block text-xs font-bold text-slate-600 mb-1">รหัส PIN เดิม (6 หลัก)</label>
