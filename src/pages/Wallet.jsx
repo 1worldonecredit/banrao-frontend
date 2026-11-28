@@ -288,11 +288,16 @@ export default function Wallet() {
             const pinJson = await pinRes.json().catch(() => ({}));
             if (pinJson.success) setHasPin(Boolean(pinJson.has_pin));
 
-            const legalRes = await fetch(`${API_URL}/api/legal/wallet-opening-status?account_id=${encodeURIComponent(accountId)}`);
+              const legalRes = await fetch(`${API_URL}/api/legal/wallet-opening-status?account_id=${encodeURIComponent(accountId)}`);
             const legalJson = await legalRes.json().catch(() => ({}));
             if (legalJson.success) {
-                setHasOpeningConsent(Boolean(legalJson.has_consented));
+                const consented = Boolean(legalJson.has_consented);
+                setHasOpeningConsent(consented);
                 setOpeningDoc(legalJson.document || null);
+                // ถ้ายังไม่เคยยื่นคำขอเปิดบัญชี หรือยังไม่มีกระเป๋าเงินในระบบ -> แสดงคำขอเปิดบัญชีทันที
+                if (!consented || !wJson.wallets || wJson.wallets.length === 0) {
+                    setShowOpeningModal(true);
+                }
             }
 
 
@@ -434,6 +439,7 @@ export default function Wallet() {
             setShowOpeningModal(false);
             setOpeningPin('');
             setFeedback({ type: 'success', text: data.message });
+            await loadWalletData();
         } catch (err) {
             setFeedback({ type: 'error', text: err.message });
         } finally {
@@ -971,7 +977,22 @@ export default function Wallet() {
                         </div>
                     </div>
                 </div>
-
+                            {!loading && (!hasOpeningConsent || wallets.length === 0) && (
+                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 flex flex-wrap items-center justify-between gap-3">
+                        <div className="text-xs font-bold text-amber-950 flex items-center gap-2">
+                            <ShieldCheck size={18} className="text-amber-600 flex-shrink-0" />
+                            <span>คุณยังไม่ได้เปิดบัญชีกระเป๋าเงิน กรุณายื่นคำขอเปิดบัญชีเพื่อรับรหัส 10 หลักและเริ่มใช้งาน</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowOpeningModal(true)}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold"
+                        >
+                            เปิดบัญชีตอนนี้ (อนุมัติอัตโนมัติ)
+                        </button>
+                    </div>
+                )}
+                
                 {/* แถบเมนูทำรายการ 6 โหมด */}
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                     {[
