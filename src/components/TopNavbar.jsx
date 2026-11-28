@@ -65,6 +65,29 @@ const TopNavbar = () => {
     };
   }, []);
 
+
+  // ดึงยอดเงินล่าสุดจากเซิร์ฟเวอร์มาซิงค์บน Navbar อัตโนมัติเมื่อเปิดหน้าเว็บ
+  useEffect(() => {
+    const accId = userData?.account_id || userData?.id;
+    if (!accId) return;
+    let active = true;
+    fetch(`${API_URL}/api/wallets/my?account_id=${encodeURIComponent(accId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!active || !data?.success || !Array.isArray(data.wallets) || data.wallets.length === 0) return;
+        const latestBal = Number(data.wallets[0].balance || 0);
+        const current = JSON.parse(localStorage.getItem('userData') || '{}');
+        if (Number(current.wallet_balance || 0) !== latestBal) {
+          const updated = { ...current, wallet_balance: latestBal };
+          localStorage.setItem('userData', JSON.stringify(updated));
+          setUserData(updated);
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [userData?.account_id, userData?.id]);
+
+  
   const isLoggedIn = Boolean(userData && (userData.account_id || userData.id));
   const walletBalance = Number(userData?.wallet_balance || 0);
   const rawTier = String(userData?.package_tier || 'FREE').toUpperCase();
