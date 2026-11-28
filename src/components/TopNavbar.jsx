@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.banrao.life';
+
 const PACKAGE_BADGE_MAP = {
   FREE: {
     label: 'Free',
@@ -87,7 +89,7 @@ const TopNavbar = () => {
     return () => { active = false; };
   }, [userData?.account_id, userData?.id]);
 
-  
+
   const isLoggedIn = Boolean(userData && (userData.account_id || userData.id));
   const walletBalance = Number(userData?.wallet_balance || 0);
   const rawTier = String(userData?.package_tier || 'FREE').toUpperCase();
